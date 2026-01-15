@@ -9,9 +9,9 @@ The learning chess platform is intended for instructors in the organization who 
 The organization uploads and manages the learning content, and instructors can easily use it.
 
 ## Non‑Profit
-- Organization: [Non‑Profit Name]  
-- Primary stakeholder(s): Name — role — email  
-- Key deliverable for them: e.g., "Simple roster export and sign-up form."
+- Organization: Levelup  
+- Primary stakeholder(s): Abdullah Khatib — CEO — abdullah@shah2range.com  
+- Key deliverable for them: Instructor's dashboard to access organization-uploaded chess lessons
 
 ## Team
 - Team lead — Name — email — GitHub  
