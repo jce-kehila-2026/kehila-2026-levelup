@@ -5,7 +5,8 @@ teaching platform for "Levelup"
 - [Overview](#overview) • [Non‑Profit](#non-profit) • [Team](#team) • [Quick start](#quick-start) • [Handover](#handover) • [Privacy](#privacy) • [Contacts](#contacts)
 
 ## Overview
-Briefly describe what the project does, who it serves, and the main value (1–2 sentences).
+The learning chess platform is intended for instructors in the organization who teach chess to school students.
+The organization uploads and manages the learning content, and instructors can easily use it.
 
 ## Non‑Profit
 - Organization: [Non‑Profit Name]  
