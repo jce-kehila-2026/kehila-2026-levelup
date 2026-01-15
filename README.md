@@ -14,8 +14,10 @@ The organization uploads and manages the learning content, and instructors can e
 - Key deliverable for them: Instructor's dashboard to access organization-uploaded chess lessons
 
 ## Team
-- Team lead — Name — email — GitHub  
-- Members — Name — role — GitHub  
+- Team lead — Munir Atllah — muniratallah03@gmail.com — munirAtallah
+- Members — Ibrahim Al Hroub — member — GitHub
+            Qais Hijazi — member —
+            Ahmad Abu Gharbieh — member — 
 Include student IDs if required.
 
 ## Quick start (local)
@@ -44,8 +46,8 @@ List data collected (names, emails), storage location, and retention policy. Nev
 Briefly list major limitations or missing features and any workarounds.
 
 ## Contacts
-- Project lead: Name — email  
-- Non‑profit contact: Name — email  
+- Project lead: Munir Atallah — muniratallah03@gmail.com  
+- Non‑profit contact: abdullah Khatib — abdullah@shah2range.com   
 - Instructor / TA: Name — email
 
 ## License
