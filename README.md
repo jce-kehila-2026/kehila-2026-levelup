@@ -37,13 +37,19 @@ Open http://localhost:3000
 ## Handover (minimum)
 - [ ] Deployed URL + admin credentials (shared securely)  
 - [ ] HANDOVER.md with maintenance steps  
-- [ ] Add non‑profit staff as repo collaborators or transfer repo
+- [ ] Add non‑profit staff as repo collaborators or transfer repo- [ ] Add non‑profit staff as repo collaborators or transfer repo
 
-## Privacy & Security
-List data collected (names, emails), storage location, and retention policy. Never commit secrets; use environment variables and GitHub secrets.
+## Privacy & Security## Privacy & Security
 
-## Known limitations
-Briefly list major limitations or missing features and any workarounds.
+- Collects only user-provided data (e.g., names, emails) if entered.
+- Data is stored locally or in a configured database and kept only as needed.
+- Secrets are never committed; environment variables and GitHub Secrets are used.
+  
+## Known limitations## Known limitations
+
+- No authentication or rate limiting.
+- Basic validation and error handling only.
+- Not optimized for large-scale usage.
 
 ## Contacts
 - Project lead: Munir Atallah — muniratallah03@gmail.com  
