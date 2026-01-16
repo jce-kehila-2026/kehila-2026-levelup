@@ -5,8 +5,8 @@ teaching platform for "Levelup"
 - [Overview](#overview) • [Non‑Profit](#non-profit) • [Team](#team) • [Quick start](#quick-start) • [Handover](#handover) • [Privacy](#privacy) • [Contacts](#contacts)
 
 ## Overview
-The learning chess platform is intended for instructors in the organization who teach chess to school students.
-The organization uploads and manages the learning content, and instructors can easily use it.
+The learning chess platform is designed specifically for instructors within the organization who are responsible for teaching chess to school students. The organization centrally uploads, organizes, and maintains all instructional content, including lessons, exercises, and training materials, ensuring consistency and pedagogical alignment across programs. Instructors access this content through a structured and intuitive interface, allowing them to efficiently prepare lessons, conduct training sessions, and track student progress without the need for additional technical expertise. The platform is built to support instructional workflows, reduce administrative overhead, and provide instructors with reliable, ready-to-use resources that enhance the effectiveness of chess education in a school setting.
+
 
 ## Non‑Profit
 - Organization: Levelup  
