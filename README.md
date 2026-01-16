@@ -15,7 +15,7 @@ The organization uploads and manages the learning content, and instructors can e
 
 ## Team
 - Team lead — Munir Atllah — muniratallah03@gmail.com — munirAtallah
-- Members — Ibrahim Al Hroub — member — GitHub
+- Members — Ibrahim Al Hroub — member — 
             Qais Hijazi — member —
             Ahmad Abu Gharbieh — member — 
 Include student IDs if required.
