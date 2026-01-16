@@ -14,11 +14,23 @@ The organization uploads and manages the learning content, and instructors can e
 - Key deliverable for them: Instructor's dashboard to access organization-uploaded chess lessons
 
 ## Team
-- Team lead — Munir Atllah — muniratallah03@gmail.com — munirAtallah
-- Members — Ibrahim Al Hroub — member — GitHub
-            Qais Hijazi — member —
-            Ahmad Abu Gharbieh — member — 
-Include student IDs if required.
+
+### Team Lead
+- **Munir Atllah**  
+  Email: muniratallah03@gmail.com  
+  GitHub: munirAtallah
+
+### Team Members
+- **Ibrahim Al Hroub**  
+  Role: Team Member  
+
+- **Qais Hijazi**  
+  Role: Team Member  
+
+- **Ahmad Abu Gharbieh**  
+  Role: Team Member  
+
+> Student IDs can be added if required by the course.
 
 ## Quick start (local)
 1. git clone https://github.com/<org>/<repo>.git
