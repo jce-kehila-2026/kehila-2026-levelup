@@ -46,9 +46,9 @@ List data collected (names, emails), storage location, and retention policy. Nev
 Briefly list major limitations or missing features and any workarounds.
 
 ## Contacts
-- Project lead: Name — email
-Non‑profit contact: Name — email
-Instructor / TA: Name — email
+- Project lead: Munir Atallah — muniratallah03@gmail.com  
+- Non‑profit contact: abdullah Khatib — abdullah@shah2range.com   
+- Instructor / TA: Name — email
 
 ## License
 Specify license (e.g., MIT) and any IP/ownership notes relevant to the non‑profit.
