@@ -16,7 +16,7 @@ The learning chess platform is designed specifically for instructors within the 
 ## Team
 
 ### Team Lead
-- **Munir Atllah**  
+- **Munir Atallah**  
   Email: muniratallah03@gmail.com  
   GitHub: munirAtallah
 
