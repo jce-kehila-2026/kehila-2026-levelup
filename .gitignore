@@ -28,4 +28,4 @@ backend/privateKey.json
 # Firebase
 .firebase/
 .firebaserc
-lib/firebase_options.dart
+frontend/lib/firebase_options.dart
