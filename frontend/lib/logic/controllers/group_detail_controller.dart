@@ -35,15 +35,15 @@ class GroupDetailController extends ChangeNotifier {
   Future<void> _init() async {
     _isLoading = true;
     notifyListeners();
-    
-    group = await _groupRepository.getGroupById(groupId) ??
-      GroupModel(id: groupId, serialNumber: 0, name: 'Unknown Group', instructorIds: [], students: [], createdAt: DateTime.now());
-    
-    _allInstructors = await _userRepository.getInstructors();
-    _allStudents = await _userRepository.getStudents();
-    
-    _isLoading = false;
-    notifyListeners();
+    try {
+      group = await _groupRepository.getGroupById(groupId) ??
+        GroupModel(id: groupId, serialNumber: 0, name: 'Unknown Group', instructorIds: [], students: [], createdAt: DateTime.now());
+      _allInstructors = await _userRepository.getInstructors();
+      _allStudents = await _userRepository.getStudents();
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
   }
 
   // ── State ──────────────────────────────
@@ -52,11 +52,17 @@ class GroupDetailController extends ChangeNotifier {
   String _availableStudentsSearch = '';
   String? _selectedLevelFilter; // null means "All Levels"
 
+  /// Transient selection state for bulk-add dialog (selected student IDs).
+  final Set<String> _bulkSelectedStudentIds = {};
+
   // ── Getters ────────────────────────────
   String get search => _search;
   String get availableInstructorsSearch => _availableInstructorsSearch;
   String get availableStudentsSearch => _availableStudentsSearch;
   String? get selectedLevelFilter => _selectedLevelFilter;
+
+  Set<String> get bulkSelectedStudentIds => Set.unmodifiable(_bulkSelectedStudentIds);
+  int get bulkSelectionCount => _bulkSelectedStudentIds.length;
   
   List<UserModel> get groupInstructors {
     return _allInstructors.where((i) => group.instructorIds.contains(i.id)).toList();
@@ -138,6 +144,20 @@ class GroupDetailController extends ChangeNotifier {
     notifyListeners();
   }
 
+  void toggleBulkStudent(String studentId) {
+    if (_bulkSelectedStudentIds.contains(studentId)) {
+      _bulkSelectedStudentIds.remove(studentId);
+    } else {
+      _bulkSelectedStudentIds.add(studentId);
+    }
+    notifyListeners();
+  }
+
+  void clearBulkSelection() {
+    _bulkSelectedStudentIds.clear();
+    notifyListeners();
+  }
+
   Future<bool> deleteGroup() async {
     _isLoading = true;
     notifyListeners();
@@ -166,6 +186,65 @@ class GroupDetailController extends ChangeNotifier {
     await _groupRepository.addStudentToGroup(groupId, studentId, levelId);
     _availableStudentsSearch = '';
     await _init();
+  }
+
+  /// Adds all currently selected students to the group at the given global level,
+  /// with one _init() call at the end.
+  Future<void> bulkAddStudents(String levelId) async {
+    if (_bulkSelectedStudentIds.isEmpty) return;
+    // Snapshot before the first await: whenComplete() on the dialog Future fires
+    // while this method is suspended mid-loop, clearing _bulkSelectedStudentIds
+    // and causing a ConcurrentModificationError on the next iteration.
+    final idsToAdd = List<String>.from(_bulkSelectedStudentIds);
+    _isLoading = true;
+    notifyListeners();
+    try {
+      for (final studentId in idsToAdd) {
+        await _groupRepository.addStudentToGroup(groupId, studentId, levelId);
+      }
+      _bulkSelectedStudentIds.clear();
+      _availableStudentsSearch = '';
+      await _init();
+    } catch (_) {
+      _isLoading = false;
+      notifyListeners();
+      rethrow;
+    }
+  }
+
+  /// Creates multiple new students and adds them to the group in a single
+  /// operation, calling _init() only once at the end.
+  Future<List<UserModel>> bulkCreateStudents(
+      List<({String name, String levelId})> entries) async {
+    final created = <UserModel>[];
+    try {
+      for (final e in entries) {
+        final idx = _allStudents.length + created.length + 1001;
+        final studentNumber = '#$idx';
+        final username = _generateUsername(e.name);
+        final pinCode = (1000 + Random().nextInt(9000)).toString();
+        final student = UserModel(
+          id: studentNumber,
+          userNumber: idx,
+          name: e.name,
+          email: '${username.replaceAll('.', '')}@levelup.edu',
+          role: UserRole.student,
+          studentNumber: studentNumber,
+          username: username,
+          pinCode: pinCode,
+          lastActive: null,
+        );
+        _allStudents.add(student);
+        await _groupRepository.addStudentToGroup(groupId, studentNumber, e.levelId);
+        created.add(student);
+      }
+      await _init();
+      return created;
+    } catch (_) {
+      _isLoading = false;
+      notifyListeners();
+      rethrow;
+    }
   }
 
   Future<void> removeStudent(String studentId) async {

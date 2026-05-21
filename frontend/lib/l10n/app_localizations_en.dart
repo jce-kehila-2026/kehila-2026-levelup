@@ -1089,4 +1089,37 @@ class AppLocalizationsEn extends AppLocalizations {
   String nSelected(String count) {
     return '$count selected';
   }
+
+  @override
+  String get bulkCreateTitle => 'Create Students';
+
+  @override
+  String get addAnotherStudent => 'Add Another';
+
+  @override
+  String addNStudents(String count) {
+    return 'Add $count Students';
+  }
+
+  @override
+  String createNStudents(String count) {
+    return 'Create $count Students';
+  }
+
+  @override
+  String studentsCreatedBulk(String count) {
+    return '$count Students Created';
+  }
+
+  @override
+  String get enterNamesPerLine =>
+      'Enter or paste student names (one per line):';
+
+  @override
+  String get assignSelectedToLevel => 'Assign selected to:';
+
+  @override
+  String addNStudentsToLevel(String count, String level) {
+    return 'Add $count to $level';
+  }
 }

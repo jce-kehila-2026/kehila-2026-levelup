@@ -588,5 +588,23 @@
   "assignmentAssignedSuccess": "\"{title}\" assigned!",
   "@assignmentAssignedSuccess": { "placeholders": { "title": { "type": "String" } } },
   "nSelected": "{count} selected",
-  "@nSelected": { "placeholders": { "count": { "type": "String" } } }
+  "@nSelected": { "placeholders": { "count": { "type": "String" } } },
+
+  "bulkCreateTitle": "Create Students",
+  "addAnotherStudent": "Add Another",
+  "addNStudents": "Add {count} Students",
+  "@addNStudents": { "placeholders": { "count": { "type": "String" } } },
+  "createNStudents": "Create {count} Students",
+  "@createNStudents": { "placeholders": { "count": { "type": "String" } } },
+  "studentsCreatedBulk": "{count} Students Created",
+  "@studentsCreatedBulk": { "placeholders": { "count": { "type": "String" } } },
+  "enterNamesPerLine": "Enter or paste student names (one per line):",
+  "assignSelectedToLevel": "Assign selected to:",
+  "addNStudentsToLevel": "Add {count} to {level}",
+  "@addNStudentsToLevel": {
+    "placeholders": {
+      "count": { "type": "String" },
+      "level": { "type": "String" }
+    }
+  }
 }
