@@ -175,26 +175,25 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(color: AppColors.border),
                       ),
-                      child: Row(
+                      child: Wrap(
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        spacing: 8.0,
+                        runSpacing: 8.0,
                         children: [
                           Text(l10n.assignSelectedToLevel, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.mutedForeground)),
-                          const SizedBox(width: 8),
                           ...GroupDetailController.levelMap.entries.map((e) {
                             final sel = globalLevel == e.key;
-                            return Padding(
-                              padding: const EdgeInsetsDirectional.only(end: 6),
-                              child: GestureDetector(
-                                onTap: () => setDialogState(() => globalLevel = e.key),
-                                child: AnimatedContainer(
-                                  duration: const Duration(milliseconds: 120),
-                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-                                  decoration: BoxDecoration(
-                                    color: sel ? AppColors.primary : AppColors.background,
-                                    borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(color: sel ? AppColors.primary : AppColors.border),
-                                  ),
-                                  child: Text(e.value, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: sel ? Colors.white : AppColors.mutedForeground)),
+                            return GestureDetector(
+                              onTap: () => setDialogState(() => globalLevel = e.key),
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 120),
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                                decoration: BoxDecoration(
+                                  color: sel ? AppColors.primary : AppColors.background,
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: sel ? AppColors.primary : AppColors.border),
                                 ),
+                                child: Text(e.value, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: sel ? Colors.white : AppColors.mutedForeground)),
                               ),
                             );
                           }),
