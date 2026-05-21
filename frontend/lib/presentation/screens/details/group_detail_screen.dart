@@ -394,7 +394,13 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
         if (mounted) _showStudentCreatedDialog(student);
       } else {
         final students = await _controller.bulkCreateStudents(entries);
-        if (mounted) _showBulkStudentsCreatedDialog(students);
+        // Defer to post-frame so the loading-state rebuild finishes before
+        // we push a new route onto the overlay.
+        if (mounted) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) _showBulkStudentsCreatedDialog(students);
+          });
+        }
       }
     }).whenComplete(namesCtrl.dispose);
   }
@@ -461,75 +467,85 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
           backgroundColor: AppColors.white,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
           contentPadding: const EdgeInsets.all(24),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 60, height: 60,
-                decoration: BoxDecoration(color: AppColors.success.withValues(alpha: 0.12), shape: BoxShape.circle),
-                child: const Icon(Icons.check_circle, size: 36, color: AppColors.success),
-              ),
-              const SizedBox(height: 14),
-              Text(
-                l10n.studentsCreatedBulk(students.length.toString()),
-                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.text),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                l10n.shareCredentialsMsg,
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 13, color: AppColors.mutedForeground, height: 1.4),
-              ),
-              const SizedBox(height: 16),
-              SizedBox(
-                height: 300,
-                child: ListView.separated(
-                  itemCount: students.length,
-                  separatorBuilder: (_, _) => const SizedBox(height: 6),
-                  itemBuilder: (context, i) {
-                    final s = students[i];
-                    return ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: ExpansionTile(
-                        tilePadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
-                        childrenPadding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
-                        backgroundColor: AppColors.background,
-                        collapsedBackgroundColor: AppColors.background,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        collapsedShape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        leading: CircleAvatar(
-                          radius: 16,
-                          backgroundColor: AppColors.success.withValues(alpha: 0.12),
-                          child: const Icon(Icons.check, size: 16, color: AppColors.success),
+          // SizedBox(width: double.maxFinite) is required so that the
+          // AlertDialog's IntrinsicWidth pass gives the ListView a bounded
+          // horizontal constraint — without it the viewport throws.
+          content: SizedBox(
+            width: double.maxFinite,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 60, height: 60,
+                  decoration: BoxDecoration(color: AppColors.success.withValues(alpha: 0.12), shape: BoxShape.circle),
+                  child: const Icon(Icons.check_circle, size: 36, color: AppColors.success),
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  l10n.studentsCreatedBulk(students.length.toString()),
+                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.text),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  l10n.shareCredentialsMsg,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontSize: 13, color: AppColors.mutedForeground, height: 1.4),
+                ),
+                const SizedBox(height: 16),
+                // ConstrainedBox + shrinkWrap: list is no taller than its
+                // content, capped at 300. Avoids a fixed-height dead zone
+                // when fewer than ~4 students are created.
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxHeight: 300),
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: students.length,
+                    separatorBuilder: (_, _) => const SizedBox(height: 6),
+                    itemBuilder: (context, i) {
+                      final s = students[i];
+                      return ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: ExpansionTile(
+                          tilePadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+                          childrenPadding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
+                          backgroundColor: AppColors.background,
+                          collapsedBackgroundColor: AppColors.background,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          collapsedShape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          leading: CircleAvatar(
+                            radius: 16,
+                            backgroundColor: AppColors.success.withValues(alpha: 0.12),
+                            child: const Icon(Icons.check, size: 16, color: AppColors.success),
+                          ),
+                          title: Text(s.name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                          children: [
+                            _credentialRow(l10n.credUsername, s.username ?? '', Icons.alternate_email),
+                            const Divider(height: 14),
+                            _credentialRow(l10n.credPinCode, s.pinCode ?? '', Icons.lock),
+                            const Divider(height: 14),
+                            _credentialRow(l10n.credStudentNumber, s.studentNumber ?? '', Icons.tag),
+                          ],
                         ),
-                        title: Text(s.name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-                        children: [
-                          _credentialRow(l10n.credUsername, s.username ?? '', Icons.alternate_email),
-                          const Divider(height: 14),
-                          _credentialRow(l10n.credPinCode, s.pinCode ?? '', Icons.lock),
-                          const Divider(height: 14),
-                          _credentialRow(l10n.credStudentNumber, s.studentNumber ?? '', Icons.tag),
-                        ],
-                      ),
-                    );
-                  },
-                ),
-              ),
-              const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () => Navigator.pop(ctx),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      );
+                    },
                   ),
-                  child: Text(l10n.doneButton, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
                 ),
-              ),
-            ],
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    ),
+                    child: Text(l10n.doneButton, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                  ),
+                ),
+              ],
+            ),
           ),
         );
       },
