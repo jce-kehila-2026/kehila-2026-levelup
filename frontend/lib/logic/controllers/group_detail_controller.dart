@@ -35,15 +35,15 @@ class GroupDetailController extends ChangeNotifier {
   Future<void> _init() async {
     _isLoading = true;
     notifyListeners();
-    
-    group = await _groupRepository.getGroupById(groupId) ??
-      GroupModel(id: groupId, serialNumber: 0, name: 'Unknown Group', instructorIds: [], students: [], createdAt: DateTime.now());
-    
-    _allInstructors = await _userRepository.getInstructors();
-    _allStudents = await _userRepository.getStudents();
-    
-    _isLoading = false;
-    notifyListeners();
+    try {
+      group = await _groupRepository.getGroupById(groupId) ??
+        GroupModel(id: groupId, serialNumber: 0, name: 'Unknown Group', instructorIds: [], students: [], createdAt: DateTime.now());
+      _allInstructors = await _userRepository.getInstructors();
+      _allStudents = await _userRepository.getStudents();
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
   }
 
   // ── State ──────────────────────────────
@@ -194,12 +194,18 @@ class GroupDetailController extends ChangeNotifier {
     if (_bulkSelectedStudentIds.isEmpty) return;
     _isLoading = true;
     notifyListeners();
-    for (final studentId in _bulkSelectedStudentIds) {
-      await _groupRepository.addStudentToGroup(groupId, studentId, levelId);
+    try {
+      for (final studentId in _bulkSelectedStudentIds) {
+        await _groupRepository.addStudentToGroup(groupId, studentId, levelId);
+      }
+      _bulkSelectedStudentIds.clear();
+      _availableStudentsSearch = '';
+      await _init();
+    } catch (_) {
+      _isLoading = false;
+      notifyListeners();
+      rethrow;
     }
-    _bulkSelectedStudentIds.clear();
-    _availableStudentsSearch = '';
-    await _init();
   }
 
   /// Creates multiple new students and adds them to the group in a single
@@ -207,28 +213,34 @@ class GroupDetailController extends ChangeNotifier {
   Future<List<UserModel>> bulkCreateStudents(
       List<({String name, String levelId})> entries) async {
     final created = <UserModel>[];
-    for (final e in entries) {
-      final idx = _allStudents.length + created.length + 1001;
-      final studentNumber = '#$idx';
-      final username = _generateUsername(e.name);
-      final pinCode = (1000 + Random().nextInt(9000)).toString();
-      final student = UserModel(
-        id: studentNumber,
-        userNumber: idx,
-        name: e.name,
-        email: '${username.replaceAll('.', '')}@levelup.edu',
-        role: UserRole.student,
-        studentNumber: studentNumber,
-        username: username,
-        pinCode: pinCode,
-        lastActive: null,
-      );
-      _allStudents.add(student);
-      await _groupRepository.addStudentToGroup(groupId, studentNumber, e.levelId);
-      created.add(student);
+    try {
+      for (final e in entries) {
+        final idx = _allStudents.length + created.length + 1001;
+        final studentNumber = '#$idx';
+        final username = _generateUsername(e.name);
+        final pinCode = (1000 + Random().nextInt(9000)).toString();
+        final student = UserModel(
+          id: studentNumber,
+          userNumber: idx,
+          name: e.name,
+          email: '${username.replaceAll('.', '')}@levelup.edu',
+          role: UserRole.student,
+          studentNumber: studentNumber,
+          username: username,
+          pinCode: pinCode,
+          lastActive: null,
+        );
+        _allStudents.add(student);
+        await _groupRepository.addStudentToGroup(groupId, studentNumber, e.levelId);
+        created.add(student);
+      }
+      await _init();
+      return created;
+    } catch (_) {
+      _isLoading = false;
+      notifyListeners();
+      rethrow;
     }
-    await _init();
-    return created;
   }
 
   Future<void> removeStudent(String studentId) async {

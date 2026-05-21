@@ -166,37 +166,34 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                         ]),
                       ),
                     ),
-                    // Global level selector
+                    // Global level dropdown
                     Container(
                       margin: const EdgeInsets.only(bottom: 12),
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                       decoration: BoxDecoration(
                         color: AppColors.white,
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(color: AppColors.border),
                       ),
-                      child: Wrap(
-                        crossAxisAlignment: WrapCrossAlignment.center,
-                        spacing: 8.0,
-                        runSpacing: 8.0,
+                      child: Row(
                         children: [
                           Text(l10n.assignSelectedToLevel, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.mutedForeground)),
-                          ...GroupDetailController.levelMap.entries.map((e) {
-                            final sel = globalLevel == e.key;
-                            return GestureDetector(
-                              onTap: () => setDialogState(() => globalLevel = e.key),
-                              child: AnimatedContainer(
-                                duration: const Duration(milliseconds: 120),
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-                                decoration: BoxDecoration(
-                                  color: sel ? AppColors.primary : AppColors.background,
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(color: sel ? AppColors.primary : AppColors.border),
-                                ),
-                                child: Text(e.value, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: sel ? Colors.white : AppColors.mutedForeground)),
+                          const Spacer(),
+                          DropdownButton<String>(
+                            value: globalLevel,
+                            isDense: true,
+                            underline: const SizedBox.shrink(),
+                            borderRadius: BorderRadius.circular(12),
+                            icon: const Icon(Icons.expand_more, size: 16, color: AppColors.mutedForeground),
+                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.primaryDark),
+                            items: GroupDetailController.levelMap.entries.map((e) =>
+                              DropdownMenuItem(
+                                value: e.key,
+                                child: Text(e.value),
                               ),
-                            );
-                          }),
+                            ).toList(),
+                            onChanged: (v) { if (v != null) setDialogState(() => globalLevel = v); },
+                          ),
                         ],
                       ),
                     ),
@@ -272,7 +269,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
     final namesCtrl = TextEditingController();
     String selectedLevel = 'l1';
 
-    showDialog(
+    showDialog<List<({String name, String levelId})>>(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setDialogState) {
@@ -365,21 +362,16 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                 child: Text(l10n.cancelButton, style: TextStyle(color: AppColors.mutedForeground)),
               ),
               ElevatedButton(
-                onPressed: lines == 0 ? null : () async {
+                onPressed: lines == 0 ? null : () {
+                  // Synchronous pop — returns entries as the dialog result.
+                  // Async work runs in .then() below, after the barrier is gone.
                   final entries = namesCtrl.text
                       .split('\n')
                       .map((l) => l.trim())
                       .where((l) => l.isNotEmpty)
                       .map((name) => (name: name, levelId: selectedLevel))
                       .toList();
-                  Navigator.pop(ctx);
-                  if (entries.length == 1) {
-                    final student = await _controller.createStudent(entries[0].name, entries[0].levelId);
-                    if (mounted) _showStudentCreatedDialog(student);
-                  } else {
-                    final students = await _controller.bulkCreateStudents(entries);
-                    if (mounted) _showBulkStudentsCreatedDialog(students);
-                  }
+                  Navigator.pop(ctx, entries);
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
@@ -395,7 +387,16 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
           );
         },
       ),
-    ).whenComplete(namesCtrl.dispose);
+    ).then((entries) async {
+      if (entries == null || entries.isEmpty || !mounted) return;
+      if (entries.length == 1) {
+        final student = await _controller.createStudent(entries[0].name, entries[0].levelId);
+        if (mounted) _showStudentCreatedDialog(student);
+      } else {
+        final students = await _controller.bulkCreateStudents(entries);
+        if (mounted) _showBulkStudentsCreatedDialog(students);
+      }
+    }).whenComplete(namesCtrl.dispose);
   }
 
   void _showStudentCreatedDialog(UserModel student) {
