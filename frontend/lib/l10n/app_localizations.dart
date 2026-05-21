@@ -2053,6 +2053,54 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{count} selected'**
   String nSelected(String count);
+
+  /// No description provided for @bulkCreateTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Create Students'**
+  String get bulkCreateTitle;
+
+  /// No description provided for @addAnotherStudent.
+  ///
+  /// In en, this message translates to:
+  /// **'Add Another'**
+  String get addAnotherStudent;
+
+  /// No description provided for @addNStudents.
+  ///
+  /// In en, this message translates to:
+  /// **'Add {count} Students'**
+  String addNStudents(String count);
+
+  /// No description provided for @createNStudents.
+  ///
+  /// In en, this message translates to:
+  /// **'Create {count} Students'**
+  String createNStudents(String count);
+
+  /// No description provided for @studentsCreatedBulk.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} Students Created'**
+  String studentsCreatedBulk(String count);
+
+  /// No description provided for @enterNamesPerLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter or paste student names (one per line):'**
+  String get enterNamesPerLine;
+
+  /// No description provided for @assignSelectedToLevel.
+  ///
+  /// In en, this message translates to:
+  /// **'Assign selected to:'**
+  String get assignSelectedToLevel;
+
+  /// No description provided for @addNStudentsToLevel.
+  ///
+  /// In en, this message translates to:
+  /// **'Add {count} to {level}'**
+  String addNStudentsToLevel(String count, String level);
 }
 
 class _AppLocalizationsDelegate
