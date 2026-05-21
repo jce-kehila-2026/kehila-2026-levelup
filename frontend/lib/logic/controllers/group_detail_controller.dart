@@ -192,10 +192,14 @@ class GroupDetailController extends ChangeNotifier {
   /// with one _init() call at the end.
   Future<void> bulkAddStudents(String levelId) async {
     if (_bulkSelectedStudentIds.isEmpty) return;
+    // Snapshot before the first await: whenComplete() on the dialog Future fires
+    // while this method is suspended mid-loop, clearing _bulkSelectedStudentIds
+    // and causing a ConcurrentModificationError on the next iteration.
+    final idsToAdd = List<String>.from(_bulkSelectedStudentIds);
     _isLoading = true;
     notifyListeners();
     try {
-      for (final studentId in _bulkSelectedStudentIds) {
+      for (final studentId in idsToAdd) {
         await _groupRepository.addStudentToGroup(groupId, studentId, levelId);
       }
       _bulkSelectedStudentIds.clear();
