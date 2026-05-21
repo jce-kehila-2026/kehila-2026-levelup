@@ -1085,4 +1085,25 @@ class AppLocalizationsAr extends AppLocalizations {
   String nSelected(String count) {
     return '$count محدد';
   }
+
+  @override
+  String get bulkCreateTitle => 'إنشاء طلاب';
+
+  @override
+  String get addAnotherStudent => 'إضافة آخر';
+
+  @override
+  String addNStudents(String count) {
+    return 'إضافة $count طلاب';
+  }
+
+  @override
+  String createNStudents(String count) {
+    return 'إنشاء $count طلاب';
+  }
+
+  @override
+  String studentsCreatedBulk(String count) {
+    return 'تم إنشاء $count طلاب';
+  }
 }
