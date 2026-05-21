@@ -367,5 +367,14 @@
   "createNStudents": "إنشاء {count} طلاب",
   "@createNStudents": { "placeholders": { "count": { "type": "String" } } },
   "studentsCreatedBulk": "تم إنشاء {count} طلاب",
-  "@studentsCreatedBulk": { "placeholders": { "count": { "type": "String" } } }
+  "@studentsCreatedBulk": { "placeholders": { "count": { "type": "String" } } },
+  "enterNamesPerLine": "أدخل أسماء الطلاب أو الصقها (اسم في كل سطر):",
+  "assignSelectedToLevel": "إضافة المحددين إلى:",
+  "addNStudentsToLevel": "إضافة {count} إلى {level}",
+  "@addNStudentsToLevel": {
+    "placeholders": {
+      "count": { "type": "String" },
+      "level": { "type": "String" }
+    }
+  }
 }

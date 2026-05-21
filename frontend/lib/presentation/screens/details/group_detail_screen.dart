@@ -122,22 +122,26 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
   void _showAddStudentDialog() {
     _controller.setAvailableStudentsSearch('');
     _controller.clearBulkSelection();
+    String globalLevel = 'l1';
+
     showDialog(
       context: context,
-      builder: (ctx) {
-        return ListenableBuilder(
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) => ListenableBuilder(
           listenable: _controller,
           builder: (context, _) {
             final available = _controller.availableStudents;
             final selCount = _controller.bulkSelectionCount;
             final l10n = AppLocalizations.of(context)!;
+            final levelName = GroupDetailController.levelMap[globalLevel] ?? globalLevel;
+
             return AlertDialog(
               backgroundColor: AppColors.background,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
               title: Text(l10n.addStudent, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
               content: SizedBox(
                 width: double.maxFinite,
-                height: 420,
+                height: 460,
                 child: Column(
                   children: [
                     // Create New Student card
@@ -162,12 +166,46 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                         ]),
                       ),
                     ),
+                    // Global level selector
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: AppColors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: AppColors.border),
+                      ),
+                      child: Row(
+                        children: [
+                          Text(l10n.assignSelectedToLevel, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.mutedForeground)),
+                          const SizedBox(width: 8),
+                          ...GroupDetailController.levelMap.entries.map((e) {
+                            final sel = globalLevel == e.key;
+                            return Padding(
+                              padding: const EdgeInsetsDirectional.only(end: 6),
+                              child: GestureDetector(
+                                onTap: () => setDialogState(() => globalLevel = e.key),
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 120),
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                                  decoration: BoxDecoration(
+                                    color: sel ? AppColors.primary : AppColors.background,
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(color: sel ? AppColors.primary : AppColors.border),
+                                  ),
+                                  child: Text(e.value, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: sel ? Colors.white : AppColors.mutedForeground)),
+                                ),
+                              ),
+                            );
+                          }),
+                        ],
+                      ),
+                    ),
                     _buildDialogSearchBar(
                       onChanged: _controller.setAvailableStudentsSearch,
                       searchValue: _controller.availableStudentsSearch,
                       onClear: () => _controller.setAvailableStudentsSearch(''),
                     ),
-                    // Selection count chip
                     if (selCount > 0)
                       Padding(
                         padding: const EdgeInsets.only(bottom: 8),
@@ -193,14 +231,11 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                               itemCount: available.length,
                               itemBuilder: (context, index) {
                                 final student = available[index];
-                                final isSelected = _controller.bulkSelectionLevels.containsKey(student.id);
-                                final selectedLevel = _controller.bulkSelectionLevels[student.id] ?? 'l1';
+                                final isSelected = _controller.bulkSelectedStudentIds.contains(student.id);
                                 return _BulkSelectStudentTile(
                                   student: student,
                                   isSelected: isSelected,
-                                  selectedLevel: selectedLevel,
                                   onToggle: () => _controller.toggleBulkStudent(student.id),
-                                  onLevelChange: (lvl) => _controller.setBulkStudentLevel(student.id, lvl),
                                 );
                               },
                             ),
@@ -217,47 +252,36 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                   ElevatedButton(
                     onPressed: () async {
                       Navigator.pop(ctx);
-                      await _controller.bulkAddStudents();
+                      await _controller.bulkAddStudents(globalLevel);
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primary,
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                     ),
-                    child: Text(l10n.addNStudents(selCount.toString()), style: const TextStyle(fontWeight: FontWeight.bold)),
+                    child: Text(l10n.addNStudentsToLevel(selCount.toString(), levelName), style: const TextStyle(fontWeight: FontWeight.bold)),
                   ),
               ],
             );
           },
-        );
-      },
+        ),
+      ),
     ).whenComplete(() => _controller.clearBulkSelection());
   }
 
   void _showCreateStudentDialog() {
-    final controllers = [TextEditingController()];
-    final levels = ['l1'];
+    final namesCtrl = TextEditingController();
+    String selectedLevel = 'l1';
 
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setDialogState) {
           final l10n = AppLocalizations.of(context)!;
-          final nonEmptyCount = controllers.where((c) => c.text.trim().isNotEmpty).length;
-
-          void addRow() {
-            if (controllers.length >= 20) return;
-            controllers.add(TextEditingController());
-            levels.add('l1');
-            setDialogState(() {});
-          }
-
-          void removeRow(int i) {
-            controllers[i].dispose();
-            controllers.removeAt(i);
-            levels.removeAt(i);
-            setDialogState(() {});
-          }
+          final lines = namesCtrl.text
+              .split('\n')
+              .where((l) => l.trim().isNotEmpty)
+              .length;
 
           return AlertDialog(
             backgroundColor: AppColors.background,
@@ -269,78 +293,69 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
             ]),
             content: SizedBox(
               width: double.maxFinite,
-              height: 380,
               child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: ListView.builder(
-                      itemCount: controllers.length,
-                      itemBuilder: (context, i) {
-                        final sel = levels[i];
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 12),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: TextField(
-                                      controller: controllers[i],
-                                      autofocus: i == 0,
-                                      onChanged: (_) => setDialogState(() {}),
-                                      decoration: InputDecoration(
-                                        hintText: '${l10n.fullNameLabel} ${i + 1}',
-                                        prefixIcon: const Icon(Icons.badge_outlined, size: 18),
-                                        isDense: true,
-                                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.input, width: 1.5)),
-                                        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.primary, width: 1.5)),
-                                      ),
-                                    ),
-                                  ),
-                                  if (controllers.length > 1) ...[
-                                    const SizedBox(width: 6),
-                                    GestureDetector(
-                                      onTap: () => removeRow(i),
-                                      child: Icon(Icons.close, size: 18, color: AppColors.mutedForeground),
-                                    ),
-                                  ],
-                                ],
-                              ),
-                              const SizedBox(height: 6),
-                              Row(
-                                children: GroupDetailController.levelMap.entries.map((e) {
-                                  final isSelected = sel == e.key;
-                                  return Padding(
-                                    padding: const EdgeInsetsDirectional.only(end: 6),
-                                    child: GestureDetector(
-                                      onTap: () => setDialogState(() => levels[i] = e.key),
-                                      child: Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                        decoration: BoxDecoration(
-                                          color: isSelected ? AppColors.primary : AppColors.white,
-                                          borderRadius: BorderRadius.circular(8),
-                                          border: Border.all(color: isSelected ? AppColors.primary : AppColors.border),
-                                        ),
-                                        child: Text(e.value, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: isSelected ? Colors.white : AppColors.mutedForeground)),
-                                      ),
-                                    ),
-                                  );
-                                }).toList(),
-                              ),
-                              if (i < controllers.length - 1)
-                                const Padding(padding: EdgeInsets.only(top: 10), child: Divider(height: 1)),
-                            ],
-                          ),
-                        );
-                      },
+                  Text(
+                    l10n.enterNamesPerLine,
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.mutedForeground),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: namesCtrl,
+                    maxLines: 6,
+                    minLines: 4,
+                    autofocus: true,
+                    onChanged: (_) => setDialogState(() {}),
+                    decoration: InputDecoration(
+                      hintText: 'Lina Chen\nJames Walker\nفاطمة الزهراء',
+                      hintStyle: TextStyle(fontSize: 13, color: AppColors.mutedForeground.withValues(alpha: 0.6)),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: AppColors.input, width: 1.5),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+                      ),
+                      contentPadding: const EdgeInsets.all(14),
                     ),
                   ),
-                  TextButton.icon(
-                    onPressed: addRow,
-                    icon: const Icon(Icons.add, size: 16),
-                    label: Text(l10n.addAnotherStudent, style: const TextStyle(fontSize: 13)),
+                  const SizedBox(height: 14),
+                  Text(
+                    l10n.assignToLevel,
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.mutedForeground),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: GroupDetailController.levelMap.entries.map((e) {
+                      final sel = selectedLevel == e.key;
+                      return Padding(
+                        padding: const EdgeInsetsDirectional.only(end: 8),
+                        child: GestureDetector(
+                          onTap: () => setDialogState(() => selectedLevel = e.key),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 120),
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: sel ? AppColors.primary : AppColors.white,
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: sel ? AppColors.primary : AppColors.border),
+                            ),
+                            child: Text(
+                              e.value,
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: sel ? Colors.white : AppColors.mutedForeground,
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    }).toList(),
                   ),
                 ],
               ),
@@ -351,12 +366,13 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                 child: Text(l10n.cancelButton, style: TextStyle(color: AppColors.mutedForeground)),
               ),
               ElevatedButton(
-                onPressed: nonEmptyCount == 0 ? null : () async {
-                  final entries = [
-                    for (var i = 0; i < controllers.length; i++)
-                      if (controllers[i].text.trim().isNotEmpty)
-                        (name: controllers[i].text.trim(), levelId: levels[i]),
-                  ];
+                onPressed: lines == 0 ? null : () async {
+                  final entries = namesCtrl.text
+                      .split('\n')
+                      .map((l) => l.trim())
+                      .where((l) => l.isNotEmpty)
+                      .map((name) => (name: name, levelId: selectedLevel))
+                      .toList();
                   Navigator.pop(ctx);
                   if (entries.length == 1) {
                     final student = await _controller.createStudent(entries[0].name, entries[0].levelId);
@@ -372,7 +388,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                 ),
                 child: Text(
-                  nonEmptyCount <= 1 ? l10n.createButton : l10n.createNStudents(nonEmptyCount.toString()),
+                  lines <= 1 ? l10n.createButton : l10n.createNStudents(lines.toString()),
                   style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
               ),
@@ -380,11 +396,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
           );
         },
       ),
-    ).whenComplete(() {
-      for (final c in controllers) {
-        c.dispose();
-      }
-    });
+    ).whenComplete(namesCtrl.dispose);
   }
 
   void _showStudentCreatedDialog(UserModel student) {
@@ -1067,21 +1079,17 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
   }
 }
 
-// ── Private Widget: Bulk-select student tile (checkbox + level chips) ──
+// ── Private Widget: Bulk-select student tile (checkbox + name only) ──
 
 class _BulkSelectStudentTile extends StatelessWidget {
   final dynamic student;
   final bool isSelected;
-  final String selectedLevel;
   final VoidCallback onToggle;
-  final void Function(String levelId) onLevelChange;
 
   const _BulkSelectStudentTile({
     required this.student,
     required this.isSelected,
-    required this.selectedLevel,
     required this.onToggle,
-    required this.onLevelChange,
   });
 
   @override
@@ -1091,7 +1099,7 @@ class _BulkSelectStudentTile extends StatelessWidget {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),
         margin: const EdgeInsets.only(bottom: 4),
-        padding: const EdgeInsets.fromLTRB(8, 8, 12, 8),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
         decoration: BoxDecoration(
           color: isSelected ? AppColors.primary.withValues(alpha: 0.07) : Colors.transparent,
           borderRadius: BorderRadius.circular(10),
@@ -1099,70 +1107,26 @@ class _BulkSelectStudentTile extends StatelessWidget {
             color: isSelected ? AppColors.primary.withValues(alpha: 0.35) : Colors.transparent,
           ),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Row(
           children: [
-            Row(
-              children: [
-                Checkbox(
-                  value: isSelected,
-                  onChanged: (_) => onToggle(),
-                  activeColor: AppColors.primary,
-                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  visualDensity: VisualDensity.compact,
-                ),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(student.name as String, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-                      const SizedBox(height: 2),
-                      Text('@${student.username ?? student.userNumber}', style: const TextStyle(fontSize: 12, color: AppColors.mutedForeground)),
-                    ],
-                  ),
-                ),
-              ],
+            Checkbox(
+              value: isSelected,
+              onChanged: (_) => onToggle(),
+              activeColor: AppColors.primary,
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              visualDensity: VisualDensity.compact,
             ),
-            Padding(
-              padding: const EdgeInsetsDirectional.only(start: 42),
-              child: Row(
-                children: GroupDetailController.levelMap.entries.map((entry) {
-                  final active = selectedLevel == entry.key;
-                  final canTap = isSelected;
-                  return Padding(
-                    padding: const EdgeInsetsDirectional.only(end: 6),
-                    child: GestureDetector(
-                      onTap: canTap ? () => onLevelChange(entry.key) : null,
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 120),
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: active && isSelected ? AppColors.primary : AppColors.white,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color: active && isSelected ? AppColors.primary : AppColors.border,
-                          ),
-                        ),
-                        child: Text(
-                          entry.value,
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: active && isSelected
-                                ? Colors.white
-                                : isSelected
-                                    ? AppColors.mutedForeground
-                                    : AppColors.border,
-                          ),
-                        ),
-                      ),
-                    ),
-                  );
-                }).toList(),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(student.name as String, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                  const SizedBox(height: 2),
+                  Text('@${student.username ?? student.userNumber}', style: const TextStyle(fontSize: 12, color: AppColors.mutedForeground)),
+                ],
               ),
             ),
-            const Divider(height: 16),
           ],
         ),
       ),

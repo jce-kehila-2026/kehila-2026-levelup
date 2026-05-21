@@ -1106,4 +1106,16 @@ class AppLocalizationsAr extends AppLocalizations {
   String studentsCreatedBulk(String count) {
     return 'تم إنشاء $count طلاب';
   }
+
+  @override
+  String get enterNamesPerLine =>
+      'أدخل أسماء الطلاب أو الصقها (اسم في كل سطر):';
+
+  @override
+  String get assignSelectedToLevel => 'إضافة المحددين إلى:';
+
+  @override
+  String addNStudentsToLevel(String count, String level) {
+    return 'إضافة $count إلى $level';
+  }
 }

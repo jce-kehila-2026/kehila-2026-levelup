@@ -52,8 +52,8 @@ class GroupDetailController extends ChangeNotifier {
   String _availableStudentsSearch = '';
   String? _selectedLevelFilter; // null means "All Levels"
 
-  /// Transient selection state for bulk-add dialog (studentId → levelId).
-  final Map<String, String> _bulkSelectionLevels = {};
+  /// Transient selection state for bulk-add dialog (selected student IDs).
+  final Set<String> _bulkSelectedStudentIds = {};
 
   // ── Getters ────────────────────────────
   String get search => _search;
@@ -61,8 +61,8 @@ class GroupDetailController extends ChangeNotifier {
   String get availableStudentsSearch => _availableStudentsSearch;
   String? get selectedLevelFilter => _selectedLevelFilter;
 
-  Map<String, String> get bulkSelectionLevels => Map.unmodifiable(_bulkSelectionLevels);
-  int get bulkSelectionCount => _bulkSelectionLevels.length;
+  Set<String> get bulkSelectedStudentIds => Set.unmodifiable(_bulkSelectedStudentIds);
+  int get bulkSelectionCount => _bulkSelectedStudentIds.length;
   
   List<UserModel> get groupInstructors {
     return _allInstructors.where((i) => group.instructorIds.contains(i.id)).toList();
@@ -145,23 +145,16 @@ class GroupDetailController extends ChangeNotifier {
   }
 
   void toggleBulkStudent(String studentId) {
-    if (_bulkSelectionLevels.containsKey(studentId)) {
-      _bulkSelectionLevels.remove(studentId);
+    if (_bulkSelectedStudentIds.contains(studentId)) {
+      _bulkSelectedStudentIds.remove(studentId);
     } else {
-      _bulkSelectionLevels[studentId] = 'l1';
+      _bulkSelectedStudentIds.add(studentId);
     }
     notifyListeners();
   }
 
-  void setBulkStudentLevel(String studentId, String levelId) {
-    if (_bulkSelectionLevels.containsKey(studentId)) {
-      _bulkSelectionLevels[studentId] = levelId;
-      notifyListeners();
-    }
-  }
-
   void clearBulkSelection() {
-    _bulkSelectionLevels.clear();
+    _bulkSelectedStudentIds.clear();
     notifyListeners();
   }
 
@@ -195,16 +188,16 @@ class GroupDetailController extends ChangeNotifier {
     await _init();
   }
 
-  /// Adds all currently selected students (from _bulkSelectionLevels) to the group
-  /// in a single operation with one _init() call at the end.
-  Future<void> bulkAddStudents() async {
-    if (_bulkSelectionLevels.isEmpty) return;
+  /// Adds all currently selected students to the group at the given global level,
+  /// with one _init() call at the end.
+  Future<void> bulkAddStudents(String levelId) async {
+    if (_bulkSelectedStudentIds.isEmpty) return;
     _isLoading = true;
     notifyListeners();
-    for (final entry in _bulkSelectionLevels.entries) {
-      await _groupRepository.addStudentToGroup(groupId, entry.key, entry.value);
+    for (final studentId in _bulkSelectedStudentIds) {
+      await _groupRepository.addStudentToGroup(groupId, studentId, levelId);
     }
-    _bulkSelectionLevels.clear();
+    _bulkSelectedStudentIds.clear();
     _availableStudentsSearch = '';
     await _init();
   }

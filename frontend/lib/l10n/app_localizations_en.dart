@@ -1110,4 +1110,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String studentsCreatedBulk(String count) {
     return '$count Students Created';
   }
+
+  @override
+  String get enterNamesPerLine =>
+      'Enter or paste student names (one per line):';
+
+  @override
+  String get assignSelectedToLevel => 'Assign selected to:';
+
+  @override
+  String addNStudentsToLevel(String count, String level) {
+    return 'Add $count to $level';
+  }
 }
