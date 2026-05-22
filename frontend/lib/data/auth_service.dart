@@ -17,12 +17,12 @@ class AuthService {
     }
   }
 
-  Future<Map<String, dynamic>?> loginStudent(String username, String pinCode) async {
+  Future<Map<String, dynamic>?> loginStudent(String username, String pin) async {
     try {
       final querySnapshot = await _db
-          .collection('USERS')
+          .collection('users')
           .where('username', isEqualTo: username.trim())
-          .where('pinCode', isEqualTo: pinCode.trim())
+          .where('pin', isEqualTo: pin.trim())
           .where('role', isEqualTo: 'student')
           .limit(1)
           .get();

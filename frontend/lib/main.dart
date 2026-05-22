@@ -1,4 +1,6 @@
 import 'package:flutter/foundation.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart' show FlutterQuillLocalizations;
 import 'package:go_router/go_router.dart';
@@ -24,9 +26,16 @@ import 'data/repositories/assignment_repository.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+
   setupServiceLocator();
+
   final localeProvider = LocaleProvider();
   await localeProvider.load();
+  
   runApp(
     ChangeNotifierProvider.value(
       value: localeProvider,
