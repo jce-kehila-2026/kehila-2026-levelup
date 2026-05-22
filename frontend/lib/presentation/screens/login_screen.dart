@@ -246,7 +246,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             controller: _pinController,
                             decoration: InputDecoration(hintText: l10n.pinHint),
                             keyboardType: TextInputType.number,
-                            maxLength: 4,
+                            maxLength: 6,
                             obscureText: true,
                           ),
                         ],

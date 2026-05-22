@@ -26,9 +26,16 @@ import 'data/repositories/assignment_repository.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+
   setupServiceLocator();
+
   final localeProvider = LocaleProvider();
   await localeProvider.load();
+  
   runApp(
     ChangeNotifierProvider.value(
       value: localeProvider,
