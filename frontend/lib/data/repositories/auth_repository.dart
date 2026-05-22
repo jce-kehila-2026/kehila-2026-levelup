@@ -30,7 +30,7 @@ class AuthRepository {
     // Mock API delay
     await Future.delayed(const Duration(seconds: 1));
 
-    if (username == 'alex.r' || username == 'maya.p') {
+    if (username == 'alex.r' || username == 'maya.p' ) {
       return 'student';
     }
     return null;
