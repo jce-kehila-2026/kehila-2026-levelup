@@ -3,8 +3,10 @@
 library;
 
 import '../models/curriculum_model.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class CurriculumRepository {
+  final FirebaseFirestore _db = FirebaseFirestore.instance;
   final List<LevelModel> _levels = [
     LevelModel(
       id: 'l1',
@@ -154,33 +156,25 @@ class CurriculumRepository {
   ];
 
   /// Returns all levels in the curriculum.
-  Future<List<LevelModel>> getLevels() async {
-    // TODO: BACKEND_INTEGRATION - FIREBASE
-    // Action: Fetch the entire curriculum hierarchy (Levels > Weeks > Items).
-    // Expected Output: List of LevelModel containing embedded Weeks and CurriculumItems.
-    await Future.delayed(const Duration(milliseconds: 500));
-    return _levels;
+Future<List<LevelModel>> getLevels() async {
+    final snap = await _db.collection('curriculum').get();
+    return snap.docs
+        .map((doc) => LevelModel.fromMap(doc.data(), doc.id))
+        .toList();
   }
 
-  Future<CurriculumItem?> getLessonById(String id) async {
-    // TODO: BACKEND_INTEGRATION - FIREBASE
-    // Action: Fetch a specific CurriculumItem by its ID.
-    // Expected Output: Single CurriculumItem or null.
-    await Future.delayed(const Duration(milliseconds: 300));
-    for (final level in _levels) {
+Future<CurriculumItem?> getLessonById(String id) async {
+    final snap = await _db.collection('curriculum').get();
+    for (final doc in snap.docs) {
+      final level = LevelModel.fromMap(doc.data(), doc.id);
       for (final week in level.weeks) {
         for (final item in week.items) {
-          if ((id.isNotEmpty && item.id == id) || item.title == id) return item;
+          if (item.id == id) return item;
         }
       }
     }
-    // Fallback: first item (supports legacy callers with empty/unresolved IDs)
-    if (_levels.isNotEmpty && _levels.first.weeks.isNotEmpty && _levels.first.weeks.first.items.isNotEmpty) {
-      return _levels.first.weeks.first.items.first;
-    }
     return null;
   }
-
   /// Adds a new level.
   Future<void> addLevel(String name) async {
     // TODO: BACKEND_INTEGRATION - FIREBASE
