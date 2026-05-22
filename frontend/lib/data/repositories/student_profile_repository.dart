@@ -2,44 +2,57 @@
 /// Path: lib/data/repositories/student_profile_repository.dart
 library;
 
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/student_profile_model.dart';
 
 class StudentProfileRepository {
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _db = FirebaseFirestore.instance;
+
+  /// Returns the profile of the CURRENTLY LOGGED-IN student.
+  /// Uses Firebase Auth to know who's signed in, then reads their user doc.
   Future<StudentProfile> getProfile() async {
-    final profile = await getProfileById('1');
-    return profile!;
+    final uid = _auth.currentUser?.uid;
+    if (uid == null) {
+      throw Exception('No user is currently signed in.');
+    }
+    final profile = await getProfileById(uid);
+    if (profile == null) {
+      throw Exception('Profile not found for current user.');
+    }
+    return profile;
   }
 
-  /// Returns the raw PIN for the default profile.
-  Future<String> getPin() async {
-    final profile = await getProfileById('1');
-    return profile?.pinCode ?? '';
-  }
-
-  /// Returns a masked PIN (e.g. "**75") for display purposes.
-  Future<String> getMaskedPin() async {
-    final pin = await getPin();
-    if (pin.length <= 2) return '*' * pin.length;
-    final visible = pin.substring(pin.length - 2);
-    return '${'*' * (pin.length - 2)}$visible';
-  }
-
+  /// Reads a student's profile by their user document ID (== Auth UID).
   Future<StudentProfile?> getProfileById(String id) async {
-    await Future.delayed(const Duration(milliseconds: 300));
+    final doc = await _db.collection('users').doc(id).get();
+    if (!doc.exists) return null;
+    final data = doc.data()!;
+
+    // Fields that live directly on the user document.
     return StudentProfile(
-      id: id,
-      name: 'Alex Rivera',
-      username: 'alex.rivera',
-      studentId: '#1001',
-      level: 'Level 1',
-      group: 'Morning Group A',
-      instructorName: 'Mr. Smith',
-      submissions: 14,
-      graded: 12,
-      correct: 9,
-      studentNumber: '#1001',
-      pinCode: '9575',
-      lastActive: DateTime.now().subtract(const Duration(minutes: 2)),
+      id: doc.id,
+      name: data['name'] ?? '',
+      username: data['username'] ?? '',
+      studentId: data['studentNumber'] ?? '',
+      level: data['levelId'] ?? '',
+      // TODO: BACKEND_INTEGRATION - FIREBASE
+      // group, instructorName come from the groups collection (not built yet).
+      // submissions/graded/correct come from the submissions collection.
+      // Filled with safe defaults until those repos exist.
+      group: '—',
+      instructorName: '—',
+      submissions: (data['submissions'] ?? 0).toInt(),
+      graded: (data['graded'] ?? 0).toInt(),
+      correct: (data['correct'] ?? 0).toInt(),
+      studentNumber: data['studentNumber'],
+      pinCode: data['pinCode'],
+      lastActive: data['lastActive'] != null
+          ? (data['lastActive'] is Timestamp
+              ? (data['lastActive'] as Timestamp).toDate()
+              : DateTime.tryParse(data['lastActive'].toString()))
+          : null,
     );
   }
 }

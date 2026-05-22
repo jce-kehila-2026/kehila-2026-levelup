@@ -31,6 +31,8 @@ class AuthRepository {
       return null;
     } on FirebaseAuthException {
       return null;
+    } catch (_) {
+      return null;
     }
   }
 
