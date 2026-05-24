@@ -147,6 +147,91 @@ class _CurriculumScreenState extends State<CurriculumScreen> {
       ),
     );
   }
+
+  void _showEditLevelDialog(int levelIndex, LevelModel level) {
+    final nameCtrl = TextEditingController(text: level.name);
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.background,
+        title: const Text('Edit Level', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.text)),
+        content: TextField(
+          controller: nameCtrl,
+          autofocus: true,
+          decoration: InputDecoration(
+            labelText: AppLocalizations.of(context)!.levelNameLabel,
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(AppLocalizations.of(context)!.cancel, style: const TextStyle(color: AppColors.mutedForeground)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: AppColors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+            onPressed: () {
+              _controller.editLevel(levelIndex, nameCtrl.text.trim());
+              Navigator.pop(ctx);
+            },
+            child: Text(AppLocalizations.of(context)!.save, style: const TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showDeleteLevelDialog(int levelIndex, LevelModel level) async {
+    final count = await _controller.getStudentCountForLevel(level.id);
+    if (!mounted) return;
+
+    final bool? confirmed;
+    if (count == 0) {
+      confirmed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          backgroundColor: AppColors.background,
+          title: const Text('Delete Level?', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.text)),
+          content: Text('Delete "${level.name}"? This cannot be undone.'),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(AppLocalizations.of(context)!.cancel, style: const TextStyle(color: AppColors.mutedForeground))),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: AppColors.error, foregroundColor: AppColors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(AppLocalizations.of(context)!.delete, style: const TextStyle(fontWeight: FontWeight.bold)),
+            ),
+          ],
+        ),
+      );
+    } else {
+      confirmed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          backgroundColor: AppColors.background,
+          title: const Row(children: [
+            Icon(Icons.warning_amber_rounded, color: AppColors.error),
+            SizedBox(width: 8),
+            Text('Warning', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.error)),
+          ]),
+          content: Text(
+            'There are $count student${count == 1 ? '' : 's'} assigned to this level. '
+            'Deleting it will leave them unassigned.\n\nAre you absolutely sure you want to proceed?',
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(AppLocalizations.of(context)!.cancel, style: const TextStyle(color: AppColors.mutedForeground))),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: AppColors.error, foregroundColor: AppColors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Delete Anyway', style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (confirmed == true) _controller.deleteLevel(levelIndex);
+  }
+
   // -- Build ------------------------------------------
   @override
   Widget build(BuildContext context) {
@@ -290,7 +375,19 @@ class _CurriculumScreenState extends State<CurriculumScreen> {
                   const SizedBox(width: 10),
                   Expanded(child: Text(level.name, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.text))),
                   Text(AppLocalizations.of(context)!.weeksCount((level.weeks.length).toString()), style: const TextStyle(fontSize: 12, color: AppColors.mutedForeground)),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 4),
+                  PopupMenuButton<String>(
+                    icon: const Icon(Icons.more_vert, size: 18, color: AppColors.mutedForeground),
+                    padding: EdgeInsets.zero,
+                    onSelected: (val) {
+                      if (val == 'edit') _showEditLevelDialog(levelIndex, level);
+                      if (val == 'delete') _showDeleteLevelDialog(levelIndex, level);
+                    },
+                    itemBuilder: (_) => [
+                      const PopupMenuItem(value: 'edit', child: Row(children: [Icon(Icons.edit_outlined, size: 16), SizedBox(width: 8), Text('Edit')])),
+                      const PopupMenuItem(value: 'delete', child: Row(children: [Icon(Icons.delete_outline, size: 16, color: AppColors.error), SizedBox(width: 8), Text('Delete', style: TextStyle(color: AppColors.error))])),
+                    ],
+                  ),
                   Icon(isExpanded ? Icons.expand_less : Icons.expand_more, size: 18, color: AppColors.mutedForeground),
                 ],
               ),

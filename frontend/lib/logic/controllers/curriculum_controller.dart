@@ -6,15 +6,17 @@ import 'package:flutter/foundation.dart';
 import '../../data/models/curriculum_model.dart';
 import '../../data/repositories/curriculum_repository.dart';
 import '../../data/repositories/assignment_repository.dart';
+import '../../data/repositories/user_repository.dart';
 
 class CurriculumController extends ChangeNotifier {
   final CurriculumRepository _repository;
   final AssignmentRepository _assignmentRepository;
+  final UserRepository _userRepository;
 
   bool _isLoading = false;
   bool get isLoading => _isLoading;
 
-  CurriculumController(this._repository, this._assignmentRepository) {
+  CurriculumController(this._repository, this._assignmentRepository, this._userRepository) {
     _init();
   }
 
@@ -117,6 +119,30 @@ class CurriculumController extends ChangeNotifier {
     } else {
       _expandedWeeks.add(id);
     }
+    notifyListeners();
+  }
+
+  Future<int> getStudentCountForLevel(String levelId) =>
+      _userRepository.getStudentCountByLevel(levelId);
+
+  Future<void> editLevel(int levelIndex, String newName) async {
+    if (newName.isEmpty) return;
+    _isLoading = true;
+    notifyListeners();
+    await _repository.editLevel(_levels[levelIndex].id, newName);
+    _levels = await _repository.getLevels();
+    _isLoading = false;
+    notifyListeners();
+  }
+
+  Future<void> deleteLevel(int levelIndex) async {
+    final levelId = _levels[levelIndex].id;
+    _isLoading = true;
+    notifyListeners();
+    await _userRepository.unassignStudentsFromLevel(levelId);
+    await _repository.deleteLevel(levelId);
+    _levels = await _repository.getLevels();
+    _isLoading = false;
     notifyListeners();
   }
 

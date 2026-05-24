@@ -193,6 +193,23 @@ class CurriculumRepository {
     ));
   }
 
+  /// Updates the name of an existing level.
+  Future<void> editLevel(String levelId, String newName) async {
+    // TODO: BACKEND_INTEGRATION - FIREBASE
+    // Action: Update the 'name' field of the Level document.
+    await Future.delayed(const Duration(milliseconds: 300));
+    final index = _levels.indexWhere((l) => l.id == levelId);
+    if (index != -1) _levels[index].name = newName;
+  }
+
+  /// Deletes a level and all its nested weeks and items.
+  Future<void> deleteLevel(String levelId) async {
+    // TODO: BACKEND_INTEGRATION - FIREBASE
+    // Action: Delete the Level document and all nested Week/Item sub-documents.
+    await Future.delayed(const Duration(milliseconds: 300));
+    _levels.removeWhere((l) => l.id == levelId);
+  }
+
   /// Adds a new week to a level.
   Future<void> addWeek(int levelIndex, String name) async {
     // TODO: BACKEND_INTEGRATION - FIREBASE

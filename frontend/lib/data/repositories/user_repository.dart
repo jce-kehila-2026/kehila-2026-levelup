@@ -108,6 +108,31 @@ class UserRepository {
     }
   }
 
+  Future<int> getStudentCountByLevel(String levelId) async {
+    // TODO: BACKEND_INTEGRATION - FIREBASE
+    // Action: Count all students where levelId matches.
+    await Future.delayed(const Duration(milliseconds: 200));
+    return _students.where((s) => s.levelId == levelId).length;
+  }
+
+  Future<void> unassignStudentsFromLevel(String levelId) async {
+    // TODO: BACKEND_INTEGRATION - FIREBASE
+    // Action: Set levelId to null for all students assigned to this level.
+    await Future.delayed(const Duration(milliseconds: 300));
+    for (int i = 0; i < _students.length; i++) {
+      if (_students[i].levelId == levelId) {
+        final old = _students[i];
+        _students[i] = UserModel(
+          id: old.id, userNumber: old.userNumber, name: old.name,
+          role: old.role, levelId: null,
+          studentNumber: old.studentNumber, username: old.username,
+          pinCode: old.pinCode, lastActive: old.lastActive,
+          searchKeywords: old.searchKeywords,
+        );
+      }
+    }
+  }
+
   Future<void> addInstructor(String name, String email, String? phoneNumber, String? address, List<String> assignedLevels, {String? username}) async {
     // TODO(Phase 3): Firebase Auth — Generate random password and send password reset/welcome email
     // TODO: BACKEND_INTEGRATION - FIREBASE

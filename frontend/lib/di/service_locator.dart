@@ -73,7 +73,7 @@ void setupServiceLocator() {
     () => AdminDashboardController(getIt<AuditLogRepository>()),
   );
   getIt.registerLazySingleton<CurriculumController>(
-    () => CurriculumController(getIt<CurriculumRepository>(), getIt<AssignmentRepository>()),
+    () => CurriculumController(getIt<CurriculumRepository>(), getIt<AssignmentRepository>(), getIt<UserRepository>()),
   );
   getIt.registerLazySingleton<UserController>(
     () => UserController(getIt<UserRepository>()),
