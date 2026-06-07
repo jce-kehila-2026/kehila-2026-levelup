@@ -17,8 +17,8 @@ import '../../../di/service_locator.dart';
 import '../../widgets/empty_state.dart';
 import '../../widgets/lesson_card.dart';
 import '../../widgets/assignment_card.dart';
-import '../details/lesson_detail_screen.dart';
 import 'package:frontend/l10n/app_localizations.dart';
+import 'package:go_router/go_router.dart';
 
 class InstructorCurriculumScreen extends StatefulWidget {
   const InstructorCurriculumScreen({super.key});
@@ -96,7 +96,7 @@ class _InstructorCurriculumScreenState extends State<InstructorCurriculumScreen>
                                 searchTags: [result.contextLabel, ...item.searchTags],
                                 isVisible: item.visible,
                                 showToggle: false,
-                                onPress: () => Navigator.push(context, MaterialPageRoute(builder: (_) => LessonDetailScreen(id: item.title))),
+                                onPress: () => context.push('/lesson/${item.id}'),
                                 trailing: _buildAssignButton(item),
                               );
                             } else if (item.type == CurriculumItemType.assignment) {
@@ -109,7 +109,7 @@ class _InstructorCurriculumScreenState extends State<InstructorCurriculumScreen>
                                 pendingCount: 0,
                                 gradedCount: 0,
                                 isAdminView: true,
-                                onPress: () => Navigator.push(context, MaterialPageRoute(builder: (_) => LessonDetailScreen(id: item.title))),
+                                onPress: () => context.push('/lesson/${item.id}'),
                               );
                             }
                             return const SizedBox.shrink();
@@ -193,7 +193,7 @@ class _InstructorCurriculumScreenState extends State<InstructorCurriculumScreen>
                     searchTags: item.searchTags,
                     isVisible: item.visible,
                     showToggle: false,
-                    onPress: () => Navigator.push(context, MaterialPageRoute(builder: (_) => LessonDetailScreen(id: item.title))),
+                    onPress: () => context.push('/lesson/${item.id}'),
                     trailing: _buildAssignButton(item),
                   );
                 } else if (item.type == CurriculumItemType.assignment) {
@@ -206,7 +206,7 @@ class _InstructorCurriculumScreenState extends State<InstructorCurriculumScreen>
                     pendingCount: 0,
                     gradedCount: 0,
                     isAdminView: true,
-                    onPress: () => Navigator.push(context, MaterialPageRoute(builder: (_) => LessonDetailScreen(id: item.title))),
+                    onPress: () => context.push('/lesson/${item.id}'),
                   );
                 }
                 return const SizedBox.shrink();

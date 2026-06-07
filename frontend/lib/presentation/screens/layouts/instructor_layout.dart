@@ -3,6 +3,9 @@ import 'package:frontend/l10n/app_localizations.dart';
 import 'package:go_router/go_router.dart';
 import '../../../theme/app_theme.dart';
 import '../../widgets/locale_toggle_button.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import '../../../di/service_locator.dart';
+import '../../../logic/controllers/auth_controller.dart';
 
 import '../instructor/instructor_dashboard.dart';
 import '../instructor/groups_screen.dart';
@@ -19,12 +22,10 @@ class InstructorLayout extends StatefulWidget {
 }
 
 class _InstructorLayoutState extends State<InstructorLayout> {
-  int _currentIndex = 0;
-
   late final List<Widget> _screens = [
     InstructorDashboard(
-      onNavigateToGroups: () => setState(() => _currentIndex = 1),
-      onNavigateToAssignments: () => setState(() => _currentIndex = 3),
+      onNavigateToGroups:      () => context.go('/instructor?tab=1'),
+      onNavigateToAssignments: () => context.go('/instructor?tab=3'),
     ),
     const InstructorGroupsScreen(),
     const InstructorCurriculumScreen(),
@@ -43,13 +44,20 @@ class _InstructorLayoutState extends State<InstructorLayout> {
       ),
       child: IconButton(
         icon: const Icon(Icons.logout, size: 15, color: AppColors.mutedForeground),
-        onPressed: () => context.go('/'),
+        onPressed: () async {
+          getIt<AuthController>().reset();
+          await FirebaseAuth.instance.signOut();
+          if (context.mounted) context.go('/login');
+        },
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final tabParam = GoRouterState.of(context).uri.queryParameters['tab'];
+    final currentIndex = (int.tryParse(tabParam ?? '') ?? 0).clamp(0, 4);
+
     return Scaffold(
       appBar: AppBar(
         backgroundColor: AppColors.white,
@@ -70,14 +78,17 @@ class _InstructorLayoutState extends State<InstructorLayout> {
           const SizedBox(width: 8),
         ],
       ),
-      body: _screens[_currentIndex],
+      body: IndexedStack(
+        index: currentIndex,
+        children: _screens,
+      ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           border: Border(top: BorderSide(color: AppColors.border, width: 1)),
         ),
         child: BottomNavigationBar(
-          currentIndex: _currentIndex,
-          onTap: (index) => setState(() => _currentIndex = index),
+          currentIndex: currentIndex,
+          onTap: (i) => context.go('/instructor?tab=$i'),
           backgroundColor: AppColors.white,
           selectedItemColor: AppColors.primary,
           unselectedItemColor: AppColors.mutedForeground,

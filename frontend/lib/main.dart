@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'firebase_options.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart' show FlutterQuillLocalizations;
@@ -123,8 +125,85 @@ class LevelApp extends StatelessWidget {
   }
 }
 
+// ── NEW: reads the signed-in user's role from Firestore ──────────────────────
+Future<String?> _getRole() async {
+  final user = FirebaseAuth.instance.currentUser;
+  if (user == null) return null;
+  try {
+    final doc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(user.uid)
+        .get();
+    return doc.data()?['role'] as String?;
+  } catch (_) {
+    return null;
+  }
+}
+
+// ── NEW: tells the router to re-check when login/logout happens ──────────────
+class _AuthNotifier extends ChangeNotifier {
+  _AuthNotifier() {
+    FirebaseAuth.instance.authStateChanges().listen((_) => notifyListeners());
+  }
+}
+
+// ── Router ───────────────────────────────────────────────────────────────────
 final GoRouter _router = GoRouter(
   initialLocation: '/login',
+  refreshListenable: _AuthNotifier(), // NEW
+  redirect: (context, state) async {  // NEW
+    final location = state.uri.toString();
+    final user = FirebaseAuth.instance.currentUser;
+
+    // Not signed in → send to login
+    if (user == null) {
+      if (location == '/login') return null;
+      return '/login';
+    }
+
+    // Signed in → get role
+    final role = await _getRole();
+
+    // Role missing → sign out and go to login
+    if (role == null) {
+      await FirebaseAuth.instance.signOut();
+      return '/login';
+    }
+
+    // Already on login → send to correct dashboard
+    if (location == '/login') {
+      return switch (role) {
+        'admin'      => '/admin',
+        'instructor' => '/instructor',
+        _            => '/student',
+      };
+    }
+
+    // Wrong role trying to access wrong page → redirect
+    final allowed = switch (role) {
+      'admin'      => ['/admin', '/assignment', '/group', '/lesson', '/student-detail'],
+      'instructor' => ['/instructor', '/assignment', '/group', '/lesson', '/student-detail'],
+      _            => ['/student', '/student-assignment', '/lesson'],
+    };
+
+    // Matches exact path, sub-paths (/p/...), or same path with query params (/p?...)
+    bool isAllowed(String loc, List<String> prefixes) {
+      for (final p in prefixes) {
+        if (loc == p || loc.startsWith('$p/') || loc.startsWith('$p?')) return true;
+      }
+      return false;
+    }
+
+    if (!isAllowed(location, allowed)) {
+      return switch (role) {
+        'admin'      => '/admin',
+        'instructor' => '/instructor',
+        _            => '/student',
+      };
+    }
+
+    return null;
+  },
   routes: [
     GoRoute(
       path: '/login',
@@ -155,7 +234,7 @@ final GoRouter _router = GoRouter(
       builder: (context, state) => LessonDetailScreen(id: state.pathParameters['id']!),
     ),
     GoRoute(
-      path: '/student/:id',
+      path: '/student-detail/:id',
       builder: (context, state) => StudentDetailScreen(id: state.pathParameters['id']!),
     ),
     GoRoute(

@@ -17,8 +17,8 @@ import '../../../logic/controllers/instructor_assignment_controller.dart';
 import '../../../logic/controllers/curriculum_controller.dart';
 import '../../../logic/controllers/instructor_group_controller.dart';
 import '../../../di/service_locator.dart';
-import '../details/assignment_detail_screen.dart';
 import 'package:frontend/l10n/app_localizations.dart';
+import 'package:go_router/go_router.dart';
 import 'instructor_assignment_editor_screen.dart';
 
 class InstructorAssignmentsScreen extends StatefulWidget {
@@ -402,7 +402,7 @@ class _InstructorAssignmentsScreenState extends State<InstructorAssignmentsScree
                           return AssignmentCard(
                             title: a.title, type: a.type, isActive: a.isActive, isOverdue: a.isOverdue,
                             deadlineText: a.deadlineText, groupName: a.groupName, pendingCount: a.pendingCount, gradedCount: a.gradedCount,
-                            onPress: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => AssignmentDetailScreen(id: a.id))),
+                            onPress: () => context.push('/assignment/${a.id}'),
                             trailing: PopupMenuButton<String>(
                               icon: const Icon(Icons.more_vert, size: 20, color: AppColors.mutedForeground),
                               padding: EdgeInsets.zero,

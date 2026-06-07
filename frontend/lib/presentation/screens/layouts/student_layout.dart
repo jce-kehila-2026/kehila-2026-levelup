@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/l10n/app_localizations.dart';
+import 'package:go_router/go_router.dart';
 import '../../../theme/app_theme.dart';
 import '../../widgets/locale_toggle_button.dart';
 
@@ -17,22 +18,23 @@ class StudentLayout extends StatefulWidget {
 }
 
 class _StudentLayoutState extends State<StudentLayout> {
-  int _currentIndex = 0;
-
   late final List<Widget> _screens = [
     StudentDashboard(
-      onNavigateToAssignments: () => setState(() => _currentIndex = 1),
-      onNavigateToNotifications: () => setState(() => _currentIndex = 2),
+      onNavigateToAssignments:   () => context.go('/student?tab=1'),
+      onNavigateToNotifications: () => context.go('/student?tab=2'),
     ),
     const StudentAssignmentsScreen(),
     StudentNotificationsScreen(
-      onNavigateToLearn: () => setState(() => _currentIndex = 0),
+      onNavigateToLearn: () => context.go('/student?tab=0'),
     ),
     const StudentProfileScreen(),
   ];
 
   @override
   Widget build(BuildContext context) {
+    final tabParam = GoRouterState.of(context).uri.queryParameters['tab'];
+    final currentIndex = (int.tryParse(tabParam ?? '') ?? 0).clamp(0, 3);
+
     return Scaffold(
       appBar: AppBar(
         backgroundColor: AppColors.white,
@@ -51,14 +53,17 @@ class _StudentLayoutState extends State<StudentLayout> {
           const SizedBox(width: 8),
         ],
       ),
-      body: _screens[_currentIndex],
+      body: IndexedStack(
+        index: currentIndex,
+        children: _screens,
+      ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           border: Border(top: BorderSide(color: AppColors.border, width: 1)),
         ),
         child: BottomNavigationBar(
-          currentIndex: _currentIndex,
-          onTap: (index) => setState(() => _currentIndex = index),
+          currentIndex: currentIndex,
+          onTap: (i) => context.go('/student?tab=$i'),
           backgroundColor: AppColors.white,
           selectedItemColor: AppColors.primary,
           unselectedItemColor: AppColors.mutedForeground,

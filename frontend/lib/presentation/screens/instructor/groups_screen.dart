@@ -8,12 +8,12 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import '../../../theme/app_theme.dart';
 import '../../../data/models/group_model.dart';
 import '../../widgets/group_card.dart';
 import '../../../logic/controllers/instructor_group_controller.dart';
 import '../../../di/service_locator.dart';
-import '../details/group_detail_screen.dart';
 import 'package:frontend/l10n/app_localizations.dart';
 
 class InstructorGroupsScreen extends StatefulWidget {
@@ -244,11 +244,7 @@ class _InstructorGroupsScreenState extends State<InstructorGroupsScreen> {
                         instructorsCount: group.instructorIds.length,
                         levelName: levelLabel,
                         studentsCount: group.studentIds.length,
-                        onPress: () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(builder: (_) => GroupDetailScreen(id: group.id)),
-                          );
-                        },
+                        onPress: () => context.push('/group/${group.id}'),
                         trailing: PopupMenuButton<String>(
                           icon: const Icon(Icons.more_vert, size: 18, color: AppColors.mutedForeground),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),

@@ -7,13 +7,13 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:frontend/l10n/app_localizations.dart';
 import '../../../theme/app_theme.dart';
 import '../../widgets/group_card.dart';
 import '../../widgets/empty_state.dart';
 import '../../../logic/controllers/group_controller.dart';
 import '../../../di/service_locator.dart';
-import '../details/group_detail_screen.dart';
 
 class GroupsScreen extends StatefulWidget {
   const GroupsScreen({super.key});
@@ -170,12 +170,7 @@ class _GroupsScreenState extends State<GroupsScreen> {
                                 instructorsCount: group.instructorIds.length,
                                 levelName: levelLabel,
                                 studentsCount: group.studentIds.length,
-                                onPress: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(builder: (_) => GroupDetailScreen(id: group.id)),
-                                  );
-                                },
+                                onPress: () => context.push('/group/${group.id}'),
                               ),
                             );
                           },
