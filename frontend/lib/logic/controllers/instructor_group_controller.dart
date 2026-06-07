@@ -23,13 +23,23 @@ class InstructorGroupController extends ChangeNotifier {
     _init();
   }
 
+  String? _error;
+  String? get error => _error;
+
   Future<void> _init() async {
     _isLoading = true;
+    _error = null;
     notifyListeners();
-    _groups = await _groupRepository.getGroups();
-    _allStudents = await _userRepository.getStudents();
-    _isLoading = false;
-    notifyListeners();
+    try {
+      _groups = await _groupRepository.getGroups();
+      _allStudents = await _userRepository.getStudents();
+    } catch (e) {
+      _error = e.toString();
+      debugPrint('InstructorGroupController._init error: $e');
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
   }
 
   // ── State ──────────────────────────────

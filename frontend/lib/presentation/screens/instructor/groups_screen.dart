@@ -181,6 +181,31 @@ class _InstructorGroupsScreenState extends State<InstructorGroupsScreen> {
         if (_controller.isLoading) {
           return const Scaffold(body: Center(child: CircularProgressIndicator()));
         }
+        if (_controller.error != null) {
+          return Scaffold(
+            body: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.error_outline, color: Colors.red, size: 48),
+                    const SizedBox(height: 16),
+                    const Text('Failed to load groups', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                    const SizedBox(height: 8),
+                    Text(_controller.error!, style: const TextStyle(fontSize: 12, color: Colors.grey), textAlign: TextAlign.center),
+                    const SizedBox(height: 20),
+                    ElevatedButton(
+                      onPressed: () => _controller.refresh(),
+                      style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: Colors.white),
+                      child: const Text('Retry'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        }
         final groups = _controller.myGroups;
 
         return Scaffold(

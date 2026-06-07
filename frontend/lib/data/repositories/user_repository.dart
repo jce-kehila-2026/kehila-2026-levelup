@@ -2,213 +2,212 @@
 /// Path: lib/data/repositories/user_repository.dart
 library;
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/user_model.dart';
 
 class UserRepository {
-  int _nextInstructorNumber = 4; // Next available (2 and 3 are taken by mock data)
+  final FirebaseFirestore _db = FirebaseFirestore.instance;
+  CollectionReference<Map<String, dynamic>> get _users =>
+      _db.collection('users');
 
-  final List<UserModel> _instructors = [
-    // Arabic instructor name — tests RTL rendering in instructor lists
-    UserModel(
-      id: '#2', userNumber: 2, name: 'د. أحمد الشريف',
-      email: 'ahmed@levelup.edu', phoneNumber: '+1234567890',
-      address: '123 Main St, City',
-      role: UserRole.instructor,
-      assignedLevels: ['l1', 'l2'],
-      searchKeywords: ['ahmed', 'alsharif', 'instructor', 'level1', 'level2'],
-    ),
-    UserModel(
-      id: '#3', userNumber: 3, name: 'Sarah Jenkins',
-      email: 'sarah.j@levelup.edu', phoneNumber: '+0987654321',
-      address: '456 Elm St, Town',
-      role: UserRole.instructor,
-      assignedLevels: ['l2', 'l3'],
-      searchKeywords: ['sarah', 'jenkins', 'instructor', 'level2', 'level3'],
-    ),
-  ];
+  DocumentReference<Map<String, dynamic>> get _staffCounter =>
+      _db.collection('counters').doc('staff');
 
-  final List<UserModel> _students = [
-    UserModel(
-      id: '#1001', userNumber: 1001, name: 'Alex Rivera',
-      role: UserRole.student,
-      levelId: 'l1',
-      studentNumber: '#1001', username: 'alex.rivera', pinCode: '9575',
-      lastActive: DateTime.now().subtract(const Duration(minutes: 2)),
-      searchKeywords: ['alex', 'rivera', 'student', 'l1'],
-    ),
-    UserModel(
-      id: '#1002', userNumber: 1002, name: 'Maya Patel',
-      role: UserRole.student,
-      levelId: 'l2',
-      studentNumber: '#1002', username: 'maya.patel', pinCode: '3812',
-      lastActive: DateTime.now().subtract(const Duration(hours: 1, minutes: 20)),
-      searchKeywords: ['maya', 'patel', 'student', 'l2'],
-    ),
-    // Arabic student name — coexists with English names for mixed RTL/LTR rendering
-    UserModel(
-      id: '#1003', userNumber: 1003, name: 'عمر حسان',
-      role: UserRole.student,
-      levelId: 'l2',
-      studentNumber: '#1003', username: 'omar.hassan', pinCode: '6204',
-      lastActive: DateTime.now().subtract(const Duration(minutes: 45)),
-      searchKeywords: ['omar', 'hassan', 'student', 'l2'],
-    ),
-    UserModel(
-      id: '#1004', userNumber: 1004, name: 'Lina Chen',
-      role: UserRole.student,
-      levelId: 'l1',
-      studentNumber: '#1004', username: 'lina.chen', pinCode: '7731',
-      lastActive: DateTime.now().subtract(const Duration(days: 2)),
-      searchKeywords: ['lina', 'chen', 'student', 'l1'],
-    ),
-    UserModel(
-      id: '#1005', userNumber: 1005, name: 'James Walker',
-      role: UserRole.student,
-      levelId: 'l1',
-      studentNumber: '#1005', username: 'james.walker', pinCode: '1489',
-      lastActive: DateTime.now().subtract(const Duration(minutes: 1)),
-      searchKeywords: ['james', 'walker', 'student', 'l1'],
-    ),
-    // Arabic student name — tests how cards handle RTL text alongside English peers
-    UserModel(
-      id: '#1006', userNumber: 1006, name: 'فاطمة الزهراء',
-      role: UserRole.student,
-      levelId: 'l1',
-      studentNumber: '#1006', username: 'fatima.alzahra', pinCode: '5923',
-      lastActive: null, // Never active
-      searchKeywords: ['fatima', 'alzahra', 'student', 'l1'],
-    ),
-  ];
+  // ─────────────────────────────────────────────
+  // READ
+  // ─────────────────────────────────────────────
 
   Future<List<UserModel>> getInstructors() async {
-    // TODO: BACKEND_INTEGRATION - FIREBASE
-    // Action: Fetch all users where role == 'instructor'.
-    // Expected Output: List of UserModel.
-    await Future.delayed(const Duration(milliseconds: 500));
-    return _instructors;
+    final snap = await _users
+        .where('role', isEqualTo: 'instructor')
+        .get();
+    return snap.docs.map((d) => UserModel.fromMap(d.data(), d.id)).toList();
   }
 
   Future<List<UserModel>> getStudents() async {
-    // TODO: BACKEND_INTEGRATION - FIREBASE
-    // Action: Fetch all users where role == 'student'.
-    // Expected Output: List of UserModel.
-    await Future.delayed(const Duration(milliseconds: 500));
-    return _students;
+    final snap = await _users
+        .where('role', isEqualTo: 'student')
+        .get();
+    return snap.docs.map((d) => UserModel.fromMap(d.data(), d.id)).toList();
   }
 
   Future<UserModel?> getStudentById(String id) async {
-    // TODO: BACKEND_INTEGRATION - FIREBASE
-    // Action: Fetch a specific student by document ID.
-    // Expected Output: Single UserModel or null.
-    await Future.delayed(const Duration(milliseconds: 200));
-    try {
-      return _students.firstWhere((s) => s.id == id);
-    } catch (_) {
-      return null;
-    }
+    final doc = await _users.doc(id).get();
+    if (!doc.exists || doc.data() == null) return null;
+    return UserModel.fromMap(doc.data()!, doc.id);
   }
 
   Future<int> getStudentCountByLevel(String levelId) async {
-    // TODO: BACKEND_INTEGRATION - FIREBASE
-    // Action: Count all students where levelId matches.
-    await Future.delayed(const Duration(milliseconds: 200));
-    return _students.where((s) => s.levelId == levelId).length;
+    final snap = await _users
+        .where('role', isEqualTo: 'student')
+        .where('levelId', isEqualTo: levelId)
+        .count()
+        .get();
+    return snap.count ?? 0;
+  }
+
+  // ─────────────────────────────────────────────
+  // SEARCH
+  // ─────────────────────────────────────────────
+
+  Future<List<UserModel>> searchUsers(String query, {String? role}) async {
+    final term = query.toLowerCase().trim();
+    if (term.isEmpty) return [];
+    var q = _users.where('searchKeywords', arrayContains: term);
+    if (role != null) q = q.where('role', isEqualTo: role);
+    final snap = await q.limit(20).get();
+    return snap.docs.map((d) => UserModel.fromMap(d.data(), d.id)).toList();
+  }
+
+  // ─────────────────────────────────────────────
+  // CREATE
+  // ─────────────────────────────────────────────
+
+  /// Creates an instructor directly in Firestore (no Cloud Function needed).
+  /// To allow login, create the Firebase Auth account manually in Firebase Console
+  /// using the same email address.
+  Future<void> addInstructor(
+    String name,
+    String email,
+    String? phoneNumber,
+    String? address,
+    List<String> assignedLevels, {
+    String? username,
+  }) async {
+    final userNumber = DateTime.now().millisecondsSinceEpoch % 1000000 + 100;
+    final searchKeywords = _buildKeywords(name, extra: ['instructor', email.toLowerCase()]);
+
+    final docRef = _users.doc();
+    await docRef.set({
+      'name': name,
+      'role': 'instructor',
+      'email': email.trim().toLowerCase(),
+      'phoneNumber': phoneNumber,
+      'address': address,
+      'assignedLevels': assignedLevels,
+      'userNumber': userNumber,
+      'searchKeywords': searchKeywords,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  /// Creates a student directly in Firestore (no Firebase Auth needed).
+  /// Students log in with username + PIN, not email/password.
+  /// Returns the new Firestore document ID (used as the student's ID).
+  Future<String> addStudent({
+    required String name,
+    required String username,
+    required String pinCode,
+    required String levelId,
+    required int userNumber,
+  }) async {
+    final searchKeywords = _buildKeywords(name, extra: ['student', levelId, username]);
+
+    // Create a new document with auto-generated ID
+    final docRef = _users.doc();
+
+    await docRef.set({
+      'name': name,
+      'role': 'student',
+      'username': username.toLowerCase(),
+      'pinCode': pinCode,
+      'levelId': levelId,
+      'userNumber': userNumber,
+      'studentNumber': '#$userNumber',
+      'searchKeywords': searchKeywords,
+      'createdAt': FieldValue.serverTimestamp(),
+      'lastActive': null,
+    });
+
+    return docRef.id;
+  }
+
+  // ─────────────────────────────────────────────
+  // UPDATE
+  // ─────────────────────────────────────────────
+
+  Future<void> updateInstructorProfile(
+    String instructorId,
+    String name,
+    String email,
+    String? phoneNumber,
+    String? address,
+  ) async {
+    await _users.doc(instructorId).update({
+      'name': name,
+      'email': email,
+      'phoneNumber': phoneNumber,
+      'address': address,
+      'searchKeywords': _buildKeywords(name, extra: ['instructor']),
+    });
+  }
+
+  Future<void> updateInstructorLevels(
+      String instructorId, List<String> levels) async {
+    await _users.doc(instructorId).update({'assignedLevels': levels});
+  }
+
+  Future<void> updateStudentLastActive(String studentId) async {
+    await _users.doc(studentId).update({
+      'lastActive': FieldValue.serverTimestamp(),
+    });
+  }
+
+  Future<void> updateStudentProfile(String studentId,
+      {String? pinCode, String? levelId}) async {
+    final updates = <String, dynamic>{};
+    if (pinCode != null) updates['pinCode'] = pinCode;
+    if (levelId != null) updates['levelId'] = levelId;
+    if (updates.isNotEmpty) await _users.doc(studentId).update(updates);
   }
 
   Future<void> unassignStudentsFromLevel(String levelId) async {
-    // TODO: BACKEND_INTEGRATION - FIREBASE
-    // Action: Set levelId to null for all students assigned to this level.
-    await Future.delayed(const Duration(milliseconds: 300));
-    for (int i = 0; i < _students.length; i++) {
-      if (_students[i].levelId == levelId) {
-        final old = _students[i];
-        _students[i] = UserModel(
-          id: old.id, userNumber: old.userNumber, name: old.name,
-          role: old.role, levelId: null,
-          studentNumber: old.studentNumber, username: old.username,
-          pinCode: old.pinCode, lastActive: old.lastActive,
-          searchKeywords: old.searchKeywords,
-        );
-      }
+    final snap = await _users
+        .where('role', isEqualTo: 'student')
+        .where('levelId', isEqualTo: levelId)
+        .get();
+    final batch = _db.batch();
+    for (final doc in snap.docs) {
+      batch.update(doc.reference, {'levelId': null});
     }
+    await batch.commit();
   }
 
-  Future<void> addInstructor(String name, String email, String? phoneNumber, String? address, List<String> assignedLevels, {String? username}) async {
-    // TODO(Phase 3): Firebase Auth — Generate random password and send password reset/welcome email
-    // TODO: BACKEND_INTEGRATION - FIREBASE
-    // Action: Create a new User document in Firestore AND a new Firebase Auth user.
-    // Expected Output: New document in 'users' collection where role == 'instructor'.
-    await Future.delayed(const Duration(milliseconds: 500));
-    final number = _nextInstructorNumber++;
-    _instructors.add(UserModel(
-      id: '#$number',
-      userNumber: number, // Instructors: 2–1000
-      name: name,
-      email: email.isEmpty ? 'new@levelup.edu' : email,
-      phoneNumber: phoneNumber,
-      address: address,
-      role: UserRole.instructor,
-      assignedLevels: assignedLevels,
-      username: username,
-      searchKeywords: name.toLowerCase().split(' ')
-        ..addAll(['instructor']),
-    ));
-  }
-
-  Future<void> updateInstructorLevels(String instructorId, List<String> levels) async {
-    // TODO: BACKEND_INTEGRATION - FIREBASE
-    // Action: Update the 'assignedLevels' array for a specific instructor.
-    await Future.delayed(const Duration(milliseconds: 300));
-    final index = _instructors.indexWhere((i) => i.id == instructorId);
-    if (index != -1) {
-      final old = _instructors[index];
-      _instructors[index] = UserModel(
-        id: old.id,
-        userNumber: old.userNumber,
-        name: old.name,
-        email: old.email,
-        phoneNumber: old.phoneNumber,
-        address: old.address,
-        role: old.role,
-        assignedLevels: levels,
-        searchKeywords: old.searchKeywords,
-      );
-    }
-  }
-
-  Future<void> updateInstructorProfile(String instructorId, String name, String email, String? phoneNumber, String? address) async {
-    // TODO: BACKEND_INTEGRATION - FIREBASE
-    // Action: Update 'name', 'email', 'phoneNumber', and 'address' fields for an instructor.
-    // Note: If email changes, also update Firebase Auth email.
-    await Future.delayed(const Duration(milliseconds: 300));
-    final index = _instructors.indexWhere((i) => i.id == instructorId);
-    if (index != -1) {
-      final old = _instructors[index];
-      _instructors[index] = UserModel(
-        id: old.id,
-        userNumber: old.userNumber,
-        name: name.isNotEmpty ? name : old.name,
-        email: email.isNotEmpty ? email : old.email,
-        phoneNumber: phoneNumber,
-        address: address,
-        role: old.role,
-        assignedLevels: old.assignedLevels,
-        searchKeywords: old.searchKeywords,
-      );
-    }
-  }
+  // ─────────────────────────────────────────────
+  // DELETE
+  // ─────────────────────────────────────────────
 
   Future<void> deleteInstructor(String instructorId) async {
-    // TODO: BACKEND_INTEGRATION - FIREBASE
-    // Action: Delete the instructor document AND disable/delete their Firebase Auth account.
-    await Future.delayed(const Duration(milliseconds: 300));
-    _instructors.removeWhere((i) => i.id == instructorId);
+    await _users.doc(instructorId).delete();
   }
 
   Future<void> deleteStudent(String studentId) async {
-    // TODO: BACKEND_INTEGRATION - FIREBASE
-    // Action: Delete the student document.
-    await Future.delayed(const Duration(milliseconds: 300));
-    _students.removeWhere((s) => s.id == studentId);
+    await _users.doc(studentId).delete();
+  }
+
+  // ─────────────────────────────────────────────
+  // HELPERS
+  // ─────────────────────────────────────────────
+
+  Future<int> _nextStaffNumber() async {
+    int next = 2;
+    await _db.runTransaction((t) async {
+      final snap = await t.get(_staffCounter);
+      final last = snap.exists ? (snap.data()?['lastNumber'] as int? ?? 1) : 1;
+      next = last + 1;
+      t.set(_staffCounter, {'lastNumber': next}, SetOptions(merge: true));
+    });
+    return next;
+  }
+
+  List<String> _buildKeywords(String name, {List<String> extra = const []}) {
+    final keywords = <String>{};
+    for (final part in name.toLowerCase().trim().split(RegExp(r'\s+'))) {
+      for (int i = 1; i <= part.length; i++) {
+        keywords.add(part.substring(0, i));
+      }
+    }
+    keywords.addAll(extra);
+    return keywords.toList();
   }
 }
