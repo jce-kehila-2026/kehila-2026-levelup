@@ -13,7 +13,7 @@ class GroupDetailController extends ChangeNotifier {
   final String groupId;
   final GroupRepository _groupRepository;
   final UserRepository _userRepository;
-  
+
   late GroupModel group;
   List<UserModel> _allInstructors = [];
   List<UserModel> _allStudents = [];
@@ -40,6 +40,8 @@ class GroupDetailController extends ChangeNotifier {
         GroupModel(id: groupId, serialNumber: 0, name: 'Unknown Group', instructorIds: [], students: [], createdAt: DateTime.now());
       _allInstructors = await _userRepository.getInstructors();
       _allStudents = await _userRepository.getStudents();
+    } catch (e) {
+      debugPrint('GroupDetailController._init error: $e');
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -50,9 +52,8 @@ class GroupDetailController extends ChangeNotifier {
   String _search = '';
   String _availableInstructorsSearch = '';
   String _availableStudentsSearch = '';
-  String? _selectedLevelFilter; // null means "All Levels"
+  String? _selectedLevelFilter;
 
-  /// Transient selection state for bulk-add dialog (selected student IDs).
   final Set<String> _bulkSelectedStudentIds = {};
 
   // ── Getters ────────────────────────────
@@ -63,7 +64,7 @@ class GroupDetailController extends ChangeNotifier {
 
   Set<String> get bulkSelectedStudentIds => Set.unmodifiable(_bulkSelectedStudentIds);
   int get bulkSelectionCount => _bulkSelectedStudentIds.length;
-  
+
   List<UserModel> get groupInstructors {
     return _allInstructors.where((i) => group.instructorIds.contains(i.id)).toList();
   }
@@ -75,18 +76,15 @@ class GroupDetailController extends ChangeNotifier {
     return available.where((i) => i.name.toLowerCase().contains(term) || (i.email ?? '').toLowerCase().contains(term)).toList();
   }
 
-  /// Returns students grouped by their academic level within this group.
-  /// The returned Map is ordered by level key (l1, l2, l3).
   Map<String, List<UserModel>> get studentsByLevel {
     final Map<String, List<UserModel>> result = {};
-    
+
     for (final entry in group.studentLevels.entries) {
       final studentId = entry.key;
       final levelId = entry.value;
       final user = _allStudents.where((s) => s.id == studentId).firstOrNull;
       if (user == null) continue;
 
-      // Apply search filter (name, username, studentNumber)
       if (_search.isNotEmpty) {
         final q = _search.toLowerCase();
         final matchesName = user.name.toLowerCase().contains(q);
@@ -95,7 +93,6 @@ class GroupDetailController extends ChangeNotifier {
         if (!matchesName && !matchesUsername && !matchesStudentNum) continue;
       }
 
-      // Apply level filter
       if (_selectedLevelFilter != null && _selectedLevelFilter != levelId) {
         continue;
       }
@@ -104,14 +101,12 @@ class GroupDetailController extends ChangeNotifier {
       result[levelId]!.add(user);
     }
 
-    // Sort by level key so l1 appears before l2, etc.
     final sorted = Map.fromEntries(
       result.entries.toList()..sort((a, b) => a.key.compareTo(b.key)),
     );
     return sorted;
   }
 
-  /// Flat list of all students in the group (for count display, etc.)
   List<UserModel> get allGroupStudents {
     return _allStudents.where((s) => group.studentLevels.containsKey(s.id)).toList();
   }
@@ -120,29 +115,18 @@ class GroupDetailController extends ChangeNotifier {
     final available = _allStudents.where((s) => !group.studentLevels.containsKey(s.id)).toList();
     if (_availableStudentsSearch.isEmpty) return available;
     final term = _availableStudentsSearch.toLowerCase();
-    return available.where((s) => s.name.toLowerCase().contains(term) || (s.email ?? '').toLowerCase().contains(term)).toList();
+    return available.where((s) =>
+      s.name.toLowerCase().contains(term) ||
+      (s.username ?? '').toLowerCase().contains(term) ||
+      (s.studentNumber ?? '').toLowerCase().contains(term)
+    ).toList();
   }
 
   // ── Actions ────────────────────────────
-  void setSearch(String value) {
-    _search = value;
-    notifyListeners();
-  }
-
-  void setLevelFilter(String? levelId) {
-    _selectedLevelFilter = levelId;
-    notifyListeners();
-  }
-
-  void setAvailableInstructorsSearch(String value) {
-    _availableInstructorsSearch = value;
-    notifyListeners();
-  }
-
-  void setAvailableStudentsSearch(String value) {
-    _availableStudentsSearch = value;
-    notifyListeners();
-  }
+  void setSearch(String value) { _search = value; notifyListeners(); }
+  void setLevelFilter(String? levelId) { _selectedLevelFilter = levelId; notifyListeners(); }
+  void setAvailableInstructorsSearch(String value) { _availableInstructorsSearch = value; notifyListeners(); }
+  void setAvailableStudentsSearch(String value) { _availableStudentsSearch = value; notifyListeners(); }
 
   void toggleBulkStudent(String studentId) {
     if (_bulkSelectedStudentIds.contains(studentId)) {
@@ -183,64 +167,139 @@ class GroupDetailController extends ChangeNotifier {
   Future<void> addStudent(String studentId, String levelId) async {
     _isLoading = true;
     notifyListeners();
-    await _groupRepository.addStudentToGroup(groupId, studentId, levelId);
+    // Find the student to pass name & pin to the embed
+    final student = _allStudents.where((s) => s.id == studentId).firstOrNull;
+    await _groupRepository.addStudentToGroup(
+      groupId,
+      studentId,
+      levelId,
+      name: student?.name ?? '',
+      pin: student?.pinCode ?? '',
+    );
     _availableStudentsSearch = '';
     await _init();
   }
 
-  /// Adds all currently selected students to the group at the given global level,
-  /// with one _init() call at the end.
   Future<void> bulkAddStudents(String levelId) async {
     if (_bulkSelectedStudentIds.isEmpty) return;
-    // Snapshot before the first await: whenComplete() on the dialog Future fires
-    // while this method is suspended mid-loop, clearing _bulkSelectedStudentIds
-    // and causing a ConcurrentModificationError on the next iteration.
     final idsToAdd = List<String>.from(_bulkSelectedStudentIds);
     _isLoading = true;
     notifyListeners();
     try {
       for (final studentId in idsToAdd) {
-        await _groupRepository.addStudentToGroup(groupId, studentId, levelId);
+        final student = _allStudents.where((s) => s.id == studentId).firstOrNull;
+        await _groupRepository.addStudentToGroup(
+          groupId,
+          studentId,
+          levelId,
+          name: student?.name ?? '',
+          pin: student?.pinCode ?? '',
+        );
       }
       _bulkSelectedStudentIds.clear();
       _availableStudentsSearch = '';
       await _init();
-    } catch (_) {
+    } catch (e) {
       _isLoading = false;
       notifyListeners();
       rethrow;
     }
   }
 
-  /// Creates multiple new students and adds them to the group in a single
-  /// operation, calling _init() only once at the end.
+  /// Creates a new student via Cloud Function, then adds them to this group.
+  Future<UserModel> createStudent(String fullName, String levelId) async {
+    _isLoading = true;
+    notifyListeners();
+    try {
+      final username = _generateUsername(fullName);
+      final pinCode = (1000 + Random().nextInt(9000)).toString();
+      // Use timestamp-based userNumber to avoid needing counter transaction
+      final userNumber = DateTime.now().millisecondsSinceEpoch % 1000000 + 1000;
+
+      // ✅ Save to Firebase via Cloud Function
+      final uid = await _userRepository.addStudent(
+        name: fullName,
+        username: username,
+        pinCode: pinCode,
+        levelId: levelId,
+        userNumber: userNumber,
+      );
+
+      // Add to group with the real Firebase UID
+      await _groupRepository.addStudentToGroup(
+        groupId,
+        uid,
+        levelId,
+        name: fullName,
+        pin: pinCode,
+      );
+
+      await _init();
+
+      // Return UserModel with credentials to show in dialog
+      return UserModel(
+        id: uid,
+        userNumber: userNumber,
+        name: fullName,
+        email: '${username.replaceAll('_', '').replaceAll('.', '')}@levelup.edu',
+        role: UserRole.student,
+        studentNumber: '#$userNumber',
+        username: username,
+        pinCode: pinCode,
+        lastActive: null,
+      );
+    } catch (e) {
+      _isLoading = false;
+      notifyListeners();
+      rethrow;
+    }
+  }
+
+  /// Creates multiple students via Cloud Function, then adds them all to this group.
   Future<List<UserModel>> bulkCreateStudents(
       List<({String name, String levelId})> entries) async {
+    _isLoading = true;
+    notifyListeners();
     final created = <UserModel>[];
     try {
       for (final e in entries) {
-        final idx = _allStudents.length + created.length + 1001;
-        final studentNumber = '#$idx';
         final username = _generateUsername(e.name);
         final pinCode = (1000 + Random().nextInt(9000)).toString();
-        final student = UserModel(
-          id: studentNumber,
-          userNumber: idx,
+        final userNumber = DateTime.now().millisecondsSinceEpoch % 1000000 + 1000 + created.length;
+
+        // ✅ Save to Firebase via Cloud Function
+        final uid = await _userRepository.addStudent(
           name: e.name,
-          email: '${username.replaceAll('.', '')}@levelup.edu',
+          username: username,
+          pinCode: pinCode,
+          levelId: e.levelId,
+          userNumber: userNumber,
+        );
+
+        // Add to group with real Firebase UID
+        await _groupRepository.addStudentToGroup(
+          groupId,
+          uid,
+          e.levelId,
+          name: e.name,
+          pin: pinCode,
+        );
+
+        created.add(UserModel(
+          id: uid,
+          userNumber: userNumber,
+          name: e.name,
+          email: '${username.replaceAll('_', '').replaceAll('.', '')}@levelup.edu',
           role: UserRole.student,
-          studentNumber: studentNumber,
+          studentNumber: '#$userNumber',
           username: username,
           pinCode: pinCode,
           lastActive: null,
-        );
-        _allStudents.add(student);
-        await _groupRepository.addStudentToGroup(groupId, studentNumber, e.levelId);
-        created.add(student);
+        ));
       }
       await _init();
       return created;
-    } catch (_) {
+    } catch (e) {
       _isLoading = false;
       notifyListeners();
       rethrow;
@@ -254,7 +313,6 @@ class GroupDetailController extends ChangeNotifier {
     await _init();
   }
 
-  /// Permanently deletes a student from the group AND the user repository.
   Future<void> deleteStudent(String studentId) async {
     _isLoading = true;
     notifyListeners();
@@ -263,99 +321,7 @@ class GroupDetailController extends ChangeNotifier {
     await _init();
   }
 
-  /// Creates a new student, adds them to this group at the given level,
-  /// and returns the created UserModel with their credentials.
-  Future<UserModel> createStudent(String fullName, String levelId) async {
-    final random = Random();
-    final nextNumber = _allStudents.length + 1001;
-    final studentNumber = '#$nextNumber';
-    final username = _generateUsername(fullName);
-    final pinCode = (1000 + random.nextInt(9000)).toString();
-
-    final student = UserModel(
-      id: studentNumber,
-      userNumber: nextNumber,
-      name: fullName,
-      email: '${username.replaceAll('.', '')}@levelup.edu',
-      role: UserRole.student,
-      studentNumber: studentNumber,
-      username: username,
-      pinCode: pinCode,
-      lastActive: null,
-    );
-
-    _allStudents.add(student);
-    await _groupRepository.addStudentToGroup(groupId, studentNumber, levelId);
-    await _init();
-    return student;
-  }
-
-  /// Generates a clean, lowercase, URL-safe English username.
-  /// Uses a transliteration map for common Arabic/Hebrew characters,
-  /// and always appends a unique 4-digit suffix for guaranteed uniqueness.
-  String _generateUsername(String fullName) {
-    // Common Arabic → English transliteration map
-    const Map<String, String> transliterationMap = {
-      'أ': 'a', 'ا': 'a', 'إ': 'e', 'آ': 'a',
-      'ب': 'b', 'ت': 't', 'ث': 'th', 'ج': 'j',
-      'ح': 'h', 'خ': 'kh', 'د': 'd', 'ذ': 'th',
-      'ر': 'r', 'ز': 'z', 'س': 's', 'ش': 'sh',
-      'ص': 's', 'ض': 'd', 'ط': 't', 'ظ': 'z',
-      'ع': 'a', 'غ': 'gh', 'ف': 'f', 'ق': 'q',
-      'ك': 'k', 'ل': 'l', 'م': 'm', 'ن': 'n',
-      'ه': 'h', 'و': 'w', 'ي': 'y', 'ى': 'a',
-      'ة': 'h', 'ئ': 'e', 'ء': 'a', 'ؤ': 'o',
-      // Hebrew common letters
-      'א': 'a', 'ב': 'b', 'ג': 'g', 'ד': 'd',
-      'ה': 'h', 'ו': 'v', 'ז': 'z', 'ח': 'h',
-      'ט': 't', 'י': 'y', 'כ': 'k', 'ל': 'l',
-      'מ': 'm', 'נ': 'n', 'ס': 's', 'ע': 'a',
-      'פ': 'p', 'צ': 'ts', 'ק': 'q', 'ר': 'r',
-      'ש': 'sh', 'ת': 't',
-      // Common accented Latin → ASCII
-      'é': 'e', 'è': 'e', 'ê': 'e', 'ë': 'e',
-      'à': 'a', 'â': 'a', 'ä': 'a', 'á': 'a',
-      'ù': 'u', 'û': 'u', 'ü': 'u', 'ú': 'u',
-      'ô': 'o', 'ö': 'o', 'ò': 'o', 'ó': 'o',
-      'î': 'i', 'ï': 'i', 'ì': 'i', 'í': 'i',
-      'ç': 'c', 'ñ': 'n',
-    };
-
-    String transliterate(String input) {
-      final buffer = StringBuffer();
-      for (int i = 0; i < input.length; i++) {
-        final char = input[i];
-        final lower = char.toLowerCase();
-        if (transliterationMap.containsKey(lower)) {
-          buffer.write(transliterationMap[lower]);
-        } else if (RegExp(r'[a-z0-9._ ]').hasMatch(lower)) {
-          buffer.write(lower);
-        }
-        // Skip any other unrecognized characters
-      }
-      return buffer.toString();
-    }
-
-    final parts = fullName.trim().split(RegExp(r'\s+'));
-    String base;
-    if (parts.length >= 2) {
-      base = '${transliterate(parts[0])}.${transliterate(parts[1])}';
-    } else {
-      base = transliterate(parts[0]);
-    }
-
-    // Strip any remaining non-ASCII-safe characters after transliteration
-    final sanitized = base.toLowerCase().replaceAll(RegExp(r'[^a-z0-9._]'), '');
-
-    // Always append a unique 4-digit suffix for guaranteed uniqueness
-    final suffix = (1000 + Random().nextInt(9000)).toString();
-    if (sanitized.isEmpty) {
-      return 'student_$suffix';
-    }
-    return '${sanitized}_$suffix';
-  }
-
-  /// Resets the PIN for a student and returns the new PIN.
+  /// Resets the PIN for a student (in-memory only for display; real update via repo).
   String resetStudentPin(String studentId) {
     final random = Random();
     final newPin = (1000 + random.nextInt(9000)).toString();
@@ -379,5 +345,58 @@ class GroupDetailController extends ChangeNotifier {
       notifyListeners();
     }
     return newPin;
+  }
+
+  String _generateUsername(String fullName) {
+    const Map<String, String> transliterationMap = {
+      'أ': 'a', 'ا': 'a', 'إ': 'e', 'آ': 'a',
+      'ب': 'b', 'ت': 't', 'ث': 'th', 'ج': 'j',
+      'ح': 'h', 'خ': 'kh', 'د': 'd', 'ذ': 'th',
+      'ر': 'r', 'ز': 'z', 'س': 's', 'ش': 'sh',
+      'ص': 's', 'ض': 'd', 'ط': 't', 'ظ': 'z',
+      'ع': 'a', 'غ': 'gh', 'ف': 'f', 'ق': 'q',
+      'ك': 'k', 'ل': 'l', 'م': 'm', 'ن': 'n',
+      'ه': 'h', 'و': 'w', 'ي': 'y', 'ى': 'a',
+      'ة': 'h', 'ئ': 'e', 'ء': 'a', 'ؤ': 'o',
+      'א': 'a', 'ב': 'b', 'ג': 'g', 'ד': 'd',
+      'ה': 'h', 'ו': 'v', 'ז': 'z', 'ח': 'h',
+      'ט': 't', 'י': 'y', 'כ': 'k', 'ל': 'l',
+      'מ': 'm', 'נ': 'n', 'ס': 's', 'ע': 'a',
+      'פ': 'p', 'צ': 'ts', 'ק': 'q', 'ר': 'r',
+      'ש': 'sh', 'ת': 't',
+      'é': 'e', 'è': 'e', 'ê': 'e', 'ë': 'e',
+      'à': 'a', 'â': 'a', 'ä': 'a', 'á': 'a',
+      'ù': 'u', 'û': 'u', 'ü': 'u', 'ú': 'u',
+      'ô': 'o', 'ö': 'o', 'ò': 'o', 'ó': 'o',
+      'î': 'i', 'ï': 'i', 'ì': 'i', 'í': 'i',
+      'ç': 'c', 'ñ': 'n',
+    };
+
+    String transliterate(String input) {
+      final buffer = StringBuffer();
+      for (int i = 0; i < input.length; i++) {
+        final char = input[i];
+        final lower = char.toLowerCase();
+        if (transliterationMap.containsKey(lower)) {
+          buffer.write(transliterationMap[lower]);
+        } else if (RegExp(r'[a-z0-9._ ]').hasMatch(lower)) {
+          buffer.write(lower);
+        }
+      }
+      return buffer.toString();
+    }
+
+    final parts = fullName.trim().split(RegExp(r'\s+'));
+    String base;
+    if (parts.length >= 2) {
+      base = '${transliterate(parts[0])}.${transliterate(parts[1])}';
+    } else {
+      base = transliterate(parts[0]);
+    }
+
+    final sanitized = base.toLowerCase().replaceAll(RegExp(r'[^a-z0-9._]'), '');
+    final suffix = (1000 + Random().nextInt(9000)).toString();
+    if (sanitized.isEmpty) return 'student_$suffix';
+    return '${sanitized}_$suffix';
   }
 }

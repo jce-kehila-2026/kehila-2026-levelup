@@ -2,159 +2,223 @@
 /// Path: lib/data/repositories/group_repository.dart
 library;
 
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../models/group_model.dart';
 
 class GroupRepository {
-  final List<GroupModel> _groups = [
-    GroupModel(
-      id: '1', serialNumber: 1, name: 'Morning Group A',
-      instructorIds: ['#2'],
-      createdAt: DateTime.now().subtract(const Duration(days: 45)),
-      students: [
-        GroupStudentEmbed(id: '#1001', name: 'Alex Rivera', level: 'l1', pin: '9575', lastActive: DateTime.now().subtract(const Duration(minutes: 2))),
-        GroupStudentEmbed(id: '#1002', name: 'Maya Patel', level: 'l2', pin: '3812', lastActive: DateTime.now().subtract(const Duration(hours: 1, minutes: 20))),
-        GroupStudentEmbed(id: '#1005', name: 'James Walker', level: 'l1', pin: '1489', lastActive: DateTime.now().subtract(const Duration(minutes: 1))),
-      ],
-    ),
-    // Arabic group name — coexists with English names to test mixed RTL/LTR rendering
-    GroupModel(
-      id: '2', serialNumber: 2, name: 'المجموعة المسائية',
-      instructorIds: ['#3'],
-      createdAt: DateTime.now().subtract(const Duration(days: 30)),
-      students: [
-        GroupStudentEmbed(id: '#1001', name: 'Alex Rivera', level: 'l2', pin: '9575', lastActive: DateTime.now().subtract(const Duration(minutes: 2))),
-        GroupStudentEmbed(id: '#1003', name: 'عمر حسان', level: 'l2', pin: '6204', lastActive: DateTime.now().subtract(const Duration(minutes: 45))),
-      ],
-    ),
-    // Arabic group name — tests card layout when group title is RTL
-    GroupModel(
-      id: '3', serialNumber: 3, name: 'ورشة نهاية الأسبوع',
-      instructorIds: ['#2', '#3'],
-      createdAt: DateTime.now().subtract(const Duration(days: 15)),
-      students: [
-        GroupStudentEmbed(id: '#1002', name: 'Maya Patel', level: 'l1', pin: '3812', lastActive: DateTime.now().subtract(const Duration(hours: 1, minutes: 20))),
-        GroupStudentEmbed(id: '#1004', name: 'Lina Chen', level: 'l1', pin: '7731', lastActive: DateTime.now().subtract(const Duration(days: 2))),
-        GroupStudentEmbed(id: '#1006', name: 'فاطمة الزهراء', level: 'l1', pin: '5923', lastActive: null),
-      ],
-    ),
-    GroupModel(
-      id: '4', serialNumber: 4, name: 'Advanced Cohort',
-      instructorIds: ['#2'],
-      createdAt: DateTime.now().subtract(const Duration(days: 5)),
-      students: [
-        GroupStudentEmbed(id: '#1001', name: 'Alex Rivera', level: 'l3', pin: '9575', lastActive: DateTime.now().subtract(const Duration(minutes: 2))),
-        GroupStudentEmbed(id: '#1002', name: 'Maya Patel', level: 'l2', pin: '3812', lastActive: DateTime.now().subtract(const Duration(hours: 1, minutes: 20))),
-        GroupStudentEmbed(id: '#1003', name: 'عمر حسان', level: 'l3', pin: '6204', lastActive: DateTime.now().subtract(const Duration(minutes: 45))),
-      ],
-    ),
-  ];
+  final FirebaseFirestore _db = FirebaseFirestore.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
 
+  CollectionReference<Map<String, dynamic>> get _groups =>
+      _db.collection('groups');
+
+  // ─────────────────────────────────────────────
+  // READ
+  // ─────────────────────────────────────────────
+
+  /// Returns all groups.
+  /// Admins see everything; instructors see only groups they are assigned to.
   Future<List<GroupModel>> getGroups() async {
-    // TODO: BACKEND_INTEGRATION - FIREBASE
-    // Action: Fetch all groups (or filter by instructor if role-based).
-    // Expected Output: List of GroupModel.
-    await Future.delayed(const Duration(milliseconds: 500));
-    return _groups;
+    final uid = _auth.currentUser?.uid;
+
+    // Fetch the caller's role from Firestore to decide the query.
+    String? role;
+    if (uid != null) {
+      final userDoc = await _db.collection('users').doc(uid).get();
+      role = userDoc.data()?['role'] as String?;
+    }
+
+    QuerySnapshot<Map<String, dynamic>> snapshot;
+
+    if (role == 'admin') {
+      // Admins see all groups (no orderBy to avoid missing index).
+      snapshot = await _groups.get();
+    } else {
+      // Instructors see only their own groups (no orderBy to avoid composite index).
+      snapshot = await _groups
+          .where('instructorIds', arrayContains: uid)
+          .get();
+    }
+
+    final list = snapshot.docs
+        .map((doc) => GroupModel.fromMap(doc.data(), doc.id))
+        .toList();
+
+    // Sort in Dart to avoid requiring a Firestore composite index.
+    list.sort((a, b) => a.serialNumber.compareTo(b.serialNumber));
+    return list;
   }
 
+  /// Returns a single group by its Firestore document ID, or null if not found.
   Future<GroupModel?> getGroupById(String id) async {
-    // TODO: BACKEND_INTEGRATION - FIREBASE
-    // Action: Fetch a specific group by ID.
-    // Expected Output: Single GroupModel or null.
-    await Future.delayed(const Duration(milliseconds: 300));
-    try {
-      return _groups.firstWhere((g) => g.id == id);
-    } catch (_) {
-      return null;
-    }
+    final doc = await _groups.doc(id).get();
+    if (!doc.exists || doc.data() == null) return null;
+    return GroupModel.fromMap(doc.data()!, doc.id);
   }
 
+  // ─────────────────────────────────────────────
+  // CREATE
+  // ─────────────────────────────────────────────
+
+  /// Creates a new group document and returns the resulting [GroupModel].
   Future<GroupModel> createGroup(String name) async {
-    // TODO: BACKEND_INTEGRATION - FIREBASE
-    // Action: Create a new Group document.
-    // Expected Output: Create and return a new GroupModel.
-    await Future.delayed(const Duration(milliseconds: 300));
-    final newGroup = GroupModel(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      serialNumber: _groups.length + 1,
+    final uid = _auth.currentUser?.uid;
+    if (uid == null) throw Exception('Not authenticated');
+
+    // Get current group count to generate a clean sequential number (1, 2, 3...)
+    final countSnap = await _groups.count().get();
+    final serialNumber = (countSnap.count ?? 0) + 1;
+
+    final now = Timestamp.now();
+    final newDocRef = _groups.doc();
+
+    final data = <String, dynamic>{
+      'serialNumber': serialNumber,
+      'name': name,
+      'instructorIds': [uid],
+      'students': [],
+      'createdAt': now,
+    };
+
+    await newDocRef.set(data);
+
+    return GroupModel(
+      id: newDocRef.id,
+      serialNumber: serialNumber,
       name: name,
-      instructorIds: [],
-      students: [],
-      createdAt: DateTime.now(),
+      instructorIds: [uid],
+      students: const [],
+      createdAt: now.toDate(),
     );
-    _groups.add(newGroup);
-    return newGroup;
   }
 
-  Future<void> deleteGroup(String id) async {
-    // TODO: BACKEND_INTEGRATION - FIREBASE
-    // Action: Delete a specific group document.
-    await Future.delayed(const Duration(milliseconds: 500));
-    _groups.removeWhere((g) => g.id == id);
-  }
+  // ─────────────────────────────────────────────
+  // UPDATE — group metadata
+  // ─────────────────────────────────────────────
 
+  /// Renames a group.
   Future<void> updateGroup(String id, String newName) async {
-    // TODO: BACKEND_INTEGRATION - FIREBASE
-    // Action: Update the 'name' field of a specific group.
-    await Future.delayed(const Duration(milliseconds: 300));
-    final index = _groups.indexWhere((g) => g.id == id);
-    if (index != -1) {
-      final old = _groups[index];
-      _groups[index] = GroupModel(
-        id: old.id,
-        serialNumber: old.serialNumber,
-        name: newName,
-        instructorIds: old.instructorIds,
-        students: old.students,
-        createdAt: old.createdAt,
-      );
-    }
+    await _groups.doc(id).update({'name': newName});
   }
 
-  Future<void> addInstructorToGroup(String groupId, String instructorId) async {
-    // TODO: BACKEND_INTEGRATION - FIREBASE
-    // Action: Add an instructor ID to the group's 'instructorIds' array.
-    await Future.delayed(const Duration(milliseconds: 300));
-    final group = await getGroupById(groupId);
-    if (group != null && !group.instructorIds.contains(instructorId)) {
-      group.instructorIds.add(instructorId);
-    }
+  // ─────────────────────────────────────────────
+  // DELETE
+  // ─────────────────────────────────────────────
+
+  /// Deletes a group document permanently.
+  Future<void> deleteGroup(String id) async {
+    await _groups.doc(id).delete();
   }
 
-  Future<void> removeInstructorFromGroup(String groupId, String instructorId) async {
-    // TODO: BACKEND_INTEGRATION - FIREBASE
-    // Action: Remove an instructor ID from the group's 'instructorIds' array.
-    await Future.delayed(const Duration(milliseconds: 300));
-    final group = await getGroupById(groupId);
-    if (group != null) {
-      group.instructorIds.remove(instructorId);
-    }
+  // ─────────────────────────────────────────────
+  // UPDATE — instructors
+  // ─────────────────────────────────────────────
+
+  /// Adds an instructor UID to the group's [instructorIds] array.
+  Future<void> addInstructorToGroup(
+      String groupId, String instructorId) async {
+    await _groups.doc(groupId).update({
+      'instructorIds': FieldValue.arrayUnion([instructorId]),
+    });
   }
 
-  /// Adds a student embed to a group. Provide [name] and [pin] for a complete
-  /// embed; in Phase 3 this data comes from the UserModel before the Firestore write.
-  Future<void> addStudentToGroup(String groupId, String studentId, String levelId, {String name = '', String pin = ''}) async {
-    // TODO: BACKEND_INTEGRATION - FIREBASE
-    // Action: Add a GroupStudentEmbed object to the group's 'students' array.
-    await Future.delayed(const Duration(milliseconds: 300));
-    final group = await getGroupById(groupId);
-    if (group != null && !group.studentIds.contains(studentId)) {
-      group.students.add(GroupStudentEmbed(
-        id: studentId,
-        name: name.isNotEmpty ? name : studentId,
-        level: levelId,
-        pin: pin,
-      ));
-    }
+  /// Removes an instructor UID from the group's [instructorIds] array.
+  Future<void> removeInstructorFromGroup(
+      String groupId, String instructorId) async {
+    await _groups.doc(groupId).update({
+      'instructorIds': FieldValue.arrayRemove([instructorId]),
+    });
   }
 
-  Future<void> removeStudentFromGroup(String groupId, String studentId) async {
-    // TODO: BACKEND_INTEGRATION - FIREBASE
-    // Action: Remove a GroupStudentEmbed object from the group's 'students' array.
-    await Future.delayed(const Duration(milliseconds: 300));
+  // ─────────────────────────────────────────────
+  // UPDATE — students (embedded array)
+  // ─────────────────────────────────────────────
+
+  /// Embeds a [GroupStudentEmbed] object into the group's [students] array.
+  Future<void> addStudentToGroup(
+    String groupId,
+    String studentId,
+    String levelId, {
+    String name = '',
+    String pin = '',
+  }) async {
+    final embed = <String, dynamic>{
+      'id': studentId,
+      'name': name,
+      'level': levelId,
+      'pin': pin,
+      'lastActive': null,
+    };
+
+    final batch = _db.batch();
+
+    batch.update(_groups.doc(groupId), {
+      'students': FieldValue.arrayUnion([embed]),
+    });
+
+    // Use set+merge so it works even if groupId field doesn't exist yet on new student docs.
+    batch.set(_db.collection('users').doc(studentId), {
+      'groupId': groupId,
+    }, SetOptions(merge: true));
+
+    await batch.commit();
+  }
+
+  /// Removes a student embed from the group's [students] array.
+  Future<void> removeStudentFromGroup(
+      String groupId, String studentId) async {
     final group = await getGroupById(groupId);
-    if (group != null) {
-      group.students.removeWhere((s) => s.id == studentId);
-    }
+    if (group == null) return;
+
+    final embed = group.students
+        .where((s) => s.id == studentId)
+        .map((s) => s.toMap())
+        .toList();
+
+    if (embed.isEmpty) return;
+
+    final batch = _db.batch();
+
+    batch.update(_groups.doc(groupId), {
+      'students': FieldValue.arrayRemove(embed),
+    });
+
+    batch.update(_db.collection('users').doc(studentId), {
+      'groupId': FieldValue.delete(),
+    });
+
+    await batch.commit();
+  }
+
+  /// Updates the [lastActive] timestamp of a student embed inside a group.
+  Future<void> updateStudentLastActive(
+      String groupId, String studentId) async {
+    final group = await getGroupById(groupId);
+    if (group == null) return;
+
+    final updatedStudents = group.students.map((s) {
+      if (s.id != studentId) return s.toMap();
+      return {
+        ...s.toMap(),
+        'lastActive': DateTime.now().toIso8601String(),
+      };
+    }).toList();
+
+    await _groups.doc(groupId).update({'students': updatedStudents});
+  }
+
+  /// Updates the [pin] field of a student embed inside a group.
+  Future<void> updateStudentPinInGroup(
+      String groupId, String studentId, String newPin) async {
+    final group = await getGroupById(groupId);
+    if (group == null) return;
+
+    final updatedStudents = group.students.map((s) {
+      if (s.id != studentId) return s.toMap();
+      return {...s.toMap(), 'pin': newPin};
+    }).toList();
+
+    await _groups.doc(groupId).update({'students': updatedStudents});
   }
 }
