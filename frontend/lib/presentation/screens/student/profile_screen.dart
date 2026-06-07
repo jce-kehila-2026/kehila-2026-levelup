@@ -11,6 +11,8 @@ import '../../../theme/app_theme.dart';
 import '../../../logic/controllers/student_profile_controller.dart';
 import '../../../di/service_locator.dart';
 import 'package:frontend/l10n/app_localizations.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import '../../../logic/controllers/auth_controller.dart';
 
 class StudentProfileScreen extends StatelessWidget {
   const StudentProfileScreen({super.key});
@@ -136,10 +138,11 @@ class StudentProfileScreen extends StatelessWidget {
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     child: ElevatedButton.icon(
-                      onPressed: () {
-                        // In a real app, clear auth tokens here.
-                        context.go('/');
-                      },
+                      onPressed: () async {
+                          getIt<AuthController>().reset();
+                          await FirebaseAuth.instance.signOut();
+                          if (context.mounted) context.go('/login');
+                        },
                       style: ElevatedButton.styleFrom(backgroundColor: AppColors.error.withValues(alpha: 0.1), foregroundColor: AppColors.error, padding: const EdgeInsets.symmetric(vertical: 15), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14), side: BorderSide(color: AppColors.error.withValues(alpha: 0.2), width: 1.5)), elevation: 0),
                       icon: const Icon(Icons.logout, size: 16),
                       label: Text(AppLocalizations.of(context)!.signOut, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),

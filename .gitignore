@@ -25,10 +25,16 @@ dist-ssr
 backend/privateKey.json
 .env*
 
-# Firebase
+# Firebase credentials
+frontend/lib/firebase_options.dart
+frontend/android/app/google-services.json
+frontend/ios/Runner/GoogleService-Info.plist
+
+# Firebase local
 .firebase/
 .firebaserc
-frontend/lib/firebase_options.dartanalyze*.txt
+
+# Build artifacts
 android/build/
 build/
 .dart_tool/

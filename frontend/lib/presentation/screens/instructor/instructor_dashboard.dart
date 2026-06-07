@@ -7,9 +7,9 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import '../../../theme/app_theme.dart';
 import '../../widgets/assignment_card.dart';
-import '../details/assignment_detail_screen.dart';
 import '../../../logic/controllers/instructor_dashboard_controller.dart';
 import '../../../di/service_locator.dart';
 import 'package:frontend/l10n/app_localizations.dart';
@@ -297,12 +297,7 @@ class InstructorDashboard extends StatelessWidget {
                         pendingCount: a.pendingCount,
                         gradedCount: a.gradedCount,
                         groupName: a.groupName,
-                        onPress: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => AssignmentDetailScreen(id: a.id),
-                          ),
-                        ),
+                        onPress: () => context.push('/assignment/${a.id}'),
                       )).toList(),
                     ),
                   ),

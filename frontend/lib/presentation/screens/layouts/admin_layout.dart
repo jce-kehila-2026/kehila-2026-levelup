@@ -3,6 +3,9 @@ import 'package:frontend/l10n/app_localizations.dart';
 import 'package:go_router/go_router.dart';
 import '../../../theme/app_theme.dart';
 import '../../widgets/locale_toggle_button.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import '../../../di/service_locator.dart';
+import '../../../logic/controllers/auth_controller.dart';
 
 import '../admin/admin_dashboard.dart';
 import '../admin/curriculum_screen.dart';
@@ -19,14 +22,12 @@ class AdminLayout extends StatefulWidget {
 }
 
 class _AdminLayoutState extends State<AdminLayout> {
-  int _currentIndex = 0;
-
   late final List<Widget> _screens = [
     AdminDashboard(
-      onNavigateToCurriculum: () => setState(() => _currentIndex = 1),
-      onNavigateToUsers: () => setState(() => _currentIndex = 2),
-      onNavigateToGroups: () => setState(() => _currentIndex = 3),
-      onNavigateToLogs: () => setState(() => _currentIndex = 4),
+      onNavigateToCurriculum: () => context.go('/admin?tab=1'),
+      onNavigateToUsers:       () => context.go('/admin?tab=2'),
+      onNavigateToGroups:      () => context.go('/admin?tab=3'),
+      onNavigateToLogs:        () => context.go('/admin?tab=4'),
     ),
     const CurriculumScreen(),
     const UsersScreen(),
@@ -45,13 +46,20 @@ class _AdminLayoutState extends State<AdminLayout> {
       ),
       child: IconButton(
         icon: const Icon(Icons.logout, size: 15, color: AppColors.mutedForeground),
-        onPressed: () => context.go('/'),
+        onPressed: () async {
+          getIt<AuthController>().reset();
+          await FirebaseAuth.instance.signOut();
+          if (context.mounted) context.go('/login');
+        },
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final tabParam = GoRouterState.of(context).uri.queryParameters['tab'];
+    final currentIndex = (int.tryParse(tabParam ?? '') ?? 0).clamp(0, 4);
+
     return Scaffold(
       appBar: AppBar(
         backgroundColor: AppColors.white,
@@ -72,14 +80,17 @@ class _AdminLayoutState extends State<AdminLayout> {
           const SizedBox(width: 8),
         ],
       ),
-      body: _screens[_currentIndex],
+      body: IndexedStack(
+        index: currentIndex,
+        children: _screens,
+      ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           border: Border(top: BorderSide(color: AppColors.border, width: 1)),
         ),
         child: BottomNavigationBar(
-          currentIndex: _currentIndex,
-          onTap: (index) => setState(() => _currentIndex = index),
+          currentIndex: currentIndex,
+          onTap: (i) => context.go('/admin?tab=$i'),
           backgroundColor: AppColors.white,
           selectedItemColor: AppColors.primary,
           unselectedItemColor: AppColors.mutedForeground,
