@@ -76,7 +76,7 @@ void setupServiceLocator() {
     () => CurriculumController(getIt<CurriculumRepository>(), getIt<AssignmentRepository>(), getIt<UserRepository>()),
   );
   getIt.registerLazySingleton<UserController>(
-    () => UserController(getIt<UserRepository>()),
+    () => UserController(getIt<UserRepository>(), getIt<GroupRepository>()),
   );
   getIt.registerLazySingleton<GroupController>(
     () => GroupController(getIt<GroupRepository>()),

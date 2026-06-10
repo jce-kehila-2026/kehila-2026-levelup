@@ -106,9 +106,10 @@ class UserRepository {
     });
   }
 
-  /// Creates a student directly in Firestore (no Firebase Auth needed).
-  /// Students log in with username + PIN, not email/password.
-  /// Returns the new Firestore document ID (used as the student's ID).
+  /// Creates a student via the createUser Cloud Function.
+  /// This atomically creates both the Firebase Auth account (so the student can log in)
+  /// and the Firestore user doc (with isArchived: false set correctly).
+  /// Returns the new Firestore / Auth UID.
   Future<String> addStudent({
     required String name,
     required String username,
@@ -116,25 +117,18 @@ class UserRepository {
     required String levelId,
     required int userNumber,
   }) async {
-    final searchKeywords = _buildKeywords(name, extra: ['student', levelId, username]);
-
-    // Create a new document with auto-generated ID
-    final docRef = _users.doc();
-
-    await docRef.set({
-      'name': name,
+    final callable = _functions.httpsCallable('createUser');
+    final result = await callable.call({
       'role': 'student',
+      'name': name,
       'username': username.toLowerCase(),
       'pinCode': pinCode,
       'levelId': levelId,
       'userNumber': userNumber,
       'studentNumber': '#$userNumber',
-      'searchKeywords': searchKeywords,
-      'createdAt': FieldValue.serverTimestamp(),
-      'lastActive': null,
     });
-
-    return docRef.id;
+    final uid = result.data['uid'] as String;
+    return uid;
   }
 
   // ─────────────────────────────────────────────
@@ -196,12 +190,34 @@ class UserRepository {
   // DELETE
   // ─────────────────────────────────────────────
 
+  /// Archives an instructor by calling the archiveUser Cloud Function.
+  /// Sets isArchived: true and disables their Firebase Auth account.
+  /// Use permanentlyDeleteUser() to hard-delete from the archive.
   Future<void> deleteInstructor(String instructorId) async {
-    await _users.doc(instructorId).delete();
+    final callable = _functions.httpsCallable('archiveUser');
+    await callable.call({'uid': instructorId});
   }
 
+  /// Resets a student's PIN via the resetStudentPin Cloud Function.
+  /// Updates both the Firebase Auth password and the Firestore pinCode field.
+  Future<void> resetStudentPin(String studentId, String newPin) async {
+    final callable = _functions.httpsCallable('resetStudentPin');
+    await callable.call({'studentId': studentId, 'newPin': newPin});
+  }
+
+  /// Archives a student by calling the archiveUser Cloud Function.
+  /// Sets isArchived: true and disables their Firebase Auth account.
+  /// Use permanentlyDeleteUser() to hard-delete from the archive.
   Future<void> deleteStudent(String studentId) async {
-    await _users.doc(studentId).delete();
+    final callable = _functions.httpsCallable('archiveUser');
+    await callable.call({'uid': studentId});
+  }
+
+  /// Permanently deletes a user from Firebase Auth + Firestore.
+  /// This is the ONLY path to a true hard delete — must be called from the archive.
+  Future<void> permanentlyDeleteUser(String uid) async {
+    final callable = _functions.httpsCallable('deleteUserPermanently');
+    await callable.call({'uid': uid});
   }
 
   Future<void> restoreUser(String uid) async {
