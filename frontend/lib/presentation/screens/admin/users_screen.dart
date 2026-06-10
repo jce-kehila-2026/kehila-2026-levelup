@@ -596,6 +596,178 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
     );
   }
 
+  void _showAddStudentDialog() {
+    String name = '';
+    String username = '';
+    String pin = '';
+    String levelId = 'l1';
+    String? nameError;
+    String? usernameError;
+    String? pinError;
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              backgroundColor: AppColors.background,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              title: const Text('Add Student', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.text)),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    TextField(
+                      decoration: InputDecoration(
+                        labelText: AppLocalizations.of(context)!.fullNameLabel,
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        errorText: nameError,
+                      ),
+                      onChanged: (val) => setDialogState(() {
+                        name = val;
+                        nameError = null;
+                      }),
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      decoration: InputDecoration(
+                        labelText: 'Username',
+                        hintText: 'ali.hassan',
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        errorText: usernameError,
+                        errorMaxLines: 2,
+                      ),
+                      onChanged: (val) => setDialogState(() {
+                        username = val;
+                        usernameError = null;
+                      }),
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      decoration: InputDecoration(
+                        labelText: AppLocalizations.of(context)!.pinLabel,
+                        hintText: '123456',
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        counterText: '',
+                        errorText: pinError,
+                      ),
+                      keyboardType: TextInputType.number,
+                      maxLength: 6,
+                      onChanged: (val) => setDialogState(() {
+                        pin = val;
+                        pinError = null;
+                      }),
+                    ),
+                    const SizedBox(height: 16),
+                    const Text('Level', style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.text)),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      children: [
+                        ('l1', 'Level 1'),
+                        ('l2', 'Level 2'),
+                        ('l3', 'Level 3'),
+                      ].map((entry) {
+                        final isSelected = levelId == entry.$1;
+                        return ChoiceChip(
+                          label: Text(entry.$2),
+                          selected: isSelected,
+                          onSelected: (selected) {
+                            if (selected) setDialogState(() => levelId = entry.$1);
+                          },
+                        );
+                      }).toList(),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text(AppLocalizations.of(context)!.cancel, style: const TextStyle(color: AppColors.mutedForeground)),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: AppColors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  onPressed: () async {
+                    String? newNameError;
+                    String? newUsernameError;
+                    String? newPinError;
+
+                    if (name.trim().isEmpty) newNameError = 'Required';
+
+                    final u = username.trim();
+                    if (u.isEmpty) {
+                      newUsernameError = 'Required';
+                    } else if (u.contains(' ') || u != u.toLowerCase()) {
+                      newUsernameError = 'Lowercase, no spaces';
+                    }
+
+                    if (pin.isEmpty || !RegExp(r'^\d{6}$').hasMatch(pin)) {
+                      newPinError = 'Exactly 6 digits';
+                    }
+
+                    if (newNameError != null || newUsernameError != null || newPinError != null) {
+                      setDialogState(() {
+                        nameError = newNameError;
+                        usernameError = newUsernameError;
+                        pinError = newPinError;
+                      });
+                      return;
+                    }
+
+                    final exists = await _controller.usernameExists(u);
+                    if (exists) {
+                      setDialogState(() => usernameError = 'Username already taken');
+                      return;
+                    }
+
+                    if (!context.mounted) return;
+                    Navigator.pop(context);
+
+                    try {
+                      await _controller.addStudent(
+                        name: name.trim(),
+                        username: u,
+                        pinCode: pin,
+                        levelId: levelId,
+                      );
+                      if (mounted) {
+                        ScaffoldMessenger.of(this.context).showSnackBar(const SnackBar(
+                          content: Text('Student added successfully'),
+                          behavior: SnackBarBehavior.floating,
+                          duration: Duration(seconds: 4),
+                        ));
+                      }
+                    } catch (e) {
+                      if (mounted) {
+                        ScaffoldMessenger.of(this.context).showSnackBar(SnackBar(
+                          content: Text('Failed to add student: $e'),
+                          backgroundColor: AppColors.error,
+                          behavior: SnackBarBehavior.floating,
+                          duration: const Duration(seconds: 6),
+                        ));
+                      }
+                    }
+                  },
+                  child: Text(AppLocalizations.of(context)!.add, style: const TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
   void _showEditProfileDialog(dynamic instructor) {
     String name = instructor.name;
     String email = instructor.email ?? '';
@@ -947,7 +1119,19 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
         } else if (tabIdx == 1) {
           headerTitle = l10n.statStudents;
           headerCount = l10n.studentsCount(students.length.toString());
-          headerAction = null;
+          headerAction = ElevatedButton.icon(
+            onPressed: _showAddStudentDialog,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.accent,
+              foregroundColor: AppColors.text,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              elevation: 3,
+              shadowColor: AppColors.accent.withValues(alpha: 0.3),
+            ),
+            icon: const Icon(Icons.add, size: 15),
+            label: const Text('Add Student', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+          );
         } else {
           headerTitle = 'Archived';
           headerCount = '${archivedUsers.length} Archived';
