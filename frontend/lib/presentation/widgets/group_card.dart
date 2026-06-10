@@ -51,7 +51,7 @@ class GroupCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        '#$serialNumber $groupName',
+                        groupName,
                         style: const TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.bold,

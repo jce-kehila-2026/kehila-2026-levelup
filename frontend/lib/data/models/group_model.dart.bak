@@ -2,9 +2,9 @@
 /// Path: lib/data/models/group_model.dart
 library;
 
-import 'package:cloud_firestore/cloud_firestore.dart';
-
 /// Embedded student object stored inside a GroupModel document.
+/// Optimises local reads by avoiding a separate users collection lookup
+/// for basic group-roster information.
 class GroupStudentEmbed {
   final String id;
   final String name;
@@ -26,7 +26,9 @@ class GroupStudentEmbed {
       name: map['name'] ?? '',
       level: map['level'] ?? '',
       pin: map['pin'] ?? '',
-      lastActive: _parseDate(map['lastActive']),
+      lastActive: map['lastActive'] != null
+          ? DateTime.parse(map['lastActive'].toString())
+          : null,
     );
   }
 
@@ -41,23 +43,9 @@ class GroupStudentEmbed {
   }
 }
 
-/// Safely parses a date value that may be a Firestore Timestamp, a String, or null.
-DateTime? _parseDate(dynamic value) {
-  if (value == null) return null;
-  if (value is Timestamp) return value.toDate();
-  if (value is String && value.isNotEmpty) {
-    try {
-      return DateTime.parse(value);
-    } catch (_) {
-      return null;
-    }
-  }
-  return null;
-}
-
 class GroupModel {
   final String id;
-  final int serialNumber;
+  final int serialNumber; // groupNumber in schema
   final String name;
   final List<String> instructorIds;
   final DateTime createdAt;
@@ -87,15 +75,16 @@ class GroupModel {
   factory GroupModel.fromMap(Map<String, dynamic> map, String documentId) {
     return GroupModel(
       id: documentId,
-      serialNumber: (map['serialNumber'] as num?)?.toInt() ?? 0,
+      serialNumber: map['serialNumber'] ?? 0,
       name: map['name'] ?? '',
       instructorIds: List<String>.from(map['instructorIds'] ?? []),
       students: (map['students'] as List<dynamic>?)
               ?.map((s) => GroupStudentEmbed.fromMap(s as Map<String, dynamic>))
               .toList() ??
           [],
-      // ✅ Handles Firestore Timestamp, ISO String, or null
-      createdAt: _parseDate(map['createdAt']) ?? DateTime.now(),
+      createdAt: map['createdAt'] != null
+          ? DateTime.parse(map['createdAt'].toString())
+          : DateTime.now(),
     );
   }
 

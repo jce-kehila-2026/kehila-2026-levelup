@@ -759,7 +759,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text('#${group.serialNumber} ${group.name}', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: AppColors.text)),
+                                  Text(group.name, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: AppColors.text)),
                                   const SizedBox(height: 6),
                                   // Level badges
                                   Wrap(

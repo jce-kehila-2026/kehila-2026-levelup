@@ -13,6 +13,13 @@ class UserRepository {
   CollectionReference<Map<String, dynamic>> get _users =>
       _db.collection('users');
 
+  DocumentReference<Map<String, dynamic>> get _staffCounter =>
+      _db.collection('counters').doc('staff');
+
+  // ─────────────────────────────────────────────
+  // READ
+  // ─────────────────────────────────────────────
+
   Future<List<UserModel>> getInstructors() async {
     final snap = await _users
         .where('role', isEqualTo: 'instructor')
@@ -52,6 +59,10 @@ class UserRepository {
     return snap.docs.map((d) => UserModel.fromMap(d.data(), d.id)).toList();
   }
 
+  // ─────────────────────────────────────────────
+  // SEARCH
+  // ─────────────────────────────────────────────
+
   Future<List<UserModel>> searchUsers(String query, {String? role}) async {
     final term = query.toLowerCase().trim();
     if (term.isEmpty) return [];
@@ -63,6 +74,13 @@ class UserRepository {
     return snap.docs.map((d) => UserModel.fromMap(d.data(), d.id)).toList();
   }
 
+  // ─────────────────────────────────────────────
+  // CREATE
+  // ─────────────────────────────────────────────
+
+  /// Creates an instructor directly in Firestore (no Cloud Function needed).
+  /// To allow login, create the Firebase Auth account manually in Firebase Console
+  /// using the same email address.
   Future<void> addInstructor(
     String name,
     String email,
@@ -71,18 +89,26 @@ class UserRepository {
     List<String> assignedLevels, {
     String? username,
   }) async {
-    final callable = _functions.httpsCallable('createUser');
-    await callable.call({
-      'role': 'instructor',
+    final userNumber = DateTime.now().millisecondsSinceEpoch % 1000000 + 100;
+    final searchKeywords = _buildKeywords(name, extra: ['instructor', email.toLowerCase()]);
+
+    final docRef = _users.doc();
+    await docRef.set({
       'name': name,
+      'role': 'instructor',
       'email': email.trim().toLowerCase(),
       'phoneNumber': phoneNumber,
       'address': address,
       'assignedLevels': assignedLevels,
-      'userNumber': DateTime.now().millisecondsSinceEpoch % 1000000 + 100,
+      'userNumber': userNumber,
+      'searchKeywords': searchKeywords,
+      'createdAt': FieldValue.serverTimestamp(),
     });
   }
 
+  /// Creates a student directly in Firestore (no Firebase Auth needed).
+  /// Students log in with username + PIN, not email/password.
+  /// Returns the new Firestore document ID (used as the student's ID).
   Future<String> addStudent({
     required String name,
     required String username,
@@ -90,18 +116,30 @@ class UserRepository {
     required String levelId,
     required int userNumber,
   }) async {
-    final callable = _functions.httpsCallable('createUser');
-    final result = await callable.call({
-      'role': 'student',
+    final searchKeywords = _buildKeywords(name, extra: ['student', levelId, username]);
+
+    // Create a new document with auto-generated ID
+    final docRef = _users.doc();
+
+    await docRef.set({
       'name': name,
-      'username': username.toLowerCase().trim(),
+      'role': 'student',
+      'username': username.toLowerCase(),
       'pinCode': pinCode,
       'levelId': levelId,
       'userNumber': userNumber,
       'studentNumber': '#$userNumber',
+      'searchKeywords': searchKeywords,
+      'createdAt': FieldValue.serverTimestamp(),
+      'lastActive': null,
     });
-    return result.data['uid'] as String;
+
+    return docRef.id;
   }
+
+  // ─────────────────────────────────────────────
+  // UPDATE
+  // ─────────────────────────────────────────────
 
   Future<void> updateInstructorProfile(
     String instructorId,
@@ -154,14 +192,16 @@ class UserRepository {
     await batch.commit();
   }
 
+  // ─────────────────────────────────────────────
+  // DELETE
+  // ─────────────────────────────────────────────
+
   Future<void> deleteInstructor(String instructorId) async {
-    final callable = _functions.httpsCallable('archiveUser');
-    await callable.call({'uid': instructorId});
+    await _users.doc(instructorId).delete();
   }
 
   Future<void> deleteStudent(String studentId) async {
-    final callable = _functions.httpsCallable('archiveUser');
-    await callable.call({'uid': studentId});
+    await _users.doc(studentId).delete();
   }
 
   Future<void> restoreUser(String uid) async {
@@ -185,8 +225,22 @@ class UserRepository {
     return snap.docs.isNotEmpty;
   }
 
-  List<String> _buildKeywords(String name,
-      {List<String> extra = const []}) {
+  // ─────────────────────────────────────────────
+  // HELPERS
+  // ─────────────────────────────────────────────
+
+  Future<int> _nextStaffNumber() async {
+    int next = 2;
+    await _db.runTransaction((t) async {
+      final snap = await t.get(_staffCounter);
+      final last = snap.exists ? (snap.data()?['lastNumber'] as int? ?? 1) : 1;
+      next = last + 1;
+      t.set(_staffCounter, {'lastNumber': next}, SetOptions(merge: true));
+    });
+    return next;
+  }
+
+  List<String> _buildKeywords(String name, {List<String> extra = const []}) {
     final keywords = <String>{};
     for (final part in name.toLowerCase().trim().split(RegExp(r'\s+'))) {
       for (int i = 1; i <= part.length; i++) {
