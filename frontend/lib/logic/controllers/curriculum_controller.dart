@@ -285,6 +285,9 @@ class CurriculumController extends ChangeNotifier {
 
     try {
       await _repository.deleteItem(levelId, weekId, itemId);
+      if (itemId.startsWith('ca_')) {
+        await _assignmentRepository.deleteAssignment(itemId);
+      }
       _levels = await _repository.getLevels();
       notifyListeners();
     } catch (e) {

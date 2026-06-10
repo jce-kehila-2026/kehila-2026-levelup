@@ -8,8 +8,8 @@ enum UserRole { admin, instructor, student }
 
 class UserModel {
   final String id;
-  final int userNumber;
-  final String name;
+  final String _userNumberStr;
+  final String displayName;
   final String? email;
   final String? phoneNumber;
   final String? address;
@@ -27,8 +27,10 @@ class UserModel {
 
   UserModel({
     required this.id,
-    required this.userNumber,
-    required this.name,
+    int? userNumber,
+    String? userNumberStr,
+    String? name,
+    String? displayName,
     this.email,
     this.phoneNumber,
     this.address,
@@ -43,7 +45,12 @@ class UserModel {
     this.isArchived = false,
     this.createdAt,
     this.groupId,
-  });
+  }) : _userNumberStr = userNumberStr ?? userNumber?.toString() ?? '0',
+       displayName = displayName ?? name ?? '';
+
+  // Backward-compatibility getters to prevent breaking the rest of the application
+  String get name => displayName;
+  int get userNumber => int.tryParse(_userNumberStr) ?? 0;
 
   bool get isOnline {
     if (lastActive == null) return false;
@@ -64,10 +71,12 @@ class UserModel {
     if (map['role'] == 'admin') parsedRole = UserRole.admin;
     if (map['role'] == 'instructor') parsedRole = UserRole.instructor;
 
+    final userNumStr = map['userNumber']?.toString() ?? '0';
+
     return UserModel(
       id: documentId,
-      userNumber: (map['userNumber'] as num?)?.toInt() ?? 0,
-      name: map['name'] ?? '',
+      userNumberStr: userNumStr,
+      displayName: map['displayName'] ?? map['name'] ?? '',
       email: map['email'],
       phoneNumber: map['phoneNumber'],
       address: map['address'],
@@ -75,7 +84,7 @@ class UserModel {
       assignedLevels: List<String>.from(map['assignedLevels'] ?? []),
       searchKeywords: List<String>.from(map['searchKeywords'] ?? []),
       levelId: map['levelId'],
-      studentNumber: map['studentNumber'],
+      studentNumber: map['studentNumber'] ?? '#$userNumStr',
       username: map['username'],
       pinCode: map['pinCode'],
       lastActive: _parseTimestamp(map['lastActive']),
@@ -87,18 +96,18 @@ class UserModel {
 
   Map<String, dynamic> toMap() {
     return {
-      'userNumber': userNumber,
-      'name': name,
-      'email': email,
+      'role': role.name,
       'phoneNumber': phoneNumber,
       'address': address,
-      'role': role.name,
-      'assignedLevels': assignedLevels,
+      'userNumber': _userNumberStr,
+      'email': email,
+      'displayName': displayName,
+      'username': username,
       'searchKeywords': searchKeywords,
       'levelId': levelId,
-      'studentNumber': studentNumber,
-      'username': username,
       'pinCode': pinCode,
+      'assignedLevels': assignedLevels,
+      'studentNumber': studentNumber,
       'lastActive': lastActive?.toIso8601String(),
       'isArchived': isArchived,
       'createdAt': createdAt?.toIso8601String(),

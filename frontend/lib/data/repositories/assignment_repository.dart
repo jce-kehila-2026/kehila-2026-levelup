@@ -29,7 +29,7 @@ class AssignmentRepository {
         .toList();
   }
 
-  /// Fetch assignments assigned to the currently signed-in student's group.
+  /// Fetch assignments assigned to the currently signed-in student's group and level.
   Future<List<AssignmentModel>> getStudentAssignments() async {
     final uid = _auth.currentUser?.uid;
     if (uid == null) {
@@ -40,10 +40,15 @@ class AssignmentRepository {
       return [];
     }
     final groupId = userDoc.data()?['groupId'] as String?;
+    final levelId = userDoc.data()?['levelId'] as String?;
     if (groupId == null || groupId.isEmpty) {
       return [];
     }
-    final snapshot = await _col.where('groupId', isEqualTo: groupId).get();
+    Query<Map<String, dynamic>> query = _col.where('groupId', isEqualTo: groupId);
+    if (levelId != null && levelId.isNotEmpty) {
+      query = query.where('levelId', isEqualTo: levelId);
+    }
+    final snapshot = await query.get();
     return snapshot.docs
         .map((doc) => AssignmentModel.fromMap(doc.data(), doc.id))
         .toList();
@@ -77,15 +82,17 @@ class AssignmentRepository {
     await _col.doc(id).set(model.toMap());
   }
 
-  /// Create a new custom assignment document (auto-generated ID).
+  /// Create a new custom or central assignment document (auto-generated ID).
   Future<void> addInstructorAssignment(
     String title, {
     DateTime? deadline,
     String? textContent,
+    String type = 'custom',
     AssignmentType assignmentType = AssignmentType.text,
     List<String>? choices,
     String? groupId,
     String? groupName,
+    String? levelId,
   }) async {
     final uid = _auth.currentUser?.uid;
     if (uid == null) {
@@ -94,11 +101,12 @@ class AssignmentRepository {
     final model = AssignmentModel(
       id: '', // ignored — Firestore generates the ID via add()
       title: title,
-      type: 'custom',
+      type: type,
       isActive: true,
       groupName: groupName,
       groupId: groupId,
       instructorId: uid,
+      levelId: levelId,
       pendingCount: 0,
       gradedCount: 0,
       searchTags: const [],
@@ -134,6 +142,7 @@ class AssignmentRepository {
     List<String> choices, {
     String? groupId,
     String? groupName,
+    String? levelId,
   }) async {
     final data = <String, dynamic>{
       'title': title,
@@ -144,6 +153,7 @@ class AssignmentRepository {
     // Only overwrite group fields when the caller actually provided them.
     if (groupId != null) data['groupId'] = groupId;
     if (groupName != null) data['groupName'] = groupName;
+    if (levelId != null) data['levelId'] = levelId;
     await _col.doc(id).update(data);
   }
 }

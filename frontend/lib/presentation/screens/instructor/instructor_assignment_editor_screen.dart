@@ -132,6 +132,7 @@ class _InstructorAssignmentEditorScreenState extends State<InstructorAssignmentE
         _choiceCtrls = a.choices!.map((c) => TextEditingController(text: c)).toList();
       }
       _preselectedGroupId = a.groupId;
+      _selectedLevel = a.levelId;
     }
 
     _docChangeSub = _quillCtrl.document.changes.listen(_onDocumentChange);
@@ -258,7 +259,16 @@ class _InstructorAssignmentEditorScreenState extends State<InstructorAssignmentE
       _showError(l10n.selectDeadline);
       return;
     }
-    if (_selectedGroup == null) {
+    
+    // Resolve group to save: either selected or pre-selected
+    GroupModel? groupToSave = _selectedGroup;
+    if (groupToSave == null && _preselectedGroupId != null) {
+      try {
+        groupToSave = _groupController.myGroups.firstWhere((g) => g.id == _preselectedGroupId);
+      } catch (_) {}
+    }
+    
+    if (groupToSave == null) {
       _showError(l10n.chooseGroupHint);
       return;
     }
@@ -282,8 +292,9 @@ class _InstructorAssignmentEditorScreenState extends State<InstructorAssignmentE
     if (_isEditMode && a != null) {
       _controller.updateContent(
         a.id, title, deltaJson, _selectedType, choices,
-        groupId: _selectedGroup!.id,
-        groupName: _selectedGroup!.name,
+        groupId: groupToSave.id,
+        groupName: groupToSave.name,
+        levelId: _selectedLevel,
       );
       if (_selectedDeadline != a.deadline) {
         _controller.updateDeadline(a.id, _selectedDeadline!);
@@ -295,8 +306,9 @@ class _InstructorAssignmentEditorScreenState extends State<InstructorAssignmentE
         textContent: deltaJson,
         assignmentType: _selectedType,
         choices: choices,
-        groupId: _selectedGroup!.id,
-        groupName: _selectedGroup!.name,
+        groupId: groupToSave.id,
+        groupName: groupToSave.name,
+        levelId: _selectedLevel,
       );
     }
 
@@ -327,6 +339,9 @@ class _InstructorAssignmentEditorScreenState extends State<InstructorAssignmentE
     final levels = (resolvedGroup?.activeLevels.toList() ?? <String>[])
         .where((l) => _assignedLevelIds.contains(l))
         .toList();
+    if (_selectedLevel != null && !levels.contains(_selectedLevel)) {
+      levels.add(_selectedLevel!);
+    }
 
     return Scaffold(
       backgroundColor: AppColors.background,

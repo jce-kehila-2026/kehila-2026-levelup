@@ -2,6 +2,21 @@
 /// Path: lib/data/models/audit_log_model.dart
 library;
 
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+DateTime? _parseDate(dynamic value) {
+  if (value == null) return null;
+  if (value is Timestamp) return value.toDate();
+  if (value is String && value.isNotEmpty) {
+    try {
+      return DateTime.parse(value);
+    } catch (_) {
+      return null;
+    }
+  }
+  return null;
+}
+
 class AuditLog {
   final String id;
   final String action;
@@ -45,39 +60,28 @@ class AuditLog {
   });
 
   factory AuditLog.fromMap(Map<String, dynamic> map, String documentId) {
-    final timestamp = map['time'] != null
-        ? DateTime.parse(map['time'].toString())
-        : (map['preciseTimestamp'] != null
-            ? DateTime.parse(map['preciseTimestamp'].toString())
-            : DateTime.now());
+    final parsedTime = _parseDate(map['time']) ??
+        _parseDate(map['preciseTimestamp']) ??
+        DateTime.now();
 
     return AuditLog(
       id: documentId,
       action: map['action'] ?? '',
-      details: map['details'],
-      performerName: map['performerName'] ?? '',
-      performerRole: map['performerRole'] ?? '',
+      details: map['details'] ?? '',
+      performerName: map['performerName'] ?? 'System User',
+      performerRole: map['performerRole'] ?? 'admin',
       performedBy: map['performedBy'] ?? '',
-      time: timestamp,
-      preciseTimestamp: timestamp,
-      serialNumber: map['serialNumber'] ?? '',
-      targetPersonName: map['targetPersonName'],
-      targetStudentNumber: map['targetStudentNumber'],
+      time: parsedTime,
+      preciseTimestamp: parsedTime,
+      serialNumber: map['serialNumber'] ?? '0',
     );
   }
 
   Map<String, dynamic> toMap() {
     return {
       'action': action,
-      'details': details,
-      'performerName': performerName,
-      'performerRole': performerRole,
       'performedBy': performedBy,
       'time': time.toIso8601String(),
-      'preciseTimestamp': preciseTimestamp.toIso8601String(),
-      'serialNumber': serialNumber,
-      'targetPersonName': targetPersonName,
-      'targetStudentNumber': targetStudentNumber,
     };
   }
 }

@@ -6,6 +6,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../../theme/app_theme.dart';
 import '../../../data/models/assignment_model.dart';
 import '../../widgets/vibe_premium_renderer.dart';
@@ -49,7 +50,14 @@ class _StudentAssignmentDetailScreenState extends State<StudentAssignmentDetailS
   }
 
   Future<void> _loadSubmission() async {
-    final sub = await _submissionRepo.getSubmissionForAssignment(widget.assignment.id, '#1001');
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+      return;
+    }
+    final sub = await _submissionRepo.getSubmissionForAssignment(widget.assignment.id, uid);
     if (mounted) {
       setState(() {
         _submission = sub;
@@ -431,18 +439,25 @@ class _StudentAssignmentDetailScreenState extends State<StudentAssignmentDetailS
   }
 
   Future<void> _submit() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+
     setState(() => _isSaving = true);
+    final textAnswerToSave = widget.assignment.assignmentType == AssignmentType.multipleChoice
+        ? (_selectedChoice ?? '')
+        : _textAnswer;
+
     if (_submission == null) {
       await _submissionRepo.addSubmission(
         assignmentId: widget.assignment.id,
-        studentId: '#1001',
-        textContent: _textAnswer,
+        studentId: uid,
+        textContent: textAnswerToSave,
         selectedChoice: _selectedChoice,
       );
     } else {
       await _submissionRepo.updateSubmission(
         submissionId: _submission!.id,
-        textContent: _textAnswer,
+        textContent: textAnswerToSave,
         selectedChoice: _selectedChoice,
       );
     }

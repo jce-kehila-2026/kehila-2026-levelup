@@ -252,6 +252,8 @@ class _AssignmentDetailScreenState extends State<AssignmentDetailScreen> {
                             BadgeWidget(label: assignment.isActive ? AppLocalizations.of(context)!.statusActive : AppLocalizations.of(context)!.statusInactive, variant: assignment.isActive ? BadgeVariant.success : BadgeVariant.muted),
                             BadgeWidget(label: assignment.deadlineText, variant: assignment.isOverdue ? BadgeVariant.error : BadgeVariant.warning),
                             BadgeWidget(label: assignment.groupName ?? AppLocalizations.of(context)!.noGroupAssigned, variant: BadgeVariant.defaultVariant),
+                            if (_controller.levelName.isNotEmpty)
+                              BadgeWidget(label: _controller.levelName, variant: BadgeVariant.info),
                           ]),
                           const SizedBox(height: 16),
                         ],

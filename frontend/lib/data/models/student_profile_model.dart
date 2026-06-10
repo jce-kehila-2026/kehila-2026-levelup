@@ -2,6 +2,21 @@
 /// Path: lib/data/models/student_profile_model.dart
 library;
 
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+DateTime? _parseDate(dynamic value) {
+  if (value == null) return null;
+  if (value is Timestamp) return value.toDate();
+  if (value is String && value.isNotEmpty) {
+    try {
+      return DateTime.parse(value);
+    } catch (_) {
+      return null;
+    }
+  }
+  return null;
+}
+
 class StudentProfile {
   final String id;
   final String name;
@@ -65,9 +80,7 @@ class StudentProfile {
       correct: map['correct']?.toInt() ?? 0,
       studentNumber: map['studentNumber'],
       pinCode: map['pinCode'],
-      lastActive: map['lastActive'] != null
-          ? DateTime.parse(map['lastActive'].toString())
-          : null,
+      lastActive: _parseDate(map['lastActive']),
     );
   }
 

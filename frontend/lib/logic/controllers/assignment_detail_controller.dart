@@ -6,9 +6,11 @@ import 'package:flutter/foundation.dart';
 import '../../data/models/assignment_model.dart';
 import '../../data/models/submission_model.dart';
 import '../../data/models/user_model.dart';
+import '../../data/models/curriculum_model.dart';
 import '../../data/repositories/assignment_repository.dart';
 import '../../data/repositories/submission_repository.dart';
 import '../../data/repositories/user_repository.dart';
+import '../../data/repositories/curriculum_repository.dart';
 import '../controllers/auth_controller.dart';
 
 class AssignmentDetailController extends ChangeNotifier {
@@ -17,10 +19,12 @@ class AssignmentDetailController extends ChangeNotifier {
   final AuthController _authController;
   final SubmissionRepository _submissionRepository;
   final UserRepository _userRepository;
+  final CurriculumRepository _curriculumRepository;
   
   late AssignmentModel assignment;
   List<SubmissionModel> _submissions = [];
   List<UserModel> _students = [];
+  List<LevelModel> _levels = [];
 
   bool _isLoading = true;
   bool get isLoading => _isLoading;
@@ -31,6 +35,7 @@ class AssignmentDetailController extends ChangeNotifier {
     this._authController,
     this._submissionRepository,
     this._userRepository,
+    this._curriculumRepository,
   ) {
     _init();
   }
@@ -38,12 +43,24 @@ class AssignmentDetailController extends ChangeNotifier {
   Future<void> _init() async {
     _isLoading = true;
     notifyListeners();
-    assignment = await _repository.getAssignmentById(assignmentId) ?? 
-      AssignmentModel(id: assignmentId, title: 'Unknown Assignment', type: 'central', createdAt: DateTime.now(), deadline: DateTime.now());
-    _submissions = await _submissionRepository.getSubmissionsByAssignment(assignmentId);
-    _students = await _userRepository.getStudents();
-    _isLoading = false;
-    notifyListeners();
+    try {
+      final results = await Future.wait([
+        _repository.getAssignmentById(assignmentId),
+        _submissionRepository.getSubmissionsByAssignment(assignmentId),
+        _userRepository.getStudents(),
+        _curriculumRepository.getLevels(),
+      ]);
+      assignment = (results[0] as AssignmentModel?) ?? 
+        AssignmentModel(id: assignmentId, title: 'Unknown Assignment', type: 'central', createdAt: DateTime.now(), deadline: DateTime.now());
+      _submissions = results[1] as List<SubmissionModel>;
+      _students = results[2] as List<UserModel>;
+      _levels = results[3] as List<LevelModel>;
+    } catch (e) {
+      debugPrint('AssignmentDetailController._init error: $e');
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
   }
 
   // ── State ──────────────────────────────
@@ -52,6 +69,15 @@ class AssignmentDetailController extends ChangeNotifier {
   // ── Getters ────────────────────────────
   String get answer => _answer;
   List<SubmissionModel> get submissions => _submissions;
+
+  String get levelName {
+    if (assignment.levelId == null) return '';
+    try {
+      return _levels.firstWhere((l) => l.id == assignment.levelId).name;
+    } catch (_) {
+      return '';
+    }
+  }
 
   /// Returns true only if the current user is a student.
   bool get isStudentRole {

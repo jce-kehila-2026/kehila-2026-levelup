@@ -93,32 +93,32 @@ void setupServiceLocator() {
   // ──────────────────────────────────────
   // Logic Tier — Controllers: Instructor
   // ──────────────────────────────────────
-  getIt.registerFactory<InstructorDashboardController>(
+  getIt.registerLazySingleton<InstructorDashboardController>(
     () => InstructorDashboardController(getIt<AssignmentRepository>(), getIt<GroupRepository>(), getIt<UserRepository>()),
   );
-  getIt.registerFactory<InstructorAssignmentController>(
+  getIt.registerLazySingleton<InstructorAssignmentController>(
     () => InstructorAssignmentController(getIt<AssignmentRepository>()),
   );
-  getIt.registerFactory<InstructorGroupController>(
+  getIt.registerLazySingleton<InstructorGroupController>(
     () => InstructorGroupController(getIt<GroupRepository>(), getIt<UserRepository>()),
   );
-  getIt.registerFactory<InstructorLogController>(
+  getIt.registerLazySingleton<InstructorLogController>(
     () => InstructorLogController(getIt<AuditLogRepository>()),
   );
 
   // ──────────────────────────────────────
   // Logic Tier — Controllers: Student
   // ──────────────────────────────────────
-  getIt.registerFactory<StudentDashboardController>(
+  getIt.registerLazySingleton<StudentDashboardController>(
     () => StudentDashboardController(),
   );
-  getIt.registerFactory<StudentAssignmentController>(
+  getIt.registerLazySingleton<StudentAssignmentController>(
     () => StudentAssignmentController(),
   );
-  getIt.registerFactory<StudentNotificationController>(
+  getIt.registerLazySingleton<StudentNotificationController>(
     () => StudentNotificationController(getIt<NotificationRepository>()),
   );
-  getIt.registerFactory<StudentProfileController>(
+  getIt.registerLazySingleton<StudentProfileController>(
     () => StudentProfileController(getIt<StudentProfileRepository>()),
   );
 
@@ -126,7 +126,14 @@ void setupServiceLocator() {
   // Logic Tier — Controllers: Details (Factories)
   // ──────────────────────────────────────
   getIt.registerFactoryParam<AssignmentDetailController, String, void>(
-    (id, _) => AssignmentDetailController(id, getIt<AssignmentRepository>(), getIt<AuthController>(), getIt<SubmissionRepository>(), getIt<UserRepository>()),
+    (id, _) => AssignmentDetailController(
+      id,
+      getIt<AssignmentRepository>(),
+      getIt<AuthController>(),
+      getIt<SubmissionRepository>(),
+      getIt<UserRepository>(),
+      getIt<CurriculumRepository>(),
+    ),
   );
   getIt.registerFactoryParam<GroupDetailController, String, void>(
     (id, _) => GroupDetailController(id, getIt<GroupRepository>(), getIt<UserRepository>(), getIt<CurriculumRepository>()),
