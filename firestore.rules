@@ -1,0 +1,92 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helpers ────────────────────────────────────────────────────────────
+    // NOTE: users must be readable by any signed-in user so that role()
+    // can be called from other rules without causing a circular get() loop.
+
+    function role() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+
+    function isSignedIn()   { return request.auth != null; }
+    function isAdmin()      { return isSignedIn() && role() == 'admin'; }
+    function isInstructor() { return isSignedIn() && role() == 'instructor'; }
+    function isStudent()    { return isSignedIn() && role() == 'student'; }
+    function isStaff()      { return isAdmin() || isInstructor(); }
+
+    // ── users ──────────────────────────────────────────────────────────────
+    // Readable by ANY signed-in user — required so role() works in all rules.
+
+    match /users/{userId} {
+      allow read:   if isSignedIn();
+      allow create: if isAdmin();
+      allow update: if isAdmin() || (isInstructor() && resource.data.role == 'student');
+      allow delete: if isAdmin();
+    }
+
+    // ── groups ─────────────────────────────────────────────────────────────
+
+    match /groups/{groupId} {
+      // Admins read all groups.
+      // Instructors read all groups — needed for count() in createGroup and for the group list.
+      // Students can read only the group they are assigned to (groupId field on their user doc).
+      allow read: if isAdmin() ||
+                    isInstructor() ||
+                    (isStudent() &&
+                      get(/databases/$(database)/documents/users/$(request.auth.uid)).data.groupId == groupId);
+      allow create: if isStaff();
+      allow update: if isAdmin() ||
+                      (isInstructor() && request.auth.uid in resource.data.instructorIds);
+      allow delete: if isAdmin() ||
+                      (isInstructor() && request.auth.uid in resource.data.instructorIds);
+    }
+
+    // ── curriculum ─────────────────────────────────────────────────────────
+
+    match /curriculum/{levelId} {
+      allow read:  if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // ── assignments ────────────────────────────────────────────────────────
+
+    match /assignments/{assignmentId} {
+      allow read:           if isStaff() || isStudent();
+      allow create, update: if isStaff();
+      allow delete:         if isAdmin();
+    }
+
+    // ── submissions ────────────────────────────────────────────────────────
+
+    match /submissions/{submissionId} {
+      allow read:   if isStaff() ||
+                      (isStudent() && resource.data.studentId == request.auth.uid);
+      allow create: if isStudent() && request.resource.data.studentId == request.auth.uid;
+      allow update: if isStaff();
+      allow delete: if isAdmin();
+    }
+
+    // ── notifications ──────────────────────────────────────────────────────
+
+    match /notifications/{notifId} {
+      allow read:  if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow write: if isStaff();
+    }
+
+    // ── audit_logs ─────────────────────────────────────────────────────────
+
+    match /audit_logs/{logId} {
+      allow read:           if isStaff();
+      allow create:         if isStaff();
+      allow update, delete: if false;
+    }
+
+    // ── counters ───────────────────────────────────────────────────────────
+
+    match /counters/{counterId} {
+      allow read, write: if isStaff();
+    }
+  }
+}

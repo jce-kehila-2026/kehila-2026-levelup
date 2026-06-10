@@ -240,7 +240,7 @@ class GroupDetailController extends ChangeNotifier {
     notifyListeners();
     try {
       final actualUsername = username ?? _generateUsername(fullName);
-      final actualPinCode = pinCode ?? (1000 + Random().nextInt(9000)).toString();
+      final actualPinCode = pinCode ?? (100000 + Random().nextInt(900000)).toString();
       final userNumber = DateTime.now().millisecondsSinceEpoch % 1000000 + 1000;
 
       final uid = await _userRepository.addStudent(
@@ -285,12 +285,10 @@ class GroupDetailController extends ChangeNotifier {
     _isLoading = true;
     notifyListeners();
     final created = <UserModel>[];
-    _isLoading = true;
-    notifyListeners();
     try {
       for (final e in entries) {
         final username = _generateUsername(e.name);
-        final pinCode = (1000 + Random().nextInt(9000)).toString();
+        final pinCode = (100000 + Random().nextInt(900000)).toString();
         final userNumber = DateTime.now().millisecondsSinceEpoch % 1000000 + 1000 + created.length;
 
         final uid = await _userRepository.addStudent(
@@ -359,10 +357,18 @@ class GroupDetailController extends ChangeNotifier {
 
   Future<bool> usernameExists(String username) => _userRepository.usernameExists(username);
 
-  /// Resets the PIN for a student (in-memory only for display; real update via repo).
-  String resetStudentPin(String studentId) {
-    final random = Random();
-    final newPin = (1000 + random.nextInt(9000)).toString();
+  /// Generates a new 6-digit PIN, persists it to Firebase Auth (via Cloud Function),
+  /// the Firestore user doc, and the embedded student array in the group document.
+  Future<String> resetStudentPin(String studentId) async {
+    final newPin = (100000 + Random().nextInt(900000)).toString(); // 6-digit PIN
+
+    // 1. Update Firebase Auth password + Firestore user doc pinCode
+    await _userRepository.resetStudentPin(studentId, newPin);
+
+    // 2. Update the embedded pin inside the group's students array
+    await _groupRepository.updateStudentPinInGroup(groupId, studentId, newPin);
+
+    // 3. Reflect the change in local state so the UI stays consistent
     final index = _allStudents.indexWhere((s) => s.id == studentId);
     if (index != -1) {
       final old = _allStudents[index];
@@ -382,6 +388,7 @@ class GroupDetailController extends ChangeNotifier {
       );
       notifyListeners();
     }
+
     return newPin;
   }
 

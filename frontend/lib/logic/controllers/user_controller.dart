@@ -5,10 +5,13 @@ library;
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/foundation.dart';
 import '../../data/models/user_model.dart';
+import '../../data/models/group_model.dart';
 import '../../data/repositories/user_repository.dart';
+import '../../data/repositories/group_repository.dart';
 
 class UserController extends ChangeNotifier {
   final UserRepository _repository;
+  final GroupRepository _groupRepository;
   final FirebaseFunctions _functions =
       FirebaseFunctions.instanceFor(region: 'us-central1');
 
@@ -18,8 +21,9 @@ class UserController extends ChangeNotifier {
   List<UserModel> _instructors = [];
   List<UserModel> _students = [];
   List<UserModel> _archivedUsers = [];
+  List<GroupModel> _archivedGroups = [];
 
-  UserController(this._repository) {
+  UserController(this._repository, this._groupRepository) {
     _init();
   }
 
@@ -60,6 +64,7 @@ class UserController extends ChangeNotifier {
   }
 
   List<UserModel> get archivedUsers => _archivedUsers;
+  List<GroupModel> get archivedGroups => _archivedGroups;
 
   // ── Actions ────────────────────────────
 
@@ -187,6 +192,7 @@ class UserController extends ChangeNotifier {
     notifyListeners();
     try {
       _archivedUsers = await _repository.getArchivedUsers();
+      _archivedGroups = await _groupRepository.getArchivedGroups();
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -199,8 +205,45 @@ class UserController extends ChangeNotifier {
     try {
       await _repository.restoreUser(uid);
       _archivedUsers = await _repository.getArchivedUsers();
+      _archivedGroups = await _groupRepository.getArchivedGroups();
       _instructors = await _repository.getInstructors();
       _students = await _repository.getStudents();
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> permanentlyDeleteUser(String uid) async {
+    _isLoading = true;
+    notifyListeners();
+    try {
+      await _repository.permanentlyDeleteUser(uid);
+      _archivedUsers = await _repository.getArchivedUsers();
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> restoreGroup(String groupId) async {
+    _isLoading = true;
+    notifyListeners();
+    try {
+      await _groupRepository.restoreGroup(groupId);
+      _archivedGroups = await _groupRepository.getArchivedGroups();
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> permanentlyDeleteGroup(String groupId) async {
+    _isLoading = true;
+    notifyListeners();
+    try {
+      await _groupRepository.permanentlyDeleteGroup(groupId);
+      _archivedGroups = await _groupRepository.getArchivedGroups();
     } finally {
       _isLoading = false;
       notifyListeners();

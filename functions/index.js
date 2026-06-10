@@ -310,3 +310,41 @@ exports.resendWelcomeEmail = onCall({ cors: true, region: "us-central1" }, async
 
   return { success: true };
 });
+
+exports.deleteUserPermanently = onCall({
+  cors: ["http://localhost:53996", "http://localhost:5000", /^http:\/\/localhost(:\d+)?$/, "https://levelup-26.web.app", "https://levelup-26.firebaseapp.com"],
+  region: "us-central1",
+}, async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "You must be signed in.");
+  }
+
+  const callerDoc = await admin.firestore()
+    .collection("users")
+    .doc(request.auth.uid)
+    .get();
+  const callerRole = callerDoc.exists ? callerDoc.data().role : null;
+
+  if (callerRole !== "admin") {
+    throw new HttpsError("permission-denied", "Only admins can permanently delete users.");
+  }
+
+  const uid = request.data.uid;
+  if (!uid) {
+    throw new HttpsError("invalid-argument", "uid is required.");
+  }
+
+  // Delete from Firebase Auth
+  try {
+    await admin.auth().deleteUser(uid);
+  } catch (err) {
+    if (err.code !== "auth/user-not-found") {
+      throw new HttpsError("internal", "Failed to delete Auth account: " + err.message);
+    }
+  }
+
+  // Delete from Firestore
+  await admin.firestore().collection("users").doc(uid).delete();
+
+  return { success: true };
+});

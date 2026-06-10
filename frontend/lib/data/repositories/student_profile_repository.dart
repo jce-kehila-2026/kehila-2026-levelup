@@ -31,19 +31,43 @@ class StudentProfileRepository {
     if (!doc.exists) return null;
     final data = doc.data()!;
 
-    // Fields that live directly on the user document.
+    // ── Resolve group name + instructor names from the groups collection ──
+    String groupName = '—';
+    String instructorNames = '—';
+
+    final groupId = data['groupId'] as String?;
+    if (groupId != null) {
+      final groupDoc = await _db.collection('groups').doc(groupId).get();
+      if (groupDoc.exists && groupDoc.data() != null) {
+        final groupData = groupDoc.data()!;
+        groupName = groupData['name'] as String? ?? '—';
+
+        final instructorIds =
+            List<String>.from(groupData['instructorIds'] as List? ?? []);
+
+        if (instructorIds.isNotEmpty) {
+          // Fetch all instructor docs in parallel
+          final instructorDocs = await Future.wait(
+            instructorIds.map((iid) => _db.collection('users').doc(iid).get()),
+          );
+          final names = instructorDocs
+              .where((d) => d.exists && d.data() != null)
+              .map((d) => (d.data()!['name'] as String?) ?? '')
+              .where((n) => n.isNotEmpty)
+              .toList();
+          if (names.isNotEmpty) instructorNames = names.join(', ');
+        }
+      }
+    }
+
     return StudentProfile(
       id: doc.id,
       name: data['name'] ?? '',
       username: data['username'] ?? '',
       studentId: data['studentNumber'] ?? '',
       level: levelDisplayName(data['levelId'] as String?),
-      // TODO: BACKEND_INTEGRATION - FIREBASE
-      // group, instructorName come from the groups collection (not built yet).
-      // submissions/graded/correct come from the submissions collection.
-      // Filled with safe defaults until those repos exist.
-      group: '—',
-      instructorName: '—',
+      group: groupName,
+      instructorName: instructorNames,
       submissions: (data['submissions'] ?? 0).toInt(),
       graded: (data['graded'] ?? 0).toInt(),
       correct: (data['correct'] ?? 0).toInt(),

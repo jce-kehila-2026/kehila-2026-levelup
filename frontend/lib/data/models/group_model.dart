@@ -61,6 +61,8 @@ class GroupModel {
   final String name;
   final List<String> instructorIds;
   final DateTime createdAt;
+  final bool isArchived;
+  final DateTime? archivedAt;
 
   /// Embedded student objects for optimised local reads.
   final List<GroupStudentEmbed> students;
@@ -70,6 +72,8 @@ class GroupModel {
     required this.serialNumber,
     required this.name,
     required this.createdAt,
+    this.isArchived = false,
+    this.archivedAt,
     this.instructorIds = const [],
     this.students = const [],
   });
@@ -96,6 +100,8 @@ class GroupModel {
           [],
       // ✅ Handles Firestore Timestamp, ISO String, or null
       createdAt: _parseDate(map['createdAt']) ?? DateTime.now(),
+      isArchived: map['isArchived'] as bool? ?? false,
+      archivedAt: _parseDate(map['archivedAt']),
     );
   }
 
@@ -106,6 +112,8 @@ class GroupModel {
       'instructorIds': instructorIds,
       'students': students.map((s) => s.toMap()).toList(),
       'createdAt': createdAt.toIso8601String(),
+      'isArchived': isArchived,
+      if (archivedAt != null) 'archivedAt': archivedAt!.toIso8601String(),
     };
   }
 }

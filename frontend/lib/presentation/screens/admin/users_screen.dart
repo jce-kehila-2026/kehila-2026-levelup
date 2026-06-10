@@ -27,6 +27,7 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
   late final TabController _tabController;
   final TextEditingController _searchController = TextEditingController();
   bool _archivedLoaded = false;
+  int _archiveCategory = 0; // 0=Instructors, 1=Students
 
   @override
   void initState() {
@@ -302,6 +303,59 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
     );
   }
 
+  Widget _buildArchivedGroupRow(dynamic group) {
+    return InkWell(
+      onTap: () => _showArchivedGroupDetails(group),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+        decoration: const BoxDecoration(
+          border: Border(bottom: BorderSide(color: AppColors.border, width: 1)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: AppColors.mutedForeground.withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+              ),
+              alignment: Alignment.center,
+              child: const Icon(Icons.group_outlined, size: 20, color: AppColors.mutedForeground),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(group.name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.mutedForeground)),
+                  const SizedBox(height: 2),
+                  Text('${group.students.length} students  •  ${group.instructorIds.length} instructors',
+                      style: const TextStyle(fontSize: 12, color: AppColors.mutedForeground)),
+                ],
+              ),
+            ),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppColors.mutedForeground.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Text('Group', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.mutedForeground)),
+                ),
+                const SizedBox(width: 8),
+                const Icon(Icons.chevron_right, size: 16, color: AppColors.mutedForeground),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _detailRow(IconData icon, String label, String value) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 14),
@@ -387,6 +441,7 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
               ],
               _detailRow(Icons.archive_outlined, 'Archived', archivedDateStr),
               const SizedBox(height: 4),
+              // ── Restore / Close ──
               Row(
                 children: [
                   Expanded(
@@ -417,6 +472,123 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
                     ),
                   ),
                 ],
+              ),
+              const SizedBox(height: 10),
+              // ── Permanently Delete (danger zone) ──
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  icon: const Icon(Icons.delete_forever, color: AppColors.error, size: 18),
+                  label: const Text('Permanently Delete', style: TextStyle(color: AppColors.error, fontWeight: FontWeight.w600)),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    side: const BorderSide(color: AppColors.error),
+                  ),
+                  onPressed: () async {
+                    Navigator.pop(ctx);
+                    await _permanentlyDeleteUser(user.id, user.name);
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showArchivedGroupDetails(dynamic group) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      isScrollControlled: true,
+      backgroundColor: AppColors.background,
+      builder: (ctx) {
+        final archivedDate = group.archivedAt != null
+            ? 'Archived on: ${DateFormat('MMM d, y').format(group.archivedAt!)}'
+            : 'Archived on: —';
+        return Padding(
+          padding: EdgeInsets.fromLTRB(20, 16, 20, MediaQuery.of(ctx).viewInsets.bottom + 32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40, height: 4,
+                  decoration: BoxDecoration(color: AppColors.border, borderRadius: BorderRadius.circular(2)),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(group.name, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.text)),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppColors.mutedForeground.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: const Text('Group', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.mutedForeground)),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              _detailRow(Icons.people_outline, 'Students', '${group.students.length} students'),
+              _detailRow(Icons.person_outline, 'Instructors', '${group.instructorIds.length} instructors'),
+              _detailRow(Icons.tag, 'Serial Number', '#${group.serialNumber}'),
+              _detailRow(Icons.archive_outlined, 'Archived', archivedDate),
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        side: const BorderSide(color: AppColors.border),
+                      ),
+                      child: const Text('Close', style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.mutedForeground)),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () async {
+                        Navigator.pop(ctx);
+                        await _restoreGroup(group.id, group.name);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: AppColors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: const Text('Restore', style: TextStyle(fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  icon: const Icon(Icons.delete_forever, color: AppColors.error, size: 18),
+                  label: const Text('Permanently Delete', style: TextStyle(color: AppColors.error, fontWeight: FontWeight.w600)),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    side: const BorderSide(color: AppColors.error),
+                  ),
+                  onPressed: () async {
+                    Navigator.pop(ctx);
+                    await _permanentlyDeleteGroup(group.id, group.name);
+                  },
+                ),
               ),
             ],
           ),
@@ -1079,6 +1251,68 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
     }
   }
 
+  Future<void> _permanentlyDeleteUser(String uid, String name) async {
+    try {
+      await _controller.permanentlyDeleteUser(uid);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('"$name" permanently deleted'),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+        ));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Failed to delete permanently: $e'),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+        ));
+      }
+    }
+  }
+
+  Future<void> _restoreGroup(String groupId, String name) async {
+    try {
+      await _controller.restoreGroup(groupId);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('"$name" restored'),
+          behavior: SnackBarBehavior.floating,
+        ));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Failed to restore group: $e'),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+        ));
+      }
+    }
+  }
+
+  Future<void> _permanentlyDeleteGroup(String groupId, String name) async {
+    try {
+      await _controller.permanentlyDeleteGroup(groupId);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('"$name" permanently deleted'),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+        ));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Failed to delete group permanently: $e'),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+        ));
+      }
+    }
+  }
+
   // ── Build ─────────────────────────────
 
   @override
@@ -1095,6 +1329,8 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
         final instructors = _controller.instructors;
         final students = _controller.students;
         final archivedUsers = _controller.archivedUsers;
+        final archivedInstructors = archivedUsers.where((u) => u.role == UserRole.instructor).toList();
+        final archivedStudents = archivedUsers.where((u) => u.role == UserRole.student).toList();
 
         final String headerTitle;
         final String headerCount;
@@ -1133,8 +1369,8 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
             label: const Text('Add Student', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
           );
         } else {
-          headerTitle = 'Archived';
-          headerCount = '${archivedUsers.length} Archived';
+          headerTitle = 'Archive';
+          headerCount = '${archivedUsers.length} archived';
           headerAction = null;
         }
 
@@ -1283,11 +1519,34 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
                         }).toList(),
                       ),
 
-                      // ── Archived ──
-                      _buildListContainer(
-                        isEmpty: archivedUsers.isEmpty,
-                        emptyText: 'No archived users',
-                        children: archivedUsers.map((u) => _buildArchivedRow(u)).toList(),
+                      // ── Archived (Instructors & Students) ──
+                      Column(
+                        children: [
+                          // Sub-category selector
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(20, 8, 20, 4),
+                            child: Row(
+                              children: [
+                                _archiveCategoryChip('Instructors', 0, archivedInstructors.length),
+                                const SizedBox(width: 8),
+                                _archiveCategoryChip('Students', 1, archivedStudents.length),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Expanded(
+                            child: () {
+                              final items = _archiveCategory == 0
+                                  ? archivedInstructors
+                                  : archivedStudents;
+                              return _buildListContainer(
+                                isEmpty: items.isEmpty,
+                                emptyText: 'Nothing archived here',
+                                children: items.map((u) => _buildArchivedRow(u)).toList(),
+                              );
+                            }(),
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -1297,6 +1556,30 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
           ),
         );
       },
+    );
+  }
+
+  Widget _archiveCategoryChip(String label, int index, int count) {
+    final isSelected = _archiveCategory == index;
+    return GestureDetector(
+      onTap: () => setState(() => _archiveCategory = index),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+        decoration: BoxDecoration(
+          color: isSelected ? AppColors.primary : AppColors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: isSelected ? AppColors.primary : AppColors.border),
+        ),
+        child: Text(
+          '$label ($count)',
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: isSelected ? AppColors.white : AppColors.mutedForeground,
+          ),
+        ),
+      ),
     );
   }
 }

@@ -596,39 +596,61 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
     );
   }
 
-  void _showResetPinDialog(UserModel student) {
-    final newPin = _controller.resetStudentPin(student.id);
+  Future<void> _showResetPinDialog(UserModel student) async {
+    // Show a loading spinner while Firebase is called
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        contentPadding: const EdgeInsets.all(28),
-        content: Column(mainAxisSize: MainAxisSize.min, children: [
-          Container(
-            width: 50, height: 50,
-            decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.15), shape: BoxShape.circle),
-            child: const Icon(Icons.lock_reset, size: 28, color: AppColors.accentDark),
-          ),
-          const SizedBox(height: 14),
-          Text(AppLocalizations.of(context)!.pinResetTitle, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 6),
-          Text(AppLocalizations.of(context)!.newPinForStudent(student.name), style: const TextStyle(fontSize: 13, color: AppColors.mutedForeground)),
-          const SizedBox(height: 14),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-            decoration: BoxDecoration(color: AppColors.background, borderRadius: BorderRadius.circular(12), border: Border.all(color: AppColors.border)),
-            child: Text(newPin, style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: AppColors.primaryDark, letterSpacing: 6)),
-          ),
-          const SizedBox(height: 18),
-          SizedBox(width: double.infinity, child: ElevatedButton(
-            onPressed: () => Navigator.pop(ctx),
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-            child: Text(AppLocalizations.of(context)!.doneButton, style: TextStyle(fontWeight: FontWeight.bold)),
-          )),
-        ]),
-      ),
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
     );
+
+    try {
+      final newPin = await _controller.resetStudentPin(student.id);
+      if (!mounted) return;
+      Navigator.pop(context); // dismiss loading
+
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          backgroundColor: AppColors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          contentPadding: const EdgeInsets.all(28),
+          content: Column(mainAxisSize: MainAxisSize.min, children: [
+            Container(
+              width: 50, height: 50,
+              decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.15), shape: BoxShape.circle),
+              child: const Icon(Icons.lock_reset, size: 28, color: AppColors.accentDark),
+            ),
+            const SizedBox(height: 14),
+            Text(AppLocalizations.of(context)!.pinResetTitle, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 6),
+            Text(AppLocalizations.of(context)!.newPinForStudent(student.name), style: const TextStyle(fontSize: 13, color: AppColors.mutedForeground)),
+            const SizedBox(height: 14),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              decoration: BoxDecoration(color: AppColors.background, borderRadius: BorderRadius.circular(12), border: Border.all(color: AppColors.border)),
+              child: Text(newPin, style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: AppColors.primaryDark, letterSpacing: 6)),
+            ),
+            const SizedBox(height: 18),
+            SizedBox(width: double.infinity, child: ElevatedButton(
+              onPressed: () => Navigator.pop(ctx),
+              style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+              child: Text(AppLocalizations.of(context)!.doneButton, style: const TextStyle(fontWeight: FontWeight.bold)),
+            )),
+          ]),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.pop(context); // dismiss loading
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to reset PIN: $e'),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
   }
 
   /// Shared search bar widget used inside both Add dialogs.

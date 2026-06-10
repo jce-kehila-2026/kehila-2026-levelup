@@ -76,7 +76,7 @@ void setupServiceLocator() {
     () => CurriculumController(getIt<CurriculumRepository>(), getIt<AssignmentRepository>(), getIt<UserRepository>()),
   );
   getIt.registerLazySingleton<UserController>(
-    () => UserController(getIt<UserRepository>()),
+    () => UserController(getIt<UserRepository>(), getIt<GroupRepository>()),
   );
   getIt.registerLazySingleton<GroupController>(
     () => GroupController(getIt<GroupRepository>()),
@@ -88,32 +88,32 @@ void setupServiceLocator() {
   // ──────────────────────────────────────
   // Logic Tier — Controllers: Instructor
   // ──────────────────────────────────────
-  getIt.registerLazySingleton<InstructorDashboardController>(
+  getIt.registerFactory<InstructorDashboardController>(
     () => InstructorDashboardController(getIt<AssignmentRepository>()),
   );
-  getIt.registerLazySingleton<InstructorAssignmentController>(
+  getIt.registerFactory<InstructorAssignmentController>(
     () => InstructorAssignmentController(getIt<AssignmentRepository>()),
   );
-  getIt.registerLazySingleton<InstructorGroupController>(
+  getIt.registerFactory<InstructorGroupController>(
     () => InstructorGroupController(getIt<GroupRepository>(), getIt<UserRepository>()),
   );
-  getIt.registerLazySingleton<InstructorLogController>(
+  getIt.registerFactory<InstructorLogController>(
     () => InstructorLogController(getIt<AuditLogRepository>()),
   );
 
   // ──────────────────────────────────────
   // Logic Tier — Controllers: Student
   // ──────────────────────────────────────
-  getIt.registerLazySingleton<StudentDashboardController>(
+  getIt.registerFactory<StudentDashboardController>(
     () => StudentDashboardController(),
   );
-  getIt.registerLazySingleton<StudentAssignmentController>(
+  getIt.registerFactory<StudentAssignmentController>(
     () => StudentAssignmentController(),
   );
-  getIt.registerLazySingleton<StudentNotificationController>(
+  getIt.registerFactory<StudentNotificationController>(
     () => StudentNotificationController(getIt<NotificationRepository>()),
   );
-  getIt.registerLazySingleton<StudentProfileController>(
+  getIt.registerFactory<StudentProfileController>(
     () => StudentProfileController(getIt<StudentProfileRepository>()),
   );
 

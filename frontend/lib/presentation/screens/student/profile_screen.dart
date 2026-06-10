@@ -59,7 +59,8 @@ class StudentProfileScreen extends StatelessWidget {
           return const Scaffold(body: Center(child: CircularProgressIndicator()));
         }
         final profile = controller.profile;
-        final initials = profile.name.split(' ').map((e) => e.isNotEmpty ? e[0] : '').join('').substring(0, 2).toUpperCase();
+        final raw = profile.name.split(' ').map((e) => e.isNotEmpty ? e[0] : '').join().toUpperCase();
+        final initials = raw.length >= 2 ? raw.substring(0, 2) : raw;
 
         return Scaffold(
           backgroundColor: AppColors.background,

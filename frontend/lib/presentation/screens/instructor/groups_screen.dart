@@ -26,6 +26,13 @@ class InstructorGroupsScreen extends StatefulWidget {
 class _InstructorGroupsScreenState extends State<InstructorGroupsScreen> {
   final InstructorGroupController _controller = getIt<InstructorGroupController>();
 
+  @override
+  void initState() {
+    super.initState();
+    // Refresh on every mount so the list stays current after admin changes or tab switches.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _controller.refresh());
+  }
+
   void _showEditGroupDialog(GroupModel group) {
     final nameController = TextEditingController(text: group.name);
     showDialog(
@@ -88,8 +95,34 @@ class _InstructorGroupsScreenState extends State<InstructorGroupsScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Delete Group', style: TextStyle(fontWeight: FontWeight.bold)),
-        content: Text('Are you sure you want to delete "${group.name}"? This cannot be undone.'),
+        title: const Text('Archive Group', style: TextStyle(fontWeight: FontWeight.bold)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Are you sure you want to archive "${group.name}"?'),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.07),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.info_outline, size: 15, color: AppColors.primary),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'The group can be restored by an admin from the Archive.',
+                      style: TextStyle(fontSize: 12, color: AppColors.primary),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
@@ -108,18 +141,25 @@ class _InstructorGroupsScreenState extends State<InstructorGroupsScreen> {
                 await _controller.deleteGroup(group.id);
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('"$name" deleted'), behavior: SnackBarBehavior.floating),
+                    SnackBar(
+                      content: Text('"$name" moved to archive'),
+                      behavior: SnackBarBehavior.floating,
+                    ),
                   );
                 }
               } catch (e) {
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Failed to delete group: $e'), backgroundColor: AppColors.error, behavior: SnackBarBehavior.floating),
+                    SnackBar(
+                      content: Text('Failed to archive group: $e'),
+                      backgroundColor: AppColors.error,
+                      behavior: SnackBarBehavior.floating,
+                    ),
                   );
                 }
               }
             },
-            child: const Text('Delete', style: TextStyle(fontWeight: FontWeight.bold)),
+            child: const Text('Archive', style: TextStyle(fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -288,7 +328,6 @@ class _InstructorGroupsScreenState extends State<InstructorGroupsScreen> {
                           ? AppLocalizations.of(context)!.noLevelsAssigned
                           : activeLevels.map((l) => AppLocalizations.of(context)!.levelLabel(l.replaceAll('l', ''))).join(' \u00b7 ');
                       return GroupCard(
-                        serialNumber: group.serialNumber,
                         groupName: group.name,
                         instructorsCount: group.instructorIds.length,
                         levelName: levelLabel,
@@ -313,9 +352,9 @@ class _InstructorGroupsScreenState extends State<InstructorGroupsScreen> {
                             PopupMenuItem(
                               value: 'delete',
                               child: Row(children: [
-                                const Icon(Icons.delete_outline, size: 16, color: AppColors.error),
+                                const Icon(Icons.archive_outlined, size: 16, color: AppColors.error),
                                 const SizedBox(width: 8),
-                                const Text('Delete', style: TextStyle(color: AppColors.error)),
+                                const Text('Archive', style: TextStyle(color: AppColors.error)),
                               ]),
                             ),
                           ],

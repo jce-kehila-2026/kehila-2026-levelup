@@ -32,21 +32,25 @@ class GroupRepository {
     QuerySnapshot<Map<String, dynamic>> snapshot;
 
     if (role == 'admin') {
-      // Admins see all groups (no orderBy to avoid missing index).
+      // Admins see ALL groups — filter in Dart so old docs without isArchived are included.
       snapshot = await _groups.get();
     } else {
-      // Instructors see only their own groups (no orderBy to avoid composite index).
+      // Instructors see only their own groups.
       snapshot = await _groups
           .where('instructorIds', arrayContains: uid)
           .get();
     }
 
+    // Filter out archived groups in Dart.
+    // Firestore's where('isArchived', isEqualTo: false) excludes documents
+    // that were created before the isArchived field was added (field doesn't exist).
     final list = snapshot.docs
         .map((doc) => GroupModel.fromMap(doc.data(), doc.id))
+        .where((g) => !g.isArchived) // includes docs where field is missing (defaults to false)
         .toList();
 
-    // Sort in Dart to avoid requiring a Firestore composite index.
-    list.sort((a, b) => a.serialNumber.compareTo(b.serialNumber));
+    // Sort by creation date — newest last (ascending).
+    list.sort((a, b) => a.createdAt.compareTo(b.createdAt));
     return list;
   }
 
@@ -61,22 +65,25 @@ class GroupRepository {
   // CREATE
   // ─────────────────────────────────────────────
 
-  /// Creates a new group document and returns the resulting [GroupModel].
+  /// Creates a new group document.
+  /// The caller is added to [instructorIds] only if they are an instructor.
+  /// Admin-created groups start with an empty [instructorIds] list.
+  /// No serial number is stored — display order is derived from [createdAt].
   Future<GroupModel> createGroup(String name) async {
     final uid = _auth.currentUser?.uid;
     if (uid == null) throw Exception('Not authenticated');
 
-    // Get current group count to generate a clean sequential number (1, 2, 3...)
-    final countSnap = await _groups.count().get();
-    final serialNumber = (countSnap.count ?? 0) + 1;
+    // Check role to decide whether to auto-assign caller as instructor.
+    final callerDoc = await _db.collection('users').doc(uid).get();
+    final callerRole = callerDoc.data()?['role'] as String?;
+    final instructorIds = callerRole == 'instructor' ? [uid] : <String>[];
 
     final now = Timestamp.now();
     final newDocRef = _groups.doc();
 
     final data = <String, dynamic>{
-      'serialNumber': serialNumber,
       'name': name,
-      'instructorIds': [uid],
+      'instructorIds': instructorIds,
       'students': [],
       'createdAt': now,
     };
@@ -85,9 +92,9 @@ class GroupRepository {
 
     return GroupModel(
       id: newDocRef.id,
-      serialNumber: serialNumber,
+      serialNumber: 0, // not stored; position derived from createdAt sort order
       name: name,
-      instructorIds: [uid],
+      instructorIds: instructorIds,
       students: const [],
       createdAt: now.toDate(),
     );
@@ -106,8 +113,57 @@ class GroupRepository {
   // DELETE
   // ─────────────────────────────────────────────
 
-  /// Deletes a group document permanently.
+  /// Soft-deletes a group by setting isArchived: true.
+  /// Students inside the group are unassigned (their groupId field is cleared).
+  /// To permanently delete, use permanentlyDeleteGroup() from the archive.
   Future<void> deleteGroup(String id) async {
+    final group = await getGroupById(id);
+    if (group == null) return;
+
+    final batch = _db.batch();
+
+    // Mark the group as archived
+    batch.update(_groups.doc(id), {
+      'isArchived': true,
+      'archivedAt': FieldValue.serverTimestamp(),
+    });
+
+    // Unassign all students in the group (clear their groupId)
+    for (final student in group.students) {
+      batch.update(_db.collection('users').doc(student.id), {
+        'groupId': FieldValue.delete(),
+      });
+    }
+
+    await batch.commit();
+  }
+
+  /// Returns all archived groups (for the Admin Archive screen).
+  Future<List<GroupModel>> getArchivedGroups() async {
+    final snapshot = await _groups
+        .where('isArchived', isEqualTo: true)
+        .get();
+    final list = snapshot.docs
+        .map((doc) => GroupModel.fromMap(doc.data(), doc.id))
+        .toList();
+    list.sort((a, b) {
+      final aDate = a.archivedAt ?? a.createdAt;
+      final bDate = b.archivedAt ?? b.createdAt;
+      return bDate.compareTo(aDate); // newest archived first
+    });
+    return list;
+  }
+
+  /// Restores an archived group back to active.
+  Future<void> restoreGroup(String id) async {
+    await _groups.doc(id).update({
+      'isArchived': false,
+      'archivedAt': FieldValue.delete(),
+    });
+  }
+
+  /// Permanently deletes a group from Firestore. Only callable from the archive.
+  Future<void> permanentlyDeleteGroup(String id) async {
     await _groups.doc(id).delete();
   }
 

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import '../../theme/app_theme.dart';
 
 class GroupCard extends StatelessWidget {
-  final int serialNumber;
   final String groupName;
   final String levelName;
   final int studentsCount;
@@ -12,7 +11,6 @@ class GroupCard extends StatelessWidget {
 
   const GroupCard({
     super.key,
-    required this.serialNumber,
     required this.groupName,
     required this.levelName,
     required this.studentsCount,
