@@ -6,7 +6,9 @@
 ///  Uses ListenableBuilder for reactivity
 library;
 
+import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:frontend/l10n/app_localizations.dart';
 import '../../../data/models/curriculum_model.dart';
 import '../../../data/models/user_model.dart';
@@ -120,34 +122,51 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
                     style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: fgColor),
                   ),
                 ),
-                if (onResendEmail != null) ...[
-                  const SizedBox(width: 4),
-                  IconButton(
-                    icon: const Icon(Icons.email_outlined, size: 18, color: AppColors.primary),
-                    onPressed: onResendEmail,
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                    tooltip: 'Resend Email',
-                  ),
-                ],
-                if (onEditProfile != null) ...[
-                  const SizedBox(width: 4),
-                  IconButton(
-                    icon: const Icon(Icons.edit_outlined, size: 18, color: AppColors.mutedForeground),
-                    onPressed: onEditProfile,
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                  ),
-                ],
-                if (onDelete != null) ...[
-                  const SizedBox(width: 4),
-                  IconButton(
-                    icon: const Icon(Icons.delete_outline, size: 18, color: AppColors.error),
-                    onPressed: onDelete,
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                  ),
-                ],
+                PopupMenuButton<String>(
+                  icon: const Icon(Icons.more_vert, size: 20, color: AppColors.mutedForeground),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  onSelected: (value) {
+                    if (value == 'resend' && onResendEmail != null) onResendEmail();
+                    if (value == 'edit' && onEditProfile != null) onEditProfile();
+                    if (value == 'delete' && onDelete != null) onDelete();
+                  },
+                  itemBuilder: (context) => [
+                    if (onResendEmail != null)
+                      const PopupMenuItem(
+                        value: 'resend',
+                        child: Row(
+                          children: [
+                            Icon(Icons.email_outlined, size: 18, color: AppColors.primary),
+                            SizedBox(width: 8),
+                            Text('Resend Welcome Email', style: TextStyle(fontSize: 13)),
+                          ],
+                        ),
+                      ),
+                    if (onEditProfile != null)
+                      const PopupMenuItem(
+                        value: 'edit',
+                        child: Row(
+                          children: [
+                            Icon(Icons.edit_outlined, size: 18, color: AppColors.mutedForeground),
+                            SizedBox(width: 8),
+                            Text('Edit Profile', style: TextStyle(fontSize: 13)),
+                          ],
+                        ),
+                      ),
+                    if (onDelete != null)
+                      const PopupMenuItem(
+                        value: 'delete',
+                        child: Row(
+                          children: [
+                            Icon(Icons.delete_outline, size: 18, color: AppColors.error),
+                            SizedBox(width: 8),
+                            Text('Delete', style: TextStyle(fontSize: 13, color: AppColors.error)),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
               ],
             ),
           ],
@@ -303,58 +322,7 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
     );
   }
 
-  Widget _buildArchivedGroupRow(dynamic group) {
-    return InkWell(
-      onTap: () => _showArchivedGroupDetails(group),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-        decoration: const BoxDecoration(
-          border: Border(bottom: BorderSide(color: AppColors.border, width: 1)),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: AppColors.mutedForeground.withValues(alpha: 0.1),
-                shape: BoxShape.circle,
-              ),
-              alignment: Alignment.center,
-              child: const Icon(Icons.group_outlined, size: 20, color: AppColors.mutedForeground),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(group.name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.mutedForeground)),
-                  const SizedBox(height: 2),
-                  Text('${group.students.length} students  •  ${group.instructorIds.length} instructors',
-                      style: const TextStyle(fontSize: 12, color: AppColors.mutedForeground)),
-                ],
-              ),
-            ),
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: AppColors.mutedForeground.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: const Text('Group', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.mutedForeground)),
-                ),
-                const SizedBox(width: 8),
-                const Icon(Icons.chevron_right, size: 16, color: AppColors.mutedForeground),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+
 
   Widget _detailRow(IconData icon, String label, String value) {
     return Padding(
@@ -502,104 +470,7 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
     );
   }
 
-  void _showArchivedGroupDetails(dynamic group) {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      isScrollControlled: true,
-      backgroundColor: AppColors.background,
-      builder: (ctx) {
-        final archivedDate = group.archivedAt != null
-            ? 'Archived on: ${DateFormat('MMM d, y').format(group.archivedAt!)}'
-            : 'Archived on: —';
-        return Padding(
-          padding: EdgeInsets.fromLTRB(20, 16, 20, MediaQuery.of(ctx).viewInsets.bottom + 32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 40, height: 4,
-                  decoration: BoxDecoration(color: AppColors.border, borderRadius: BorderRadius.circular(2)),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(group.name, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.text)),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: AppColors.mutedForeground.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: const Text('Group', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.mutedForeground)),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              _detailRow(Icons.people_outline, 'Students', '${group.students.length} students'),
-              _detailRow(Icons.person_outline, 'Instructors', '${group.instructorIds.length} instructors'),
-              _detailRow(Icons.tag, 'Serial Number', '#${group.serialNumber}'),
-              _detailRow(Icons.archive_outlined, 'Archived', archivedDate),
-              const SizedBox(height: 4),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => Navigator.pop(ctx),
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        side: const BorderSide(color: AppColors.border),
-                      ),
-                      child: const Text('Close', style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.mutedForeground)),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () async {
-                        Navigator.pop(ctx);
-                        await _restoreGroup(group.id, group.name);
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: AppColors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      ),
-                      child: const Text('Restore', style: TextStyle(fontWeight: FontWeight.bold)),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  icon: const Icon(Icons.delete_forever, color: AppColors.error, size: 18),
-                  label: const Text('Permanently Delete', style: TextStyle(color: AppColors.error, fontWeight: FontWeight.w600)),
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    side: const BorderSide(color: AppColors.error),
-                  ),
-                  onPressed: () async {
-                    Navigator.pop(ctx);
-                    await _permanentlyDeleteGroup(group.id, group.name);
-                  },
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
+
 
   Widget _buildListContainer({
     required bool isEmpty,
@@ -641,6 +512,7 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
     String homeAddress = '';
     List<String> assignedLevels = [];
     String? emailError;
+    String? phoneError;
 
     showDialog(
       context: context,
@@ -653,74 +525,81 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
               backgroundColor: AppColors.background,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
               title: Text(AppLocalizations.of(context)!.addInstructorTitle, style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.text)),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  TextField(
-                    decoration: InputDecoration(
-                      labelText: AppLocalizations.of(context)!.fullNameLabel,
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    TextField(
+                      decoration: InputDecoration(
+                        labelText: AppLocalizations.of(context)!.fullNameLabel,
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      ),
+                      onChanged: (val) => setDialogState(() => name = val),
                     ),
-                    onChanged: (val) => setDialogState(() => name = val),
-                  ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    decoration: InputDecoration(
-                      labelText: AppLocalizations.of(context)!.emailAddressLabel,
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      errorText: emailError,
-                      errorMaxLines: 2,
+                    const SizedBox(height: 16),
+                    TextField(
+                      decoration: InputDecoration(
+                        labelText: AppLocalizations.of(context)!.emailAddressLabel,
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        errorText: emailError,
+                        errorMaxLines: 2,
+                      ),
+                      keyboardType: TextInputType.emailAddress,
+                      onChanged: (val) => setDialogState(() {
+                        email = val;
+                        emailError = null;
+                      }),
                     ),
-                    keyboardType: TextInputType.emailAddress,
-                    onChanged: (val) => setDialogState(() {
-                      email = val;
-                      emailError = null;
-                    }),
-                  ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    decoration: InputDecoration(
-                      labelText: AppLocalizations.of(context)!.phoneNumberLabel,
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    const SizedBox(height: 16),
+                    TextField(
+                      decoration: InputDecoration(
+                        labelText: AppLocalizations.of(context)!.phoneNumberLabel,
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        errorText: phoneError,
+                      ),
+                      keyboardType: TextInputType.phone,
+                      onChanged: (val) => setDialogState(() {
+                        phoneNumber = val;
+                        phoneError = null;
+                      }),
                     ),
-                    onChanged: (val) => phoneNumber = val,
-                  ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    decoration: InputDecoration(
-                      labelText: AppLocalizations.of(context)!.homeAddressLabel,
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    const SizedBox(height: 16),
+                    TextField(
+                      decoration: InputDecoration(
+                        labelText: AppLocalizations.of(context)!.homeAddressLabel,
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      ),
+                      onChanged: (val) => homeAddress = val,
                     ),
-                    onChanged: (val) => homeAddress = val,
-                  ),
-                  const SizedBox(height: 16),
-                  Text(AppLocalizations.of(context)!.assignLevels, style: const TextStyle(fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    children: _controller.levels.map((level) {
-                      final isSelected = assignedLevels.contains(level.id);
-                      return ChoiceChip(
-                        label: Text(level.name),
-                        selected: isSelected,
-                        onSelected: (selected) {
-                          setDialogState(() {
-                            if (selected) {
-                              assignedLevels.add(level.id);
-                            } else {
-                              assignedLevels.remove(level.id);
-                            }
-                          });
-                        },
-                      );
-                    }).toList(),
-                  ),
-                ],
+                    const SizedBox(height: 16),
+                    Text(AppLocalizations.of(context)!.assignLevels, style: const TextStyle(fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      children: _controller.levels.map((level) {
+                        final isSelected = assignedLevels.contains(level.id);
+                        return ChoiceChip(
+                          label: Text(level.name),
+                          selected: isSelected,
+                          onSelected: (selected) {
+                            setDialogState(() {
+                              if (selected) {
+                                assignedLevels.add(level.id);
+                              } else {
+                                assignedLevels.remove(level.id);
+                              }
+                            });
+                          },
+                        );
+                      }).toList(),
+                    ),
+                  ],
+                ),
               ),
               actions: [
                 TextButton(
@@ -734,6 +613,11 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                   ),
                   onPressed: name.isEmpty || !isEmailValid ? null : () async {
+                    final phoneVal = phoneNumber.trim();
+                    if (phoneVal.isNotEmpty && !RegExp(r'^\d{10}$').hasMatch(phoneVal)) {
+                      setDialogState(() => phoneError = 'Phone number must be exactly 10 digits');
+                      return;
+                    }
                     final exists = await _controller.emailExists(email);
                     if (exists) {
                       setDialogState(() => emailError = 'Email already registered');
@@ -743,7 +627,7 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
                     final successMsg = AppLocalizations.of(context)!.instructorAddedSuccess;
                     Navigator.pop(context);
                     try {
-                      await _controller.addInstructor(name, email, phoneNumber.isNotEmpty ? phoneNumber : null, homeAddress.isNotEmpty ? homeAddress : null, assignedLevels);
+                      await _controller.addInstructor(name, email, phoneVal.isNotEmpty ? phoneVal : null, homeAddress.isNotEmpty ? homeAddress : null, assignedLevels);
                       if (mounted) {
                         ScaffoldMessenger.of(this.context).showSnackBar(SnackBar(
                           content: Text(successMsg),
@@ -773,13 +657,22 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
   }
 
   void _showAddStudentDialog() {
-    String name = '';
-    String username = '';
-    String pin = '';
-    String levelId = _controller.levels.isNotEmpty ? _controller.levels.first.id : '';
-    String? nameError;
-    String? usernameError;
-    String? pinError;
+    // Each entry: {name, username, pin, nameError, usernameError}
+    String _genPin() =>
+        (100000 + Random().nextInt(900000)).toString();
+
+    final rows = <Map<String, dynamic>>[
+      {
+        'nameCtrl': TextEditingController(),
+        'usernameCtrl': TextEditingController(),
+        'pin': _genPin(),
+        'nameError': null,
+        'usernameError': null,
+      }
+    ];
+
+    String levelId =
+        _controller.levels.isNotEmpty ? _controller.levels.first.id : '';
 
     showDialog(
       context: context,
@@ -788,149 +681,387 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
           builder: (context, setDialogState) {
             return AlertDialog(
               backgroundColor: AppColors.background,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-              title: const Text('Add Student', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.text)),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    TextField(
-                      decoration: InputDecoration(
-                        labelText: AppLocalizations.of(context)!.fullNameLabel,
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                        errorText: nameError,
-                      ),
-                      onChanged: (val) => setDialogState(() {
-                        name = val;
-                        nameError = null;
-                      }),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20)),
+              titlePadding:
+                  const EdgeInsets.fromLTRB(24, 24, 24, 0),
+              contentPadding:
+                  const EdgeInsets.fromLTRB(24, 16, 24, 0),
+              title: Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'Add Students',
+                      style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.text),
                     ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      decoration: InputDecoration(
-                        labelText: 'Username',
-                        hintText: 'ali.hassan',
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                        errorText: usernameError,
-                        errorMaxLines: 2,
-                      ),
-                      onChanged: (val) => setDialogState(() {
-                        username = val;
-                        usernameError = null;
-                      }),
-                    ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      decoration: InputDecoration(
-                        labelText: AppLocalizations.of(context)!.pinLabel,
-                        hintText: '123456',
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                        counterText: '',
-                        errorText: pinError,
-                      ),
-                      keyboardType: TextInputType.number,
-                      maxLength: 6,
-                      onChanged: (val) => setDialogState(() {
-                        pin = val;
-                        pinError = null;
-                      }),
-                    ),
-                    const SizedBox(height: 16),
-                    const Text('Level', style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.text)),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8,
-                      children: _controller.levels.map((level) {
-                        final isSelected = levelId == level.id;
-                        return ChoiceChip(
-                          label: Text(level.name),
-                          selected: isSelected,
-                          onSelected: (selected) {
-                            if (selected) setDialogState(() => levelId = level.id);
-                          },
+                  ),
+                  TextButton.icon(
+                    onPressed: () => setDialogState(() {
+                      rows.add({
+                        'nameCtrl': TextEditingController(),
+                        'usernameCtrl': TextEditingController(),
+                        'pin': _genPin(),
+                        'nameError': null,
+                        'usernameError': null,
+                      });
+                    }),
+                    icon: const Icon(Icons.add, size: 16,
+                        color: AppColors.primary),
+                    label: const Text('Add Row',
+                        style: TextStyle(
+                            fontSize: 13,
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.w600)),
+                    style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 6)),
+                  ),
+                ],
+              ),
+              content: SizedBox(
+                width: 480,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // ── Student rows ──
+                      ...List.generate(rows.length, (i) {
+                        final row = rows[i];
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 14),
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: AppColors.white,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                                color: AppColors.border),
+                          ),
+                          child: Column(
+                            crossAxisAlignment:
+                                CrossAxisAlignment.start,
+                            children: [
+                              // Row header
+                              Row(
+                                children: [
+                                  Text(
+                                    'Student ${i + 1}',
+                                    style: const TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w700,
+                                        color: AppColors.primary),
+                                  ),
+                                  const Spacer(),
+                                  if (rows.length > 1)
+                                    InkWell(
+                                      onTap: () => setDialogState(() {
+                                        (row['nameCtrl']
+                                                as TextEditingController)
+                                            .dispose();
+                                        (row['usernameCtrl']
+                                                as TextEditingController)
+                                            .dispose();
+                                        rows.removeAt(i);
+                                      }),
+                                      borderRadius:
+                                          BorderRadius.circular(6),
+                                      child: const Padding(
+                                        padding: EdgeInsets.all(4),
+                                        child: Icon(
+                                            Icons.close,
+                                            size: 16,
+                                            color:
+                                                AppColors.error),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                              const SizedBox(height: 10),
+                              // Full Name
+                              TextField(
+                                controller: row['nameCtrl']
+                                    as TextEditingController,
+                                decoration: InputDecoration(
+                                  labelText:
+                                      AppLocalizations.of(context)!
+                                          .fullNameLabel,
+                                  border: OutlineInputBorder(
+                                      borderRadius:
+                                          BorderRadius.circular(10)),
+                                  contentPadding:
+                                      const EdgeInsets.symmetric(
+                                          horizontal: 14,
+                                          vertical: 12),
+                                  errorText:
+                                      row['nameError'] as String?,
+                                  isDense: true,
+                                ),
+                                onChanged: (_) => setDialogState(
+                                    () => row['nameError'] = null),
+                              ),
+                              const SizedBox(height: 10),
+                              // Username
+                              TextField(
+                                controller: row['usernameCtrl']
+                                    as TextEditingController,
+                                decoration: InputDecoration(
+                                  labelText: 'Username',
+                                  hintText: 'ali.hassan',
+                                  border: OutlineInputBorder(
+                                      borderRadius:
+                                          BorderRadius.circular(10)),
+                                  contentPadding:
+                                      const EdgeInsets.symmetric(
+                                          horizontal: 14,
+                                          vertical: 12),
+                                  errorText: row['usernameError']
+                                      as String?,
+                                  errorMaxLines: 2,
+                                  isDense: true,
+                                ),
+                                onChanged: (_) => setDialogState(() =>
+                                    row['usernameError'] = null),
+                              ),
+                              const SizedBox(height: 10),
+                              // Read-only PIN bar
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 14, vertical: 11),
+                                decoration: BoxDecoration(
+                                  color: AppColors.background,
+                                  borderRadius:
+                                      BorderRadius.circular(10),
+                                  border: Border.all(
+                                      color: AppColors.border),
+                                ),
+                                child: Row(
+                                  children: [
+                                    const Icon(Icons.lock_outline,
+                                        size: 16,
+                                        color:
+                                            AppColors.mutedForeground),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        'PIN: ${row['pin']}',
+                                        style: const TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w700,
+                                          letterSpacing: 2,
+                                          color: AppColors.primaryDark,
+                                        ),
+                                      ),
+                                    ),
+                                    // Regenerate PIN button
+                                    Tooltip(
+                                      message: 'Regenerate PIN',
+                                      child: InkWell(
+                                        onTap: () => setDialogState(
+                                            () => row['pin'] =
+                                                _genPin()),
+                                        borderRadius:
+                                            BorderRadius.circular(6),
+                                        child: const Padding(
+                                          padding: EdgeInsets.all(4),
+                                          child: Icon(
+                                              Icons.refresh,
+                                              size: 16,
+                                              color: AppColors
+                                                  .mutedForeground),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
                         );
-                      }).toList(),
-                    ),
-                  ],
+                      }),
+
+                      // ── Level selector ──
+                      if (_controller.levels.isNotEmpty) ...[
+                        const Text('Level',
+                            style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.text,
+                                fontSize: 13)),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 4,
+                          children: _controller.levels.map((level) {
+                            final isSel = levelId == level.id;
+                            return ChoiceChip(
+                              label: Text(level.name),
+                              selected: isSel,
+                              onSelected: (sel) {
+                                if (sel)
+                                  setDialogState(
+                                      () => levelId = level.id);
+                              },
+                            );
+                          }).toList(),
+                        ),
+                        const SizedBox(height: 8),
+                      ],
+                    ],
+                  ),
                 ),
               ),
               actions: [
                 TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: Text(AppLocalizations.of(context)!.cancel, style: const TextStyle(color: AppColors.mutedForeground)),
+                  onPressed: () {
+                    for (final r in rows) {
+                      (r['nameCtrl'] as TextEditingController)
+                          .dispose();
+                      (r['usernameCtrl'] as TextEditingController)
+                          .dispose();
+                    }
+                    Navigator.pop(context);
+                  },
+                  child: Text(AppLocalizations.of(context)!.cancel,
+                      style: const TextStyle(
+                          color: AppColors.mutedForeground)),
                 ),
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
                     foregroundColor: AppColors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
                   ),
                   onPressed: () async {
-                    String? newNameError;
-                    String? newUsernameError;
-                    String? newPinError;
+                    // Validate all rows
+                    bool hasError = false;
+                    setDialogState(() {
+                      for (final r in rows) {
+                        final name = (r['nameCtrl']
+                                as TextEditingController)
+                            .text
+                            .trim();
+                        final uname = (r['usernameCtrl']
+                                as TextEditingController)
+                            .text
+                            .trim();
 
-                    if (name.trim().isEmpty) newNameError = 'Required';
+                        if (name.isEmpty) {
+                          r['nameError'] = 'Required';
+                          hasError = true;
+                        }
+                        if (uname.isEmpty) {
+                          r['usernameError'] = 'Required';
+                          hasError = true;
+                        } else if (uname.contains(' ') ||
+                            uname != uname.toLowerCase()) {
+                          r['usernameError'] =
+                              'Lowercase, no spaces';
+                          hasError = true;
+                        }
+                      }
+                    });
 
-                    final u = username.trim();
-                    if (u.isEmpty) {
-                      newUsernameError = 'Required';
-                    } else if (u.contains(' ') || u != u.toLowerCase()) {
-                      newUsernameError = 'Lowercase, no spaces';
-                    }
+                    if (hasError) return;
 
-                    if (pin.isEmpty || !RegExp(r'^\d{6}$').hasMatch(pin)) {
-                      newPinError = 'Exactly 6 digits';
-                    }
-
-                    if (newNameError != null || newUsernameError != null || newPinError != null) {
+                    // Check for duplicate usernames within the batch
+                    final usernames = rows
+                        .map((r) => (r['usernameCtrl']
+                                as TextEditingController)
+                            .text
+                            .trim()
+                            .toLowerCase())
+                        .toList();
+                    final dupes = usernames
+                        .toSet()
+                        .length != usernames.length;
+                    if (dupes) {
                       setDialogState(() {
-                        nameError = newNameError;
-                        usernameError = newUsernameError;
-                        pinError = newPinError;
+                        for (int i = 0; i < rows.length; i++) {
+                          final u = usernames[i];
+                          if (usernames.indexOf(u) != i) {
+                            rows[i]['usernameError'] =
+                                'Duplicate username in batch';
+                          }
+                        }
                       });
                       return;
                     }
 
-                    final exists = await _controller.usernameExists(u);
-                    if (exists) {
-                      setDialogState(() => usernameError = 'Username already taken');
-                      return;
+                    // Check each username against Firestore
+                    for (int i = 0; i < rows.length; i++) {
+                      final exists = await _controller
+                          .usernameExists(usernames[i]);
+                      if (exists) {
+                        setDialogState(() => rows[i]
+                            ['usernameError'] =
+                            'Username already taken');
+                        return;
+                      }
                     }
 
                     if (!context.mounted) return;
+
+                    // Build payload
+                    final payload = rows
+                        .map((r) => {
+                              'name': (r['nameCtrl']
+                                      as TextEditingController)
+                                  .text
+                                  .trim(),
+                              'username': (r['usernameCtrl']
+                                      as TextEditingController)
+                                  .text
+                                  .trim()
+                                  .toLowerCase(),
+                              'pin': r['pin'] as String,
+                              'levelId': levelId,
+                            })
+                        .toList();
+
+                    // Dispose controllers before closing dialog
+                    for (final r in rows) {
+                      (r['nameCtrl'] as TextEditingController)
+                          .dispose();
+                      (r['usernameCtrl'] as TextEditingController)
+                          .dispose();
+                    }
+
                     Navigator.pop(context);
 
+                    // Show progress spinner
+                    showDialog(
+                      context: this.context,
+                      barrierDismissible: false,
+                      builder: (_) => const Center(
+                          child: CircularProgressIndicator()),
+                    );
+
                     try {
-                      await _controller.addStudent(
-                        name: name.trim(),
-                        username: u,
-                        pinCode: pin,
-                        levelId: levelId,
-                      );
-                      if (mounted) {
-                        ScaffoldMessenger.of(this.context).showSnackBar(const SnackBar(
-                          content: Text('Student added successfully'),
-                          behavior: SnackBarBehavior.floating,
-                          duration: Duration(seconds: 4),
-                        ));
-                      }
+                      final created = await _controller
+                          .bulkAddStudents(payload);
+                      if (!mounted) return;
+                      Navigator.pop(this.context); // dismiss spinner
+                      _showCredentialsDialog(created);
                     } catch (e) {
-                      if (mounted) {
-                        ScaffoldMessenger.of(this.context).showSnackBar(SnackBar(
-                          content: Text('Failed to add student: $e'),
+                      if (!mounted) return;
+                      Navigator.pop(this.context); // dismiss spinner
+                      ScaffoldMessenger.of(this.context).showSnackBar(
+                        SnackBar(
+                          content:
+                              Text('Failed to add students: $e'),
                           backgroundColor: AppColors.error,
                           behavior: SnackBarBehavior.floating,
                           duration: const Duration(seconds: 6),
-                        ));
-                      }
+                        ),
+                      );
                     }
                   },
-                  child: Text(AppLocalizations.of(context)!.add, style: const TextStyle(fontWeight: FontWeight.bold)),
+                  child: Text(
+                    rows.length == 1 ? 'Add Student' : 'Add ${rows.length} Students',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
                 ),
               ],
             );
@@ -940,85 +1071,122 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
     );
   }
 
-  void _showEditProfileDialog(dynamic instructor) {
-    String name = instructor.name;
-    String email = instructor.email ?? '';
-    String phoneNumber = instructor.phoneNumber ?? '';
-    String homeAddress = instructor.address ?? '';
-
-    showDialog(
+  void _showCredentialsDialog(List<UserModel> users) {
+    showDialog<void>(
       context: context,
-      builder: (context) {
+      barrierDismissible: false,
+      builder: (ctx) {
         return AlertDialog(
-          backgroundColor: AppColors.background,
+          backgroundColor: AppColors.white,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: Text(AppLocalizations.of(context)!.editProfileTitle(instructor.name), style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.text, fontSize: 16)),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
+          contentPadding: const EdgeInsets.all(24),
+          title: Row(
             children: [
-              TextField(
-                controller: TextEditingController(text: name),
-                decoration: InputDecoration(
-                  labelText: AppLocalizations.of(context)!.fullNameLabel,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.success.withValues(alpha: 0.15),
+                  shape: BoxShape.circle,
                 ),
-                onChanged: (val) => name = val,
+                child: const Icon(Icons.check_circle, color: AppColors.success, size: 24),
               ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: TextEditingController(text: email),
-                decoration: InputDecoration(
-                  labelText: AppLocalizations.of(context)!.emailAddressLabel,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  users.length == 1 ? 'Student Created!' : 'Students Created!',
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
                 ),
-                onChanged: (val) => email = val,
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: TextEditingController(text: phoneNumber),
-                decoration: InputDecoration(
-                  labelText: AppLocalizations.of(context)!.phoneNumberLabel,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                ),
-                onChanged: (val) => phoneNumber = val,
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: TextEditingController(text: homeAddress),
-                decoration: InputDecoration(
-                  labelText: AppLocalizations.of(context)!.homeAddressLabel,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                ),
-                onChanged: (val) => homeAddress = val,
               ),
             ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text(AppLocalizations.of(context)!.cancel, style: const TextStyle(color: AppColors.mutedForeground)),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Important: Save the PIN below. For security reasons, it will not be shown again.',
+                  style: TextStyle(fontSize: 13, color: AppColors.mutedForeground, fontWeight: FontWeight.w500),
+                ),
+                const SizedBox(height: 16),
+                Flexible(
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    physics: const ClampingScrollPhysics(),
+                    itemCount: users.length,
+                    separatorBuilder: (_, __) => const Divider(height: 20),
+                    itemBuilder: (context, idx) {
+                      final u = users[idx];
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            u.name,
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.primaryDark),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Username: ${u.username}',
+                            style: const TextStyle(fontSize: 12, color: AppColors.mutedForeground),
+                          ),
+                          const SizedBox(height: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: AppColors.background,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: AppColors.border),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  'PIN: ${u.pinCode}',
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.primaryDark,
+                                    letterSpacing: 2,
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.copy, size: 16),
+                                  onPressed: () {
+                                    Clipboard.setData(ClipboardData(text: u.pinCode ?? ''));
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text('PIN copied to clipboard'),
+                                        behavior: SnackBarBehavior.floating,
+                                      ),
+                                    );
+                                  },
+                                  constraints: const BoxConstraints(),
+                                  padding: EdgeInsets.zero,
+                                )
+                              ],
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                ),
+              ],
             ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: AppColors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              ),
-              onPressed: () {
-                _controller.updateInstructorProfile(instructor.id, name, email, phoneNumber.isNotEmpty ? phoneNumber : null, homeAddress.isNotEmpty ? homeAddress : null);
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                  content: Text(AppLocalizations.of(context)!.profileUpdated(instructor.name)),
+          ),
+          actions: [
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () => Navigator.pop(ctx),
+                style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
-                  behavior: SnackBarBehavior.floating,
-                ));
-              },
-              child: Text(AppLocalizations.of(context)!.save, style: const TextStyle(fontWeight: FontWeight.bold)),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                child: const Text('I have saved the PIN', style: TextStyle(fontWeight: FontWeight.bold)),
+              ),
             ),
           ],
         );
@@ -1026,23 +1194,159 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
     );
   }
 
+  void _showEditProfileDialog(dynamic instructor) {
+    final nameCtrl = TextEditingController(text: instructor.name);
+    final emailCtrl = TextEditingController(text: instructor.email ?? '');
+    final phoneCtrl = TextEditingController(text: instructor.phoneNumber ?? '');
+    final addressCtrl = TextEditingController(text: instructor.address ?? '');
+    String? phoneError;
+    String? emailError;
+
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setDialogState) {
+            return AlertDialog(
+              backgroundColor: AppColors.background,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              title: Text(AppLocalizations.of(ctx)!.editProfileTitle(instructor.name), style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.text, fontSize: 16)),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    TextField(
+                      controller: nameCtrl,
+                      decoration: InputDecoration(
+                        labelText: AppLocalizations.of(ctx)!.fullNameLabel,
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: emailCtrl,
+                      decoration: InputDecoration(
+                        labelText: AppLocalizations.of(ctx)!.emailAddressLabel,
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        errorText: emailError,
+                      ),
+                      onChanged: (_) => setDialogState(() => emailError = null),
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: phoneCtrl,
+                      decoration: InputDecoration(
+                        labelText: AppLocalizations.of(ctx)!.phoneNumberLabel,
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        errorText: phoneError,
+                      ),
+                      keyboardType: TextInputType.phone,
+                      onChanged: (_) => setDialogState(() => phoneError = null),
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: addressCtrl,
+                      decoration: InputDecoration(
+                        labelText: AppLocalizations.of(ctx)!.homeAddressLabel,
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: Text(AppLocalizations.of(ctx)!.cancel, style: const TextStyle(color: AppColors.mutedForeground)),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: AppColors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  onPressed: () async {
+                    final newName = nameCtrl.text.trim();
+                    final newEmail = emailCtrl.text.trim();
+                    final newPhone = phoneCtrl.text.trim();
+                    final newAddress = addressCtrl.text.trim();
+
+                    if (newName.isEmpty) return;
+                    if (newEmail.isEmpty || !_emailRegex.hasMatch(newEmail)) {
+                      setDialogState(() => emailError = 'Please enter a valid email address');
+                      return;
+                    }
+                    if (newPhone.isNotEmpty && !RegExp(r'^\d{10}$').hasMatch(newPhone)) {
+                      setDialogState(() => phoneError = 'Phone number must be exactly 10 digits');
+                      return;
+                    }
+
+                    final scaffoldContext = context;
+                    final nav = Navigator.of(ctx);
+
+                    try {
+                      await _controller.updateInstructorProfile(
+                        instructor.id,
+                        newName,
+                        newEmail,
+                        newPhone.isNotEmpty ? newPhone : null,
+                        newAddress.isNotEmpty ? newAddress : null,
+                      );
+                      nav.pop();
+                      if (scaffoldContext.mounted) {
+                        ScaffoldMessenger.of(scaffoldContext).showSnackBar(SnackBar(
+                          content: Text(AppLocalizations.of(scaffoldContext)!.profileUpdated(newName)),
+                          backgroundColor: AppColors.primary,
+                          behavior: SnackBarBehavior.floating,
+                        ));
+                      }
+                    } catch (e) {
+                      if (scaffoldContext.mounted) {
+                        ScaffoldMessenger.of(scaffoldContext).showSnackBar(SnackBar(
+                          content: Text('Failed to update profile: $e'),
+                          backgroundColor: AppColors.error,
+                          behavior: SnackBarBehavior.floating,
+                        ));
+                      }
+                    }
+                  },
+                  child: Text(AppLocalizations.of(ctx)!.save, style: const TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    ).then((_) {
+      nameCtrl.dispose();
+      emailCtrl.dispose();
+      phoneCtrl.dispose();
+      addressCtrl.dispose();
+    });
+  }
+
   void _showEditLevelsDialog(String instructorId, String instructorName, List<String> currentLevels) {
     List<String> selectedLevels = List<String>.from(currentLevels);
 
     showDialog(
       context: context,
-      builder: (context) {
+      builder: (ctx) {
         return StatefulBuilder(
-          builder: (context, setDialogState) {
+          builder: (ctx, setDialogState) {
             return AlertDialog(
               backgroundColor: AppColors.background,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-              title: Text(AppLocalizations.of(context)!.editLevelsTitle(instructorName), style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.text, fontSize: 16)),
+              title: Text(AppLocalizations.of(ctx)!.editLevelsTitle(instructorName), style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.text, fontSize: 16)),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(AppLocalizations.of(context)!.selectLevelsSubtitle, style: const TextStyle(fontSize: 13, color: AppColors.mutedForeground)),
+                  Text(AppLocalizations.of(ctx)!.selectLevelsSubtitle, style: const TextStyle(fontSize: 13, color: AppColors.mutedForeground)),
                   const SizedBox(height: 16),
                   ..._controller.levels.map((level) {
                     final isSelected = selectedLevels.contains(level.id);
@@ -1068,8 +1372,8 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
               ),
               actions: [
                 TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: Text(AppLocalizations.of(context)!.cancel, style: const TextStyle(color: AppColors.mutedForeground)),
+                  onPressed: () => Navigator.pop(ctx),
+                  child: Text(AppLocalizations.of(ctx)!.cancel, style: const TextStyle(color: AppColors.mutedForeground)),
                 ),
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
@@ -1079,14 +1383,17 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
                   ),
                   onPressed: () {
                     _controller.updateInstructorLevels(instructorId, selectedLevels);
-                    Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                      content: Text(AppLocalizations.of(context)!.levelsUpdated(instructorName)),
-                      backgroundColor: AppColors.primary,
-                      behavior: SnackBarBehavior.floating,
-                    ));
+                    final scaffoldContext = context;
+                    Navigator.pop(ctx);
+                    if (scaffoldContext.mounted) {
+                      ScaffoldMessenger.of(scaffoldContext).showSnackBar(SnackBar(
+                        content: Text(AppLocalizations.of(scaffoldContext)!.levelsUpdated(instructorName)),
+                        backgroundColor: AppColors.primary,
+                        behavior: SnackBarBehavior.floating,
+                      ));
+                    }
                   },
-                  child: Text(AppLocalizations.of(context)!.save, style: const TextStyle(fontWeight: FontWeight.bold)),
+                  child: Text(AppLocalizations.of(ctx)!.save, style: const TextStyle(fontWeight: FontWeight.bold)),
                 ),
               ],
             );
@@ -1133,77 +1440,108 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
   }
 
   void _showResetPinDialog(String studentId, String studentName) {
-    String newPin = '';
     showDialog(
       context: context,
       builder: (ctx) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            return AlertDialog(
-              backgroundColor: AppColors.background,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-              title: Text(AppLocalizations.of(context)!.pinResetTitle, style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.text)),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    AppLocalizations.of(context)!.newPinForStudent(studentName),
-                    style: const TextStyle(fontSize: 13, color: AppColors.mutedForeground),
-                  ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    decoration: InputDecoration(
-                      labelText: AppLocalizations.of(context)!.pinLabel,
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      counterText: '',
-                    ),
-                    keyboardType: TextInputType.number,
-                    maxLength: 6,
-                    onChanged: (val) => setDialogState(() => newPin = val),
-                  ),
-                ],
+        return AlertDialog(
+          backgroundColor: AppColors.background,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Text('Reset PIN?', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.text)),
+          content: Text('Are you sure you want to reset the PIN for $studentName? This will generate a new 6-digit random PIN.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(AppLocalizations.of(context)!.cancel, style: const TextStyle(color: AppColors.mutedForeground)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.error,
+                foregroundColor: AppColors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(ctx),
-                  child: Text(AppLocalizations.of(context)!.cancel, style: const TextStyle(color: AppColors.mutedForeground)),
-                ),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: AppColors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  ),
-                  onPressed: newPin.length == 6 && RegExp(r'^\d{6}$').hasMatch(newPin)
-                      ? () async {
-                          final nav = Navigator.of(ctx);
-                          nav.pop();
-                          try {
-                            await _controller.resetStudentPin(studentId, newPin);
-                            if (mounted) {
-                              ScaffoldMessenger.of(this.context).showSnackBar(SnackBar(
-                                content: Text('PIN reset for $studentName'),
-                                behavior: SnackBarBehavior.floating,
-                              ));
-                            }
-                          } catch (e) {
-                            if (mounted) {
-                              ScaffoldMessenger.of(this.context).showSnackBar(SnackBar(
-                                content: Text('Failed to reset PIN: $e'),
-                                backgroundColor: AppColors.error,
-                                behavior: SnackBarBehavior.floating,
-                              ));
-                            }
-                          }
-                        }
-                      : null,
-                  child: Text(AppLocalizations.of(context)!.save, style: const TextStyle(fontWeight: FontWeight.bold)),
-                ),
-              ],
-            );
-          },
+              onPressed: () async {
+                Navigator.pop(ctx); // Dismiss confirmation dialog
+                
+                // Show loading spinner
+                showDialog(
+                  context: context,
+                  barrierDismissible: false,
+                  builder: (_) => const Center(child: CircularProgressIndicator()),
+                );
+
+                try {
+                  final newPin = await _controller.resetStudentPin(studentId);
+                  if (!mounted) return;
+                  Navigator.pop(context); // Dismiss loading spinner
+
+                  // Show new PIN dialog
+                  showDialog(
+                    context: context,
+                    builder: (ctx2) => AlertDialog(
+                      backgroundColor: AppColors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                      contentPadding: const EdgeInsets.all(28),
+                      content: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: 50,
+                            height: 50,
+                            decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.15), shape: BoxShape.circle),
+                            child: const Icon(Icons.lock_reset, size: 28, color: AppColors.accentDark),
+                          ),
+                          const SizedBox(height: 14),
+                          const Text('PIN Reset Successful', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                          const SizedBox(height: 6),
+                          Text('New PIN for $studentName:', style: const TextStyle(fontSize: 13, color: AppColors.mutedForeground)),
+                          const SizedBox(height: 14),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                            decoration: BoxDecoration(
+                              color: AppColors.background,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: AppColors.border),
+                            ),
+                            child: Text(
+                              newPin,
+                              style: const TextStyle(
+                                fontSize: 28,
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.primaryDark,
+                                letterSpacing: 6,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 18),
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton(
+                              onPressed: () => Navigator.pop(ctx2),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.primary,
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              ),
+                              child: const Text('Done', style: TextStyle(fontWeight: FontWeight.bold)),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                } catch (e) {
+                  if (!mounted) return;
+                  Navigator.pop(context); // Dismiss loading spinner
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                    content: Text('Failed to reset PIN: $e'),
+                    backgroundColor: AppColors.error,
+                    behavior: SnackBarBehavior.floating,
+                  ));
+                }
+              },
+              child: const Text('Reset', style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+          ],
         );
       },
     );
@@ -1270,46 +1608,7 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
     }
   }
 
-  Future<void> _restoreGroup(String groupId, String name) async {
-    try {
-      await _controller.restoreGroup(groupId);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('"$name" restored'),
-          behavior: SnackBarBehavior.floating,
-        ));
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Failed to restore group: $e'),
-          backgroundColor: AppColors.error,
-          behavior: SnackBarBehavior.floating,
-        ));
-      }
-    }
-  }
 
-  Future<void> _permanentlyDeleteGroup(String groupId, String name) async {
-    try {
-      await _controller.permanentlyDeleteGroup(groupId);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('"$name" permanently deleted'),
-          backgroundColor: AppColors.error,
-          behavior: SnackBarBehavior.floating,
-        ));
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Failed to delete group permanently: $e'),
-          backgroundColor: AppColors.error,
-          behavior: SnackBarBehavior.floating,
-        ));
-      }
-    }
-  }
 
   // ── Build ─────────────────────────────
 
@@ -1481,9 +1780,17 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
                         emptyText: l10n.noInstructorsFound,
                         children: instructors.map((e) {
                           final levelLabels = e.assignedLevels.map((l) {
+                            final level = _controller.levels.firstWhere(
+                              (lvl) => lvl.id == l,
+                              orElse: () => LevelModel(id: l, name: ''),
+                            );
+                            if (level.name.isNotEmpty) {
+                              return level.name;
+                            }
                             final num = l.replaceAll('l', '');
                             return l10n.levelLabel(num);
                           }).toList();
+                          levelLabels.sort(); // Sort levels alphabetically by name
                           final assigned = levelLabels.isEmpty ? l10n.noLevelsAssigned : levelLabels.join(', ');
                           return _buildUserRow(
                             e.name,

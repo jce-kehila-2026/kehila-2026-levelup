@@ -294,7 +294,9 @@ class _InstructorCurriculumScreenState extends State<InstructorCurriculumScreen>
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                   contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 ),
-                items: _controller.levels.map((l) => DropdownMenuItem(
+                items: _controller.levels
+                    .where((l) => _assignedLevelIds.contains(l.id))
+                    .map((l) => DropdownMenuItem(
                   value: l,
                   child: Text(l.name),
                 )).toList(),

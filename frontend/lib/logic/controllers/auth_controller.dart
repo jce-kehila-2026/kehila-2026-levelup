@@ -31,17 +31,17 @@ class AuthController extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Sends a password reset email to the provided address.
+  /// Sends a password reset email. Returns true if sent, false if not found.
   Future<bool> forgotPassword(String email) async {
     _isLoading = true;
     _error = '';
     notifyListeners();
 
     try {
-      await _repository.sendPasswordResetEmail(email);
+      final sent = await _repository.sendPasswordResetEmail(email);
       _isLoading = false;
       notifyListeners();
-      return true;
+      return sent; // true = email found & sent, false = email not found
     } catch (e) {
       _isLoading = false;
       _error = 'Failed to send password reset email. Please try again.';

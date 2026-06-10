@@ -89,7 +89,12 @@ class InstructorDashboard extends StatelessWidget {
                       children: [
                         Text(AppLocalizations.of(context)!.welcomeBack, style: const TextStyle(fontSize: 13, color: AppColors.mutedForeground)),
                         const SizedBox(height: 2),
-                        Text(AppLocalizations.of(context)!.roleInstructorLabel, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontSize: 26, fontWeight: FontWeight.bold)),
+                        Text(
+                          controller.instructorName.isNotEmpty
+                              ? controller.instructorName
+                              : AppLocalizations.of(context)!.roleInstructorLabel,
+                          style: Theme.of(context).textTheme.titleLarge?.copyWith(fontSize: 26, fontWeight: FontWeight.bold),
+                        ),
                       ],
                     ),
                   ),

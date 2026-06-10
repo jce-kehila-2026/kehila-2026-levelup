@@ -13,12 +13,22 @@ class UserRepository {
   CollectionReference<Map<String, dynamic>> get _users =>
       _db.collection('users');
 
-  DocumentReference<Map<String, dynamic>> get _staffCounter =>
-      _db.collection('counters').doc('staff');
+
 
   // ─────────────────────────────────────────────
   // READ
   // ─────────────────────────────────────────────
+
+  Future<List<Map<String, String>>> getAvailableLevels() async {
+    final snap = await _db.collection('curriculum').get();
+    final list = snap.docs.map((d) => {
+      'id': d.id,
+      'name': (d.data()['name'] as String?) ?? d.id,
+    }).toList();
+    // Sort by name to maintain consistent alphabetical order
+    list.sort((a, b) => a['name']!.compareTo(b['name']!));
+    return list;
+  }
 
   Future<List<UserModel>> getInstructors() async {
     final snap = await _users
@@ -78,9 +88,9 @@ class UserRepository {
   // CREATE
   // ─────────────────────────────────────────────
 
-  /// Creates an instructor directly in Firestore (no Cloud Function needed).
-  /// To allow login, create the Firebase Auth account manually in Firebase Console
-  /// using the same email address.
+  /// Creates an instructor via the createUser Cloud Function.
+  /// This atomically creates the Firebase Auth account, writes the Firestore
+  /// user doc, and sends a welcome/set-password email via Nodemailer.
   Future<void> addInstructor(
     String name,
     String email,
@@ -89,20 +99,16 @@ class UserRepository {
     List<String> assignedLevels, {
     String? username,
   }) async {
-    final userNumber = DateTime.now().millisecondsSinceEpoch % 1000000 + 100;
-    final searchKeywords = _buildKeywords(name, extra: ['instructor', email.toLowerCase()]);
-
-    final docRef = _users.doc();
-    await docRef.set({
-      'name': name,
+    final userNumber = await _getNextInstructorNumber();
+    final callable = _functions.httpsCallable('createUser');
+    await callable.call({
       'role': 'instructor',
+      'name': name,
       'email': email.trim().toLowerCase(),
       'phoneNumber': phoneNumber,
       'address': address,
       'assignedLevels': assignedLevels,
       'userNumber': userNumber,
-      'searchKeywords': searchKeywords,
-      'createdAt': FieldValue.serverTimestamp(),
     });
   }
 
@@ -110,13 +116,13 @@ class UserRepository {
   /// This atomically creates both the Firebase Auth account (so the student can log in)
   /// and the Firestore user doc (with isArchived: false set correctly).
   /// Returns the new Firestore / Auth UID.
-  Future<String> addStudent({
+  Future<({String uid, int userNumber})> addStudent({
     required String name,
     required String username,
     required String pinCode,
     required String levelId,
-    required int userNumber,
   }) async {
+    final userNumber = await _getNextStudentNumber();
     final callable = _functions.httpsCallable('createUser');
     final result = await callable.call({
       'role': 'student',
@@ -128,7 +134,7 @@ class UserRepository {
       'studentNumber': '#$userNumber',
     });
     final uid = result.data['uid'] as String;
-    return uid;
+    return (uid: uid, userNumber: userNumber);
   }
 
   // ─────────────────────────────────────────────
@@ -144,7 +150,7 @@ class UserRepository {
   ) async {
     await _users.doc(instructorId).update({
       'name': name,
-      'email': email,
+      'email': email.trim().toLowerCase(),
       'phoneNumber': phoneNumber,
       'address': address,
       'searchKeywords': _buildKeywords(name, extra: ['instructor']),
@@ -245,13 +251,28 @@ class UserRepository {
   // HELPERS
   // ─────────────────────────────────────────────
 
-  Future<int> _nextStaffNumber() async {
-    int next = 2;
+
+
+  Future<int> _getNextStudentNumber() async {
+    final docRef = _db.collection('counters').doc('students');
+    int next = 1001;
     await _db.runTransaction((t) async {
-      final snap = await t.get(_staffCounter);
-      final last = snap.exists ? (snap.data()?['lastNumber'] as int? ?? 1) : 1;
+      final snap = await t.get(docRef);
+      final last = snap.exists ? (snap.data()?['lastNumber'] as int? ?? 1000) : 1000;
       next = last + 1;
-      t.set(_staffCounter, {'lastNumber': next}, SetOptions(merge: true));
+      t.set(docRef, {'lastNumber': next}, SetOptions(merge: true));
+    });
+    return next;
+  }
+
+  Future<int> _getNextInstructorNumber() async {
+    final docRef = _db.collection('counters').doc('instructors');
+    int next = 101;
+    await _db.runTransaction((t) async {
+      final snap = await t.get(docRef);
+      final last = snap.exists ? (snap.data()?['lastNumber'] as int? ?? 100) : 100;
+      next = last + 1;
+      t.set(docRef, {'lastNumber': next}, SetOptions(merge: true));
     });
     return next;
   }

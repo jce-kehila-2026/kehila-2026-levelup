@@ -155,6 +155,138 @@ class _CurriculumScreenState extends State<CurriculumScreen> {
     );
   }
 
+  void _showAddLevelDialog() {
+    final nameCtrl = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.background,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(
+          AppLocalizations.of(ctx)!.addLevelTitle,
+          style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.text),
+        ),
+        content: TextField(
+          controller: nameCtrl,
+          autofocus: true,
+          decoration: InputDecoration(
+            labelText: AppLocalizations.of(ctx)!.levelNameLabel,
+            hintText: 'e.g. Level 4',
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(AppLocalizations.of(ctx)!.cancel,
+                style: const TextStyle(color: AppColors.mutedForeground)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: AppColors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            onPressed: () {
+              final name = nameCtrl.text.trim();
+              if (name.isEmpty) return;
+              _controller.addLevel(name);
+              Navigator.pop(ctx);
+            },
+            child: Text(AppLocalizations.of(ctx)!.add,
+                style: const TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showDeleteLevelDialog(LevelModel level) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => FutureBuilder<int>(
+        future: _controller.getStudentCountForLevel(level.id),
+        builder: (context, snapshot) {
+          final count = snapshot.data;
+          final isLoading = snapshot.connectionState == ConnectionState.waiting;
+          return AlertDialog(
+            backgroundColor: AppColors.background,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: const Text(
+              'Delete Level',
+              style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.text),
+            ),
+            content: isLoading
+                ? const SizedBox(
+                    height: 60,
+                    child: Center(child: CircularProgressIndicator()),
+                  )
+                : Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Are you sure you want to delete "${level.name}"?',
+                        style: const TextStyle(color: AppColors.text, fontWeight: FontWeight.w500),
+                      ),
+                      const SizedBox(height: 12),
+                      if (count != null && count > 0) ...[
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: AppColors.error.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.warning_amber_rounded, color: AppColors.error, size: 20),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'Warning: $count student(s) are assigned to this level. Deleting it may cause inconsistencies.',
+                                  style: const TextStyle(color: AppColors.error, fontSize: 13, fontWeight: FontWeight.w500),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                      ],
+                      const Text(
+                        'All weeks and items inside this level will be permanently deleted. This action cannot be undone.',
+                        style: TextStyle(color: AppColors.mutedForeground, fontSize: 13),
+                      ),
+                    ],
+                  ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: Text(AppLocalizations.of(context)!.cancel,
+                    style: const TextStyle(color: AppColors.mutedForeground)),
+              ),
+              if (!isLoading)
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.error,
+                    foregroundColor: AppColors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  onPressed: () {
+                    _controller.deleteLevel(level.id);
+                    Navigator.pop(ctx);
+                  },
+                  child: const Text('Delete',
+                      style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
   // -- Build ------------------------------------------
   @override
   Widget build(BuildContext context) {
@@ -193,6 +325,20 @@ class _CurriculumScreenState extends State<CurriculumScreen> {
                             const SizedBox(height: 4),
                             Text(AppLocalizations.of(context)!.levelsCount((levels.length).toString()), style: const TextStyle(fontSize: 13, color: AppColors.mutedForeground)),
                           ],
+                        ),
+                      ),
+                      // + Add Level button
+                      ElevatedButton.icon(
+                        onPressed: _showAddLevelDialog,
+                        icon: const Icon(Icons.add, size: 16),
+                        label: Text(AppLocalizations.of(context)!.addLevelTitle,
+                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: AppColors.white,
+                          elevation: 0,
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         ),
                       ),
                     ],
@@ -290,6 +436,11 @@ class _CurriculumScreenState extends State<CurriculumScreen> {
                     icon: const Icon(Icons.edit_outlined, size: 18, color: AppColors.mutedForeground),
                     padding: EdgeInsets.zero,
                     onPressed: () => _showEditLevelDialog(level),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.delete_outline, size: 18, color: AppColors.error),
+                    padding: EdgeInsets.zero,
+                    onPressed: () => _showDeleteLevelDialog(level),
                   ),
                   Icon(isExpanded ? Icons.expand_less : Icons.expand_more, size: 18, color: AppColors.mutedForeground),
                 ],

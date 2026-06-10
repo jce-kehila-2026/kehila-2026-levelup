@@ -68,6 +68,8 @@ class _InstructorLayoutState extends State<InstructorLayout> {
     final phoneCtrl = TextEditingController(text: (data['phoneNumber'] as String?) ?? '');
     final addressCtrl = TextEditingController(text: (data['address'] as String?) ?? '');
 
+    String? phoneError;
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -76,97 +78,116 @@ class _InstructorLayoutState extends State<InstructorLayout> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (ctx) {
-        return Padding(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
-            left: 20,
-            right: 20,
-            top: 16,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 36,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: AppColors.border,
-                    borderRadius: BorderRadius.circular(2),
+        return StatefulBuilder(
+          builder: (ctx, setStateSheet) {
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
+                left: 20,
+                right: 20,
+                top: 16,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 36,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: AppColors.border,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
                   ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                AppLocalizations.of(context)!.myProfile,
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.text),
-              ),
-              const SizedBox(height: 16),
-              _readOnlyField(AppLocalizations.of(context)!.fullNameLabel, name),
-              const SizedBox(height: 12),
-              _readOnlyField(AppLocalizations.of(context)!.emailAddressLabel, email),
-              const SizedBox(height: 12),
-              TextField(
-                controller: phoneCtrl,
-                decoration: InputDecoration(
-                  labelText: AppLocalizations.of(context)!.phoneNumberLabel,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: addressCtrl,
-                decoration: InputDecoration(
-                  labelText: AppLocalizations.of(context)!.homeAddressLabel,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                ),
-              ),
-              const SizedBox(height: 20),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: AppColors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  const SizedBox(height: 16),
+                  Text(
+                    AppLocalizations.of(context)!.myProfile,
+                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.text),
                   ),
-                  onPressed: () async {
-                    final nav = Navigator.of(ctx);
-                    try {
-                      await getIt<UserRepository>().updateInstructorProfile(
-                        firebaseUser.uid,
-                        name,
-                        email,
-                        phoneCtrl.text.isNotEmpty ? phoneCtrl.text : null,
-                        addressCtrl.text.isNotEmpty ? addressCtrl.text : null,
-                      );
-                      nav.pop();
-                      if (mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                          content: Text(AppLocalizations.of(context)!.profileUpdated(name)),
-                          backgroundColor: AppColors.primary,
-                          behavior: SnackBarBehavior.floating,
-                        ));
-                      }
-                    } catch (e) {
-                      if (mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                          content: Text('Failed to update profile: $e'),
-                          backgroundColor: AppColors.error,
-                          behavior: SnackBarBehavior.floating,
-                        ));
-                      }
-                    }
-                  },
-                  child: Text(AppLocalizations.of(context)!.save, style: const TextStyle(fontWeight: FontWeight.bold)),
-                ),
+                  const SizedBox(height: 16),
+                  _readOnlyField(AppLocalizations.of(context)!.fullNameLabel, name),
+                  const SizedBox(height: 12),
+                  _readOnlyField(AppLocalizations.of(context)!.emailAddressLabel, email),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: phoneCtrl,
+                    decoration: InputDecoration(
+                      labelText: AppLocalizations.of(context)!.phoneNumberLabel,
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      errorText: phoneError,
+                    ),
+                    keyboardType: TextInputType.phone,
+                    onChanged: (val) {
+                      setStateSheet(() {
+                        phoneError = null;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: addressCtrl,
+                    decoration: InputDecoration(
+                      labelText: AppLocalizations.of(context)!.homeAddressLabel,
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: AppColors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
+                      onPressed: () async {
+                        final phoneVal = phoneCtrl.text.trim();
+                        if (phoneVal.isNotEmpty && !RegExp(r'^\d{10}$').hasMatch(phoneVal)) {
+                          setStateSheet(() {
+                            phoneError = 'Phone number must be exactly 10 digits';
+                          });
+                          return;
+                        }
+
+                        final nav = Navigator.of(ctx);
+                        try {
+                          await getIt<UserRepository>().updateInstructorProfile(
+                            firebaseUser.uid,
+                            name,
+                            email,
+                            phoneVal.isNotEmpty ? phoneVal : null,
+                            addressCtrl.text.trim().isNotEmpty ? addressCtrl.text.trim() : null,
+                          );
+                          nav.pop();
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                              content: Text(AppLocalizations.of(context)!.profileUpdated(name)),
+                              backgroundColor: AppColors.primary,
+                              behavior: SnackBarBehavior.floating,
+                            ));
+                          }
+                        } catch (e) {
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                              content: Text('Failed to update profile: $e'),
+                              backgroundColor: AppColors.error,
+                              behavior: SnackBarBehavior.floating,
+                            ));
+                          }
+                        }
+                      },
+                      child: Text(AppLocalizations.of(context)!.save, style: const TextStyle(fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
+            );
+          },
         );
       },
     ).then((_) {

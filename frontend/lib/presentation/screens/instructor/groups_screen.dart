@@ -95,13 +95,13 @@ class _InstructorGroupsScreenState extends State<InstructorGroupsScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Archive Group', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: Text('Delete ${group.name}?', style: const TextStyle(fontWeight: FontWeight.bold)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Are you sure you want to archive "${group.name}"?'),
-            const SizedBox(height: 8),
+            Text('Are you sure you want to delete this group?\nStudents count: ${group.students.length}\nInstructors count: ${group.instructorIds.length}'),
+            const SizedBox(height: 12),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
@@ -159,7 +159,7 @@ class _InstructorGroupsScreenState extends State<InstructorGroupsScreen> {
                 }
               }
             },
-            child: const Text('Archive', style: TextStyle(fontWeight: FontWeight.bold)),
+            child: const Text('Delete', style: TextStyle(fontWeight: FontWeight.bold)),
           ),
         ],
       ),

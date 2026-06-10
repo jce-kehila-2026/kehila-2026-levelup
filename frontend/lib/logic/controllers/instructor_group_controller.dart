@@ -62,25 +62,85 @@ class InstructorGroupController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Creates a group. Optimistic: adds to list immediately, syncs in background.
   Future<void> addGroup(String name) async {
-    await _groupRepository.createGroup(name);
-    _groups = await _groupRepository.getGroups();
+    final placeholder = GroupModel(
+      id: '__optimistic__${DateTime.now().millisecondsSinceEpoch}',
+      serialNumber: _groups.isEmpty ? 1 : _groups.last.serialNumber + 1,
+      name: name,
+      instructorIds: [],
+      students: [],
+      createdAt: DateTime.now(),
+      isArchived: false,
+    );
+    _groups = [..._groups, placeholder];
     notifyListeners();
+
+    try {
+      final created = await _groupRepository.createGroup(name);
+      _groups = _groups.where((g) => g.id != placeholder.id).toList()
+        ..add(created);
+      _groups.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+      notifyListeners();
+    } catch (e) {
+      _groups = _groups.where((g) => g.id != placeholder.id).toList();
+      notifyListeners();
+      rethrow;
+    }
   }
 
+  /// Soft-deletes a group. Optimistic: removes from list immediately.
   Future<void> deleteGroup(String id) async {
-    await _groupRepository.deleteGroup(id);
-    _groups = await _groupRepository.getGroups();
+    final removed = _groups.firstWhere((g) => g.id == id, orElse: () => throw Exception('Group not found'));
+    _groups = _groups.where((g) => g.id != id).toList();
     notifyListeners();
+
+    try {
+      await _groupRepository.deleteGroup(id);
+    } catch (e) {
+      _groups = [..._groups, removed]
+        ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+      notifyListeners();
+      rethrow;
+    }
   }
 
+  /// Renames a group. Optimistic: updates name locally right away.
   Future<void> updateGroup(String id, String newName) async {
-    await _groupRepository.updateGroup(id, newName);
-    _groups = await _groupRepository.getGroups();
+    final old = _groups.firstWhere((g) => g.id == id, orElse: () => throw Exception('Group not found'));
+    _groups = _groups.map((g) {
+      if (g.id != id) return g;
+      return GroupModel(
+        id: g.id,
+        serialNumber: g.serialNumber,
+        name: newName,
+        instructorIds: g.instructorIds,
+        students: g.students,
+        sharedMaterialIds: g.sharedMaterialIds,
+        createdAt: g.createdAt,
+        isArchived: g.isArchived,
+        archivedAt: g.archivedAt,
+      );
+    }).toList();
     notifyListeners();
+
+    try {
+      await _groupRepository.updateGroup(id, newName);
+    } catch (e) {
+      _groups = _groups.map((g) => g.id == id ? old : g).toList();
+      notifyListeners();
+      rethrow;
+    }
   }
 
   Future<void> refresh() async {
-    await _init();
+    try {
+      _groups = await _groupRepository.getGroups();
+      _allStudents = await _userRepository.getStudents();
+      _error = null;
+      notifyListeners();
+    } catch (e) {
+      debugPrint('InstructorGroupController.refresh error: $e');
+    }
   }
 }

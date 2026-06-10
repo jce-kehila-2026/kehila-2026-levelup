@@ -59,7 +59,7 @@ class StudentAssignmentController extends ChangeNotifier {
   Future<void> loadAssignments() async {
     _isLoading = true;
     notifyListeners();
-    _allAssignments = await _repo.getInstructorAssignments();
+    _allAssignments = await _repo.getStudentAssignments();
     _isLoading = false;
     notifyListeners();
   }

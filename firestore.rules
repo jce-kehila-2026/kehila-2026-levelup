@@ -22,7 +22,9 @@ service cloud.firestore {
     match /users/{userId} {
       allow read:   if isSignedIn();
       allow create: if isAdmin();
-      allow update: if isAdmin() || (isInstructor() && resource.data.role == 'student');
+      allow update: if isAdmin() || 
+                    (isInstructor() && resource.data.role == 'student') ||
+                    (request.auth.uid == userId && request.resource.data.role == resource.data.role);
       allow delete: if isAdmin();
     }
 
@@ -55,7 +57,7 @@ service cloud.firestore {
     match /assignments/{assignmentId} {
       allow read:           if isStaff() || isStudent();
       allow create, update: if isStaff();
-      allow delete:         if isAdmin();
+      allow delete:         if isAdmin() || (isInstructor() && resource.data.instructorId == request.auth.uid);
     }
 
     // ── submissions ────────────────────────────────────────────────────────

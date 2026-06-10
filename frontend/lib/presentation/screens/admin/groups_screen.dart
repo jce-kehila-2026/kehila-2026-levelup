@@ -140,21 +140,21 @@ class _GroupsScreenState extends State<GroupsScreen> with SingleTickerProviderSt
     );
   }
 
-  void _confirmArchiveGroup(String groupId, String groupName) {
+  void _confirmArchiveGroup(GroupModel group) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.background,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text(AppLocalizations.of(context)!.deleteGroupTitle,
+        title: Text('Delete ${group.name}?',
             style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.text)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(AppLocalizations.of(context)!.deleteGroupConfirmation(groupName),
+            Text('Are you sure you want to delete this group?\nStudents count: ${group.students.length}\nInstructors count: ${group.instructorIds.length}',
                 style: const TextStyle(fontSize: 14, color: AppColors.mutedForeground)),
-            const SizedBox(height: 8),
+            const SizedBox(height: 12),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
@@ -190,17 +190,29 @@ class _GroupsScreenState extends State<GroupsScreen> with SingleTickerProviderSt
             ),
             onPressed: () async {
               Navigator.pop(ctx);
-              await _controller.deleteGroup(groupId);
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('"$groupName" moved to archive'),
-                    behavior: SnackBarBehavior.floating,
-                  ),
-                );
+              try {
+                await _controller.deleteGroup(group.id);
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('"${group.name}" moved to archive'),
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Failed to delete group: $e'),
+                      backgroundColor: AppColors.error,
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                }
               }
             },
-            child: const Text('Archive', style: TextStyle(fontWeight: FontWeight.bold)),
+            child: const Text('Delete', style: TextStyle(fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -568,10 +580,9 @@ class _GroupsScreenState extends State<GroupsScreen> with SingleTickerProviderSt
                                           ),
                                         ),
                                         confirmDismiss: (_) async {
-                                          _confirmArchiveGroup(
-                                              group.id, group.name);
-                                          return false;
-                                        },
+                                           _confirmArchiveGroup(group);
+                                           return false;
+                                         },
                                         child: GroupCard(
                                           groupName: group.name,
                                           instructorsCount:
