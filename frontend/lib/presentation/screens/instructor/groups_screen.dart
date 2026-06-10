@@ -54,11 +54,19 @@ class _InstructorGroupsScreenState extends State<InstructorGroupsScreen> {
               final newName = nameController.text.trim();
               Navigator.pop(ctx);
               if (newName.isNotEmpty && newName != group.name) {
-                await _controller.updateGroup(group.id, newName);
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Group renamed to "$newName"'), behavior: SnackBarBehavior.floating),
-                  );
+                try {
+                  await _controller.updateGroup(group.id, newName);
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Group renamed to "$newName"'), behavior: SnackBarBehavior.floating),
+                    );
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Failed to rename group: $e'), backgroundColor: AppColors.error, behavior: SnackBarBehavior.floating),
+                    );
+                  }
                 }
               }
             },
@@ -96,11 +104,19 @@ class _InstructorGroupsScreenState extends State<InstructorGroupsScreen> {
             onPressed: () async {
               final name = group.name;
               Navigator.pop(ctx);
-              await _controller.deleteGroup(group.id);
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('"$name" deleted'), behavior: SnackBarBehavior.floating),
-                );
+              try {
+                await _controller.deleteGroup(group.id);
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('"$name" deleted'), behavior: SnackBarBehavior.floating),
+                  );
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Failed to delete group: $e'), backgroundColor: AppColors.error, behavior: SnackBarBehavior.floating),
+                  );
+                }
               }
             },
             child: const Text('Delete', style: TextStyle(fontWeight: FontWeight.bold)),
@@ -152,11 +168,19 @@ class _InstructorGroupsScreenState extends State<InstructorGroupsScreen> {
               final name = nameController.text.trim();
               Navigator.pop(ctx);
               if (name.isNotEmpty) {
-                await _controller.addGroup(name);
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(AppLocalizations.of(context)!.groupCreated(name)), behavior: SnackBarBehavior.floating),
-                  );
+                try {
+                  await _controller.addGroup(name);
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text(AppLocalizations.of(context)!.groupCreated(name)), behavior: SnackBarBehavior.floating),
+                    );
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Failed to create group: $e'), backgroundColor: AppColors.error, behavior: SnackBarBehavior.floating),
+                    );
+                  }
                 }
               }
             },

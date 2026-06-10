@@ -5,6 +5,7 @@ library;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/student_profile_model.dart';
+import '../../utils/level_helpers.dart';
 
 class StudentProfileRepository {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -36,7 +37,7 @@ class StudentProfileRepository {
       name: data['name'] ?? '',
       username: data['username'] ?? '',
       studentId: data['studentNumber'] ?? '',
-      level: data['levelId'] ?? '',
+      level: levelDisplayName(data['levelId'] as String?),
       // TODO: BACKEND_INTEGRATION - FIREBASE
       // group, instructorName come from the groups collection (not built yet).
       // submissions/graded/correct come from the submissions collection.

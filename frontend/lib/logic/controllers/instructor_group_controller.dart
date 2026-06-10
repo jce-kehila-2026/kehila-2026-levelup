@@ -26,10 +26,13 @@ class InstructorGroupController extends ChangeNotifier {
   Future<void> _init() async {
     _isLoading = true;
     notifyListeners();
-    _groups = await _groupRepository.getGroups();
-    _allStudents = await _userRepository.getStudents();
-    _isLoading = false;
-    notifyListeners();
+    try {
+      _groups = await _groupRepository.getGroups();
+      _allStudents = await _userRepository.getStudents();
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
   }
 
   // ── State ──────────────────────────────

@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../data/models/curriculum_model.dart';
+import '../../utils/level_helpers.dart';
 
 class StudentDashboardController extends ChangeNotifier {
   bool _isLoading = true;
@@ -34,7 +35,7 @@ class StudentDashboardController extends ChangeNotifier {
         if (doc.exists) {
           final data = doc.data()!;
           _studentName = data['name'] ?? '';
-          _levelLabel = data['levelId'] ?? '';
+          _levelLabel = levelDisplayName(data['levelId'] as String?);
         }
       }
     } catch (_) {

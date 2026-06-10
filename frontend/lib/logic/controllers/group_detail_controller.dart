@@ -161,31 +161,55 @@ class GroupDetailController extends ChangeNotifier {
   Future<bool> deleteGroup() async {
     _isLoading = true;
     notifyListeners();
-    await _groupRepository.deleteGroup(groupId);
-    return true;
+    try {
+      await _groupRepository.deleteGroup(groupId);
+      return true;
+    } catch (e) {
+      _isLoading = false;
+      notifyListeners();
+      rethrow;
+    }
   }
 
   Future<void> addInstructor(String instructorId) async {
     _isLoading = true;
     notifyListeners();
-    await _groupRepository.addInstructorToGroup(groupId, instructorId);
-    _availableInstructorsSearch = '';
-    await _init();
+    try {
+      await _groupRepository.addInstructorToGroup(groupId, instructorId);
+      _availableInstructorsSearch = '';
+      await _init();
+    } catch (e) {
+      _isLoading = false;
+      notifyListeners();
+      rethrow;
+    }
   }
 
   Future<void> removeInstructor(String instructorId) async {
     _isLoading = true;
     notifyListeners();
-    await _groupRepository.removeInstructorFromGroup(groupId, instructorId);
-    await _init();
+    try {
+      await _groupRepository.removeInstructorFromGroup(groupId, instructorId);
+      await _init();
+    } catch (e) {
+      _isLoading = false;
+      notifyListeners();
+      rethrow;
+    }
   }
 
   Future<void> addStudent(String studentId, String levelId) async {
     _isLoading = true;
     notifyListeners();
-    await _groupRepository.addStudentToGroup(groupId, studentId, levelId);
-    _availableStudentsSearch = '';
-    await _init();
+    try {
+      await _groupRepository.addStudentToGroup(groupId, studentId, levelId);
+      _availableStudentsSearch = '';
+      await _init();
+    } catch (e) {
+      _isLoading = false;
+      notifyListeners();
+      rethrow;
+    }
   }
 
   /// Adds all currently selected students to the group at the given global level,
@@ -212,35 +236,43 @@ class GroupDetailController extends ChangeNotifier {
     }
   }
 
-  /// Creates multiple new students and adds them to the group in a single
-  /// operation, calling _init() only once at the end.
+  /// Creates multiple new students in Firebase Auth + Firestore via Cloud Function
+  /// and adds them to the group in a single operation, calling _init() only once.
   Future<List<UserModel>> bulkCreateStudents(
       List<({String name, String levelId})> entries) async {
     final created = <UserModel>[];
+    _isLoading = true;
+    notifyListeners();
     try {
       for (final e in entries) {
         final idx = _allStudents.length + created.length + 1001;
-        final studentNumber = '#$idx';
         final username = _generateUsername(e.name);
         final pinCode = (1000 + Random().nextInt(9000)).toString();
-        final student = UserModel(
-          id: studentNumber,
+
+        final uid = await _userRepository.addStudent(
+          name: e.name,
+          username: username,
+          pinCode: pinCode,
+          levelId: e.levelId,
+          userNumber: idx,
+        );
+
+        await _groupRepository.addStudentToGroup(groupId, uid, e.levelId);
+        created.add(UserModel(
+          id: uid,
           userNumber: idx,
           name: e.name,
           email: '${username.replaceAll('.', '')}@levelup.edu',
           role: UserRole.student,
-          studentNumber: studentNumber,
+          studentNumber: '#$idx',
           username: username,
           pinCode: pinCode,
           lastActive: null,
-        );
-        _allStudents.add(student);
-        await _groupRepository.addStudentToGroup(groupId, studentNumber, e.levelId);
-        created.add(student);
+        ));
       }
       await _init();
       return created;
-    } catch (_) {
+    } catch (e) {
       _isLoading = false;
       notifyListeners();
       rethrow;
@@ -250,44 +282,74 @@ class GroupDetailController extends ChangeNotifier {
   Future<void> removeStudent(String studentId) async {
     _isLoading = true;
     notifyListeners();
-    await _groupRepository.removeStudentFromGroup(groupId, studentId);
-    await _init();
+    try {
+      await _groupRepository.removeStudentFromGroup(groupId, studentId);
+      await _init();
+    } catch (e) {
+      _isLoading = false;
+      notifyListeners();
+      rethrow;
+    }
   }
 
   /// Permanently deletes a student from the group AND the user repository.
   Future<void> deleteStudent(String studentId) async {
     _isLoading = true;
     notifyListeners();
-    await _groupRepository.removeStudentFromGroup(groupId, studentId);
-    await _userRepository.deleteStudent(studentId);
-    await _init();
+    try {
+      await _groupRepository.removeStudentFromGroup(groupId, studentId);
+      await _userRepository.deleteStudent(studentId);
+      await _init();
+    } catch (e) {
+      _isLoading = false;
+      notifyListeners();
+      rethrow;
+    }
   }
 
-  /// Creates a new student, adds them to this group at the given level,
-  /// and returns the created UserModel with their credentials.
-  Future<UserModel> createStudent(String fullName, String levelId) async {
-    final random = Random();
-    final nextNumber = _allStudents.length + 1001;
-    final studentNumber = '#$nextNumber';
-    final username = _generateUsername(fullName);
-    final pinCode = (1000 + random.nextInt(9000)).toString();
+  /// Creates a new student in Firebase Auth + Firestore via Cloud Function,
+  /// adds them to this group at the given level, and returns their credentials.
+  /// If [username] or [pinCode] are omitted they are auto-generated.
+  Future<UserModel> createStudent(
+    String fullName,
+    String levelId, {
+    String? username,
+    String? pinCode,
+  }) async {
+    _isLoading = true;
+    notifyListeners();
+    try {
+      final nextNumber = _allStudents.length + 1001;
+      final actualUsername = username ?? _generateUsername(fullName);
+      final actualPinCode = pinCode ?? (100000 + Random().nextInt(900000)).toString();
 
-    final student = UserModel(
-      id: studentNumber,
-      userNumber: nextNumber,
-      name: fullName,
-      email: '${username.replaceAll('.', '')}@levelup.edu',
-      role: UserRole.student,
-      studentNumber: studentNumber,
-      username: username,
-      pinCode: pinCode,
-      lastActive: null,
-    );
+      final uid = await _userRepository.addStudent(
+        name: fullName,
+        username: actualUsername,
+        pinCode: actualPinCode,
+        levelId: levelId,
+        userNumber: nextNumber,
+      );
 
-    _allStudents.add(student);
-    await _groupRepository.addStudentToGroup(groupId, studentNumber, levelId);
-    await _init();
-    return student;
+      await _groupRepository.addStudentToGroup(groupId, uid, levelId);
+      await _init();
+
+      return UserModel(
+        id: uid,
+        userNumber: nextNumber,
+        name: fullName,
+        email: '${actualUsername.replaceAll('.', '')}@levelup.edu',
+        role: UserRole.student,
+        studentNumber: '#$nextNumber',
+        username: actualUsername,
+        pinCode: actualPinCode,
+        lastActive: null,
+      );
+    } catch (e) {
+      _isLoading = false;
+      notifyListeners();
+      rethrow;
+    }
   }
 
   /// Generates a clean, lowercase, URL-safe English username.
@@ -354,6 +416,8 @@ class GroupDetailController extends ChangeNotifier {
     }
     return '${sanitized}_$suffix';
   }
+
+  Future<bool> usernameExists(String username) => _userRepository.usernameExists(username);
 
   /// Resets the PIN for a student and returns the new PIN.
   String resetStudentPin(String studentId) {
