@@ -127,70 +127,182 @@ class CurriculumController extends ChangeNotifier {
 
   Future<void> editLevel(String levelId, String newName) async {
     if (newName.isEmpty) return;
-    _isLoading = true;
+    final oldName = _levels.firstWhere((l) => l.id == levelId).name;
+    for (final level in _levels) {
+      if (level.id == levelId) {
+        level.name = newName;
+        break;
+      }
+    }
     notifyListeners();
-    await _repository.editLevel(levelId, newName);
-    _levels = await _repository.getLevels();
-    _isLoading = false;
+
+    try {
+      await _repository.editLevel(levelId, newName);
+      _levels = await _repository.getLevels();
+      notifyListeners();
+    } catch (e) {
+      for (final level in _levels) {
+        if (level.id == levelId) {
+          level.name = oldName;
+          break;
+        }
+      }
+      notifyListeners();
+      rethrow;
+    }
+  }
+
+  Future<void> addLevel(String name) async {
+    if (name.isEmpty) return;
+    try {
+      await _repository.addLevel(name);
+      _levels = await _repository.getLevels();
+      notifyListeners();
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<void> deleteLevel(String levelId) async {
+    final idx = _levels.indexWhere((l) => l.id == levelId);
+    if (idx == -1) return;
+    final removed = _levels.removeAt(idx);
     notifyListeners();
+
+    try {
+      await _repository.deleteLevel(levelId);
+      _levels = await _repository.getLevels();
+      notifyListeners();
+    } catch (e) {
+      _levels.insert(idx, removed);
+      _levels.sort((a, b) => a.name.compareTo(b.name));
+      notifyListeners();
+      rethrow;
+    }
   }
 
   Future<void> addWeek(String levelId, String name) async {
     if (name.isEmpty) return;
-    _isLoading = true;
-    notifyListeners();
-    await _repository.addWeek(levelId, name);
-    _levels = await _repository.getLevels();
-    _isLoading = false;
-    notifyListeners();
+    try {
+      await _repository.addWeek(levelId, name);
+      _levels = await _repository.getLevels();
+      notifyListeners();
+    } catch (e) {
+      rethrow;
+    }
   }
 
   Future<void> addMaterial(String levelId, String weekId, String title, {String? content}) async {
     if (title.isEmpty) return;
-    _isLoading = true;
-    notifyListeners();
-    await _repository.addMaterial(levelId, weekId, title, content: content);
-    _levels = await _repository.getLevels();
-    _isLoading = false;
-    notifyListeners();
+    try {
+      await _repository.addMaterial(levelId, weekId, title, content: content);
+      _levels = await _repository.getLevels();
+      notifyListeners();
+    } catch (e) {
+      rethrow;
+    }
   }
 
   Future<void> addAssignment(String levelId, String weekId, String title, {String? content}) async {
     if (title.isEmpty) return;
-    _isLoading = true;
-    notifyListeners();
-    final id = 'ca_${DateTime.now().millisecondsSinceEpoch}';
-    await _repository.addAssignment(levelId, weekId, title, content: content, id: id);
-    await _assignmentRepository.addCentralAssignment(id, title, content: content);
-    _levels = await _repository.getLevels();
-    _isLoading = false;
-    notifyListeners();
+    try {
+      final id = 'ca_${DateTime.now().millisecondsSinceEpoch}';
+      await _repository.addAssignment(levelId, weekId, title, content: content, id: id);
+      await _assignmentRepository.addCentralAssignment(id, title, content: content);
+      _levels = await _repository.getLevels();
+      notifyListeners();
+    } catch (e) {
+      rethrow;
+    }
   }
 
   Future<void> toggleVisibility(String levelId, String weekId, String itemId) async {
-    _isLoading = true;
-    notifyListeners();
-    await _repository.toggleVisibility(levelId, weekId, itemId);
-    _levels = await _repository.getLevels();
-    _isLoading = false;
-    notifyListeners();
+    try {
+      for (final level in _levels) {
+        if (level.id == levelId) {
+          for (final week in level.weeks) {
+            if (week.id == weekId) {
+              for (final item in week.items) {
+                if (item.id == itemId) {
+                  item.visible = !item.visible;
+                  break;
+                }
+              }
+            }
+          }
+        }
+      }
+      notifyListeners();
+      await _repository.toggleVisibility(levelId, weekId, itemId);
+      _levels = await _repository.getLevels();
+      notifyListeners();
+    } catch (e) {
+      for (final level in _levels) {
+        if (level.id == levelId) {
+          for (final week in level.weeks) {
+            if (week.id == weekId) {
+              for (final item in week.items) {
+                if (item.id == itemId) {
+                  item.visible = !item.visible;
+                  break;
+                }
+              }
+            }
+          }
+        }
+      }
+      notifyListeners();
+      rethrow;
+    }
   }
 
   Future<void> updateItem(String levelId, String weekId, String itemId, String title, String content) async {
-    _isLoading = true;
-    notifyListeners();
-    await _repository.updateItem(levelId, weekId, itemId, title, content);
-    _levels = await _repository.getLevels();
-    _isLoading = false;
-    notifyListeners();
+    try {
+      await _repository.updateItem(levelId, weekId, itemId, title, content);
+      _levels = await _repository.getLevels();
+      notifyListeners();
+    } catch (e) {
+      rethrow;
+    }
   }
 
   Future<void> deleteItem(String levelId, String weekId, String itemId) async {
-    _isLoading = true;
+    CurriculumItem? removedItem;
+    for (final level in _levels) {
+      if (level.id == levelId) {
+        for (final week in level.weeks) {
+          if (week.id == weekId) {
+            final idx = week.items.indexWhere((i) => i.id == itemId);
+            if (idx != -1) {
+              removedItem = week.items.removeAt(idx);
+              break;
+            }
+          }
+        }
+      }
+    }
     notifyListeners();
-    await _repository.deleteItem(levelId, weekId, itemId);
-    _levels = await _repository.getLevels();
-    _isLoading = false;
-    notifyListeners();
+
+    try {
+      await _repository.deleteItem(levelId, weekId, itemId);
+      _levels = await _repository.getLevels();
+      notifyListeners();
+    } catch (e) {
+      if (removedItem != null) {
+        for (final level in _levels) {
+          if (level.id == levelId) {
+            for (final week in level.weeks) {
+              if (week.id == weekId) {
+                week.items.add(removedItem);
+                week.items.sort((a, b) => a.title.compareTo(b.title));
+                break;
+              }
+            }
+          }
+        }
+        notifyListeners();
+      }
+      rethrow;
+    }
   }
 }

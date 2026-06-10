@@ -29,6 +29,26 @@ class AssignmentRepository {
         .toList();
   }
 
+  /// Fetch assignments assigned to the currently signed-in student's group.
+  Future<List<AssignmentModel>> getStudentAssignments() async {
+    final uid = _auth.currentUser?.uid;
+    if (uid == null) {
+      throw Exception('No user is currently signed in.');
+    }
+    final userDoc = await _db.collection('users').doc(uid).get();
+    if (!userDoc.exists || userDoc.data() == null) {
+      return [];
+    }
+    final groupId = userDoc.data()?['groupId'] as String?;
+    if (groupId == null || groupId.isEmpty) {
+      return [];
+    }
+    final snapshot = await _col.where('groupId', isEqualTo: groupId).get();
+    return snapshot.docs
+        .map((doc) => AssignmentModel.fromMap(doc.data(), doc.id))
+        .toList();
+  }
+
   /// Fetch a single assignment by its document ID.
   Future<AssignmentModel?> getAssignmentById(String id) async {
     final doc = await _col.doc(id).get();

@@ -2,6 +2,7 @@
 /// Path: lib/logic/controllers/user_controller.dart
 library;
 
+import 'dart:math';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/foundation.dart';
 import '../../data/models/curriculum_model.dart';
@@ -85,79 +86,124 @@ class UserController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Adds an instructor. Optimistic: adds placeholder row instantly, replaces with
+  /// real doc once the Cloud Function returns the UID.
   Future<void> addInstructor(String name, String email, String? phoneNumber, String? homeAddress, List<String> assignedLevels) async {
     if (name.isEmpty) return;
-    _isLoading = true;
+
+    // Optimistic placeholder
+    final placeholder = UserModel(
+      id: '__optimistic__${DateTime.now().millisecondsSinceEpoch}',
+      userNumber: 0,
+      name: name,
+      email: email,
+      role: UserRole.instructor,
+      assignedLevels: assignedLevels,
+      lastActive: null,
+    );
+    _instructors = [..._instructors, placeholder];
     notifyListeners();
+
     try {
       final generatedUsername = _generateUsername(email);
       await _repository.addInstructor(name, email, phoneNumber, homeAddress, assignedLevels, username: generatedUsername);
-      _instructors = await _repository.getInstructors();
-    } finally {
-      _isLoading = false;
+      // Fetch only the newly created instructor to avoid full reload
+      final fresh = await _repository.getInstructors();
+      _instructors = fresh;
       notifyListeners();
+    } catch (e) {
+      // Roll back placeholder
+      _instructors = _instructors.where((i) => i.id != placeholder.id).toList();
+      notifyListeners();
+      rethrow;
     }
   }
 
   /// Generates a clean, lowercase, URL-safe username from an email address.
-  /// Falls back to 'instructor_XXXX' with a random suffix if the email is empty.
   String _generateUsername(String email) {
     if (email.isNotEmpty && email.contains('@')) {
-      // Take the prefix before the '@', sanitize it
       return email.split('@').first.toLowerCase().replaceAll(RegExp(r'[^a-z0-9._]'), '');
     }
-    // Fallback: generate a random username
     final suffix = (1000 + DateTime.now().millisecondsSinceEpoch % 9000).toString();
     return 'instructor_$suffix';
   }
 
+  /// Updates instructor levels. Optimistic: reflects change locally immediately.
   Future<void> updateInstructorLevels(String instructorId, List<String> levels) async {
-    _isLoading = true;
+    final old = _instructors.firstWhere((i) => i.id == instructorId, orElse: () => throw Exception('Not found'));
+    _instructors = _instructors.map((i) {
+      if (i.id != instructorId) return i;
+      return UserModel(
+        id: i.id, userNumber: i.userNumber, name: i.name, email: i.email,
+        role: i.role, assignedLevels: levels, lastActive: i.lastActive,
+        phoneNumber: i.phoneNumber, address: i.address,
+      );
+    }).toList();
     notifyListeners();
+
     try {
       await _repository.updateInstructorLevels(instructorId, levels);
-      _instructors = await _repository.getInstructors();
-    } finally {
-      _isLoading = false;
+    } catch (e) {
+      _instructors = _instructors.map((i) => i.id == instructorId ? old : i).toList();
       notifyListeners();
+      rethrow;
     }
   }
 
+  /// Updates instructor profile. Optimistic: reflects name/email change locally.
   Future<void> updateInstructorProfile(String instructorId, String name, String email, String? phoneNumber, String? homeAddress) async {
-    _isLoading = true;
+    final old = _instructors.firstWhere((i) => i.id == instructorId, orElse: () => throw Exception('Not found'));
+    _instructors = _instructors.map((i) {
+      if (i.id != instructorId) return i;
+      return UserModel(
+        id: i.id, userNumber: i.userNumber, name: name, email: email,
+        role: i.role, assignedLevels: i.assignedLevels, lastActive: i.lastActive,
+        phoneNumber: phoneNumber, address: homeAddress,
+      );
+    }).toList();
     notifyListeners();
+
     try {
       await _repository.updateInstructorProfile(instructorId, name, email, phoneNumber, homeAddress);
-      _instructors = await _repository.getInstructors();
-    } finally {
-      _isLoading = false;
+    } catch (e) {
+      _instructors = _instructors.map((i) => i.id == instructorId ? old : i).toList();
       notifyListeners();
+      rethrow;
     }
   }
 
+  /// Archives instructor. Optimistic: removes from active list instantly.
   Future<void> deleteInstructor(String instructorId) async {
-    _isLoading = true;
+    final removed = _instructors.firstWhere((i) => i.id == instructorId, orElse: () => throw Exception('Not found'));
+    _instructors = _instructors.where((i) => i.id != instructorId).toList();
     notifyListeners();
+
     try {
       await _repository.deleteInstructor(instructorId);
-      _instructors = await _repository.getInstructors();
+      // Refresh archive list in background
       _archivedUsers = await _repository.getArchivedUsers();
-    } finally {
-      _isLoading = false;
       notifyListeners();
+    } catch (e) {
+      _instructors = [..._instructors, removed];
+      notifyListeners();
+      rethrow;
     }
   }
 
+  /// Archives student. Optimistic: removes from active list instantly.
   Future<void> deleteStudent(String studentId) async {
-    _isLoading = true;
+    final removed = _students.firstWhere((s) => s.id == studentId, orElse: () => throw Exception('Not found'));
+    _students = _students.where((s) => s.id != studentId).toList();
     notifyListeners();
+
     try {
       await _repository.deleteStudent(studentId);
-      _students = await _repository.getStudents();
       _archivedUsers = await _repository.getArchivedUsers();
-    } finally {
-      _isLoading = false;
       notifyListeners();
+    } catch (e) {
+      _students = [..._students, removed];
+      notifyListeners();
+      rethrow;
     }
   }
 
@@ -165,33 +211,145 @@ class UserController extends ChangeNotifier {
 
   Future<bool> usernameExists(String username) => _repository.usernameExists(username);
 
-  Future<void> addStudent({
+  /// Creates a student. Optimistic: appends placeholder immediately,
+  /// replaces with real doc after Cloud Function returns.
+  Future<UserModel> addStudent({
     required String name,
     required String username,
     required String pinCode,
     required String levelId,
   }) async {
-    _isLoading = true;
+    final u = username.toLowerCase().trim();
+
+    // Optimistic placeholder
+    final placeholder = UserModel(
+      id: '__optimistic__${DateTime.now().millisecondsSinceEpoch}',
+      userNumber: 0,
+      name: name,
+      email: '$u@levelup.edu',
+      role: UserRole.student,
+      studentNumber: '#…',
+      username: u,
+      pinCode: pinCode,
+      lastActive: null,
+    );
+    _students = [..._students, placeholder];
     notifyListeners();
+
     try {
-      final userNumber = DateTime.now().millisecondsSinceEpoch % 900000 + 100000;
-      await _repository.addStudent(
+      final result = await _repository.addStudent(
         name: name,
-        username: username.toLowerCase().trim(),
+        username: u,
         pinCode: pinCode,
         levelId: levelId,
-        userNumber: userNumber,
       );
-      _students = await _repository.getStudents();
-    } finally {
-      _isLoading = false;
+      final created = UserModel(
+        id: result.uid,
+        userNumber: result.userNumber,
+        name: name,
+        email: '${u.replaceAll('_', '').replaceAll('.', '')}@levelup.edu',
+        role: UserRole.student,
+        studentNumber: '#${result.userNumber}',
+        username: u,
+        pinCode: pinCode,
+        lastActive: null,
+      );
+      // Replace placeholder with real model
+      _students = _students.map((s) => s.id == placeholder.id ? created : s).toList();
       notifyListeners();
+      return created;
+    } catch (e) {
+      _students = _students.where((s) => s.id != placeholder.id).toList();
+      notifyListeners();
+      rethrow;
     }
   }
 
-  Future<void> resetStudentPin(String studentId, String newPin) async {
-    final callable = _functions.httpsCallable('resetStudentPin');
-    await callable.call({'studentId': studentId, 'newPin': newPin});
+  /// Creates multiple students sequentially.
+  /// Each map in [students] must have keys: 'name', 'username', 'pin', 'levelId'.
+  Future<List<UserModel>> bulkAddStudents(List<Map<String, String>> students) async {
+    final created = <UserModel>[];
+
+    // Add optimistic placeholders for all rows at once
+    final placeholders = students.map((s) {
+      final u = s['username']!.toLowerCase().trim();
+      return UserModel(
+        id: '__optimistic__${DateTime.now().millisecondsSinceEpoch}_${s['username']}',
+        userNumber: 0,
+        name: s['name']!,
+        email: '$u@levelup.edu',
+        role: UserRole.student,
+        studentNumber: '#…',
+        username: u,
+        pinCode: s['pin']!,
+        lastActive: null,
+      );
+    }).toList();
+
+    _students = [..._students, ...placeholders];
+    notifyListeners();
+
+    try {
+      for (int i = 0; i < students.length; i++) {
+        final s = students[i];
+        final u = s['username']!.toLowerCase().trim();
+        final result = await _repository.addStudent(
+          name: s['name']!,
+          username: u,
+          pinCode: s['pin']!,
+          levelId: s['levelId']!,
+        );
+        final model = UserModel(
+          id: result.uid,
+          userNumber: result.userNumber,
+          name: s['name']!,
+          email: '${u.replaceAll('_', '').replaceAll('.', '')}@levelup.edu',
+          role: UserRole.student,
+          studentNumber: '#${result.userNumber}',
+          username: u,
+          pinCode: s['pin']!,
+          lastActive: null,
+        );
+        created.add(model);
+        // Replace this placeholder with the real model
+        _students = _students.map((st) => st.id == placeholders[i].id ? model : st).toList();
+        notifyListeners();
+      }
+      return created;
+    } catch (e) {
+      // Roll back all remaining placeholders
+      final placeholderIds = placeholders.map((p) => p.id).toSet();
+      _students = _students.where((s) => !placeholderIds.contains(s.id)).toList();
+      notifyListeners();
+      rethrow;
+    }
+  }
+
+  /// Resets student PIN. Optimistic: updates pinCode in local list immediately.
+  Future<String> resetStudentPin(String studentId) async {
+    final newPin = (100000 + Random().nextInt(900000)).toString();
+    final old = _students.firstWhere((s) => s.id == studentId, orElse: () => throw Exception('Not found'));
+
+    _students = _students.map((s) {
+      if (s.id != studentId) return s;
+      return UserModel(
+        id: s.id, userNumber: s.userNumber, name: s.name, email: s.email,
+        role: s.role, studentNumber: s.studentNumber, username: s.username,
+        pinCode: newPin, lastActive: s.lastActive,
+      );
+    }).toList();
+    notifyListeners();
+
+    try {
+      final callable = _functions.httpsCallable('resetStudentPin');
+      await callable.call({'studentId': studentId, 'newPin': newPin});
+      return newPin;
+    } catch (e) {
+      // Roll back
+      _students = _students.map((s) => s.id == studentId ? old : s).toList();
+      notifyListeners();
+      rethrow;
+    }
   }
 
   Future<void> resendWelcomeEmail(String instructorId) async {
@@ -211,30 +369,45 @@ class UserController extends ChangeNotifier {
     }
   }
 
+  /// Restores archived user. Optimistic: removes from archive instantly, adds back to active list.
   Future<void> restoreUser(String uid) async {
-    _isLoading = true;
+    final removed = _archivedUsers.firstWhere((u) => u.id == uid, orElse: () => throw Exception('Not found'));
+    _archivedUsers = _archivedUsers.where((u) => u.id != uid).toList();
+    // Restore to correct active list
+    if (removed.role == UserRole.instructor) {
+      _instructors = [..._instructors, removed];
+    } else {
+      _students = [..._students, removed];
+    }
     notifyListeners();
+
     try {
       await _repository.restoreUser(uid);
-      _archivedUsers = await _repository.getArchivedUsers();
-      _archivedGroups = await _groupRepository.getArchivedGroups();
-      _instructors = await _repository.getInstructors();
-      _students = await _repository.getStudents();
-    } finally {
-      _isLoading = false;
+    } catch (e) {
+      // Roll back
+      _archivedUsers = [..._archivedUsers, removed];
+      if (removed.role == UserRole.instructor) {
+        _instructors = _instructors.where((i) => i.id != uid).toList();
+      } else {
+        _students = _students.where((s) => s.id != uid).toList();
+      }
       notifyListeners();
+      rethrow;
     }
   }
 
+  /// Permanently deletes archived user. Optimistic: removes from archive instantly.
   Future<void> permanentlyDeleteUser(String uid) async {
-    _isLoading = true;
+    final removed = _archivedUsers.firstWhere((u) => u.id == uid, orElse: () => throw Exception('Not found'));
+    _archivedUsers = _archivedUsers.where((u) => u.id != uid).toList();
     notifyListeners();
+
     try {
       await _repository.permanentlyDeleteUser(uid);
-      _archivedUsers = await _repository.getArchivedUsers();
-    } finally {
-      _isLoading = false;
+    } catch (e) {
+      _archivedUsers = [..._archivedUsers, removed];
       notifyListeners();
+      rethrow;
     }
   }
 
@@ -251,14 +424,16 @@ class UserController extends ChangeNotifier {
   }
 
   Future<void> permanentlyDeleteGroup(String groupId) async {
-    _isLoading = true;
+    final removed = _archivedGroups.firstWhere((g) => g.id == groupId, orElse: () => throw Exception('Not found'));
+    _archivedGroups = _archivedGroups.where((g) => g.id != groupId).toList();
     notifyListeners();
+
     try {
       await _groupRepository.permanentlyDeleteGroup(groupId);
-      _archivedGroups = await _groupRepository.getArchivedGroups();
-    } finally {
-      _isLoading = false;
+    } catch (e) {
+      _archivedGroups = [..._archivedGroups, removed];
       notifyListeners();
+      rethrow;
     }
   }
 }

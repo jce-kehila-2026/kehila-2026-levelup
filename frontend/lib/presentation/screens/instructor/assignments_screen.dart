@@ -16,6 +16,7 @@ import '../../widgets/assignment_card.dart';
 import '../../../logic/controllers/instructor_assignment_controller.dart';
 import '../../../logic/controllers/curriculum_controller.dart';
 import '../../../logic/controllers/instructor_group_controller.dart';
+import '../../../logic/controllers/auth_controller.dart';
 import '../../../di/service_locator.dart';
 import 'package:frontend/l10n/app_localizations.dart';
 import 'package:go_router/go_router.dart';
@@ -32,6 +33,17 @@ class _InstructorAssignmentsScreenState extends State<InstructorAssignmentsScree
   final InstructorAssignmentController _controller = getIt<InstructorAssignmentController>();
   final CurriculumController _curriculumController = getIt<CurriculumController>();
   final InstructorGroupController _groupController = getIt<InstructorGroupController>();
+  final AuthController _authController = getIt<AuthController>();
+
+  List<String> _assignedLevelIds = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _authController.getCurrentAssignedLevels().then((ids) {
+      if (mounted) setState(() => _assignedLevelIds = ids);
+    });
+  }
 
   void _showCreateAssignmentFlow() {
     final l10n = AppLocalizations.of(context)!;
@@ -210,7 +222,9 @@ class _InstructorAssignmentsScreenState extends State<InstructorAssignmentsScree
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                   contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 ),
-                items: _curriculumController.levels.map((l) => DropdownMenuItem(
+                items: _curriculumController.levels
+                    .where((l) => _assignedLevelIds.contains(l.id))
+                    .map((l) => DropdownMenuItem(
                   value: l,
                   child: Text(l.name),
                 )).toList(),
@@ -273,6 +287,7 @@ class _InstructorAssignmentsScreenState extends State<InstructorAssignmentsScree
             ElevatedButton(
               onPressed: selectedGroup == null ? null : () async {
                 final group = selectedGroup!;
+                final messenger = ScaffoldMessenger.of(context);
                 Navigator.pop(ctx);
                 await _controller.addAssignment(
                   templateTitle,
@@ -282,7 +297,7 @@ class _InstructorAssignmentsScreenState extends State<InstructorAssignmentsScree
                   deadline: selectedDeadline,
                 );
                 if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
+                  messenger.showSnackBar(
                     SnackBar(
                       content: Text('"$templateTitle" assigned to ${group.name}'),
                       behavior: SnackBarBehavior.floating,

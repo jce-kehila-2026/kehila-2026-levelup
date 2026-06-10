@@ -78,6 +78,7 @@ class GroupRepository {
     final callerRole = callerDoc.data()?['role'] as String?;
     final instructorIds = callerRole == 'instructor' ? [uid] : <String>[];
 
+    final serialNumber = await _getNextGroupNumber();
     final now = Timestamp.now();
     final newDocRef = _groups.doc();
 
@@ -86,17 +87,20 @@ class GroupRepository {
       'instructorIds': instructorIds,
       'students': [],
       'createdAt': now,
+      'serialNumber': serialNumber,
+      'isArchived': false,
     };
 
     await newDocRef.set(data);
 
     return GroupModel(
       id: newDocRef.id,
-      serialNumber: 0, // not stored; position derived from createdAt sort order
+      serialNumber: serialNumber,
       name: name,
       instructorIds: instructorIds,
       students: const [],
       createdAt: now.toDate(),
+      isArchived: false,
     );
   }
 
@@ -276,5 +280,17 @@ class GroupRepository {
     }).toList();
 
     await _groups.doc(groupId).update({'students': updatedStudents});
+  }
+
+  Future<int> _getNextGroupNumber() async {
+    final docRef = _db.collection('counters').doc('groups');
+    int next = 1;
+    await _db.runTransaction((t) async {
+      final snap = await t.get(docRef);
+      final last = snap.exists ? (snap.data()?['lastNumber'] as int? ?? 0) : 0;
+      next = last + 1;
+      t.set(docRef, {'lastNumber': next}, SetOptions(merge: true));
+    });
+    return next;
   }
 }

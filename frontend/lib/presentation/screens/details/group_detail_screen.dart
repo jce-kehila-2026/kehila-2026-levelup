@@ -6,7 +6,9 @@
 /// ✅ Students displayed hierarchically by academic level
 library;
 
+import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import '../../../theme/app_theme.dart';
 import '../../widgets/empty_state.dart';
@@ -282,7 +284,6 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
             for (final row in rows) {
               row.nameError = null;
               row.usernameError = null;
-              row.pinError = null;
 
               if (row.nameCtrl.text.trim().isEmpty) {
                 row.nameError = 'Required';
@@ -295,15 +296,6 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                 valid = false;
               } else if (u.contains(' ') || u != u.toLowerCase()) {
                 row.usernameError = 'Lowercase, no spaces';
-                valid = false;
-              }
-
-              final pin = row.pinCtrl.text;
-              if (pin.isEmpty) {
-                row.pinError = 'Required';
-                valid = false;
-              } else if (!RegExp(r'^\d{6}$').hasMatch(pin)) {
-                row.pinError = 'Exactly 6 digits';
                 valid = false;
               }
             }
@@ -422,23 +414,20 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                   }
                   setDialogState(() => isCreating = true);
                   try {
+                    final createdUsers = <UserModel>[];
                     for (final row in rows) {
-                      await _controller.createStudent(
+                      final user = await _controller.createStudent(
                         row.nameCtrl.text.trim(),
                         selectedLevel,
                         username: row.usernameCtrl.text.trim(),
-                        pinCode: row.pinCtrl.text.trim(),
+                        pinCode: row.pin, // use the PIN shown in the form
                       );
+                      createdUsers.add(user);
                     }
-                    final count = rows.length;
                     for (final row in rows) { row.dispose(); }
                     if (ctx.mounted) Navigator.pop(ctx);
-                    if (mounted) {
-                      ScaffoldMessenger.of(this.context).showSnackBar(SnackBar(
-                        content: Text(count == 1 ? 'Student created successfully' : '$count students created successfully'),
-                        backgroundColor: AppColors.success,
-                        behavior: SnackBarBehavior.floating,
-                      ));
+                    if (mounted && createdUsers.isNotEmpty) {
+                      _showCredentialsDialog(createdUsers);
                     }
                   } catch (e) {
                     setDialogState(() => isCreating = false);
@@ -489,6 +478,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Name + remove button
           Row(
             children: [
               Expanded(
@@ -531,73 +521,226 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
             ],
           ),
           const SizedBox(height: 8),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                flex: 3,
-                child: TextField(
-                  controller: row.usernameCtrl,
-                  enabled: enabled,
-                  onChanged: (_) => onChange(),
-                  textInputAction: TextInputAction.next,
-                  decoration: InputDecoration(
-                    labelText: 'Username',
-                    hintText: 'ali.hassan',
-                    isDense: true,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(color: row.usernameError != null ? AppColors.error : AppColors.input),
+          // Username
+          TextField(
+            controller: row.usernameCtrl,
+            enabled: enabled,
+            onChanged: (_) => onChange(),
+            decoration: InputDecoration(
+              labelText: 'Username',
+              hintText: 'ali.hassan',
+              isDense: true,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: row.usernameError != null ? AppColors.error : AppColors.input),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+              ),
+              errorText: row.usernameError,
+              errorStyle: const TextStyle(fontSize: 10),
+            ),
+          ),
+          const SizedBox(height: 8),
+          // Read-only PIN bar
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: AppColors.background,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.lock_outline, size: 14, color: AppColors.mutedForeground),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'PIN: ${row.pin}',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 2,
+                      color: AppColors.primaryDark,
                     ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
-                    ),
-                    errorText: row.usernameError,
-                    errorStyle: const TextStyle(fontSize: 10),
                   ),
                 ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                flex: 2,
-                child: TextField(
-                  controller: row.pinCtrl,
-                  enabled: enabled,
-                  onChanged: (_) => onChange(),
-                  keyboardType: TextInputType.number,
-                  maxLength: 6,
-                  decoration: InputDecoration(
-                    labelText: 'PIN',
-                    hintText: '123456',
-                    counterText: '',
-                    isDense: true,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(color: row.pinError != null ? AppColors.error : AppColors.input),
+                if (enabled)
+                  Tooltip(
+                    message: 'Regenerate PIN',
+                    child: GestureDetector(
+                      onTap: () {
+                        row.regeneratePin();
+                        onChange();
+                      },
+                      child: const Padding(
+                        padding: EdgeInsets.all(4),
+                        child: Icon(Icons.refresh, size: 14, color: AppColors.mutedForeground),
+                      ),
                     ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
-                    ),
-                    errorText: row.pinError,
-                    errorStyle: const TextStyle(fontSize: 10),
                   ),
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
         ],
       ),
     );
   }
 
+  void _showCredentialsDialog(List<UserModel> users) {
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) {
+        return AlertDialog(
+          backgroundColor: AppColors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          contentPadding: const EdgeInsets.all(24),
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.success.withValues(alpha: 0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.check_circle, color: AppColors.success, size: 24),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  users.length == 1 ? 'Student Created!' : 'Students Created!',
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                ),
+              ),
+            ],
+          ),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Important: Save the PIN below. For security reasons, it will not be shown again.',
+                  style: TextStyle(fontSize: 13, color: AppColors.mutedForeground, fontWeight: FontWeight.w500),
+                ),
+                const SizedBox(height: 16),
+                Flexible(
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    physics: const ClampingScrollPhysics(),
+                    itemCount: users.length,
+                    separatorBuilder: (_, __) => const Divider(height: 20),
+                    itemBuilder: (context, idx) {
+                      final u = users[idx];
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            u.name,
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.primaryDark),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Username: ${u.username}',
+                            style: const TextStyle(fontSize: 12, color: AppColors.mutedForeground),
+                          ),
+                          const SizedBox(height: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: AppColors.background,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: AppColors.border),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  'PIN: ${u.pinCode}',
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.primaryDark,
+                                    letterSpacing: 2,
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.copy, size: 16),
+                                  onPressed: () {
+                                    Clipboard.setData(ClipboardData(text: u.pinCode ?? ''));
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text('PIN copied to clipboard'),
+                                        behavior: SnackBarBehavior.floating,
+                                      ),
+                                    );
+                                  },
+                                  constraints: const BoxConstraints(),
+                                  padding: EdgeInsets.zero,
+                                )
+                              ],
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () => Navigator.pop(ctx),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                child: const Text('I have saved the PIN', style: TextStyle(fontWeight: FontWeight.bold)),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   Future<void> _showResetPinDialog(UserModel student) async {
-    // Show a loading spinner while Firebase is called
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Reset PIN?', style: TextStyle(fontWeight: FontWeight.bold)),
+        content: Text('Are you sure you want to reset the PIN for ${student.name}? This will generate a new 6-digit random PIN.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel', style: TextStyle(color: AppColors.mutedForeground)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.error,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Reset', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    if (!mounted) return;
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -1171,15 +1314,18 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
 class _CreateStudentRow {
   final nameCtrl = TextEditingController();
   final usernameCtrl = TextEditingController();
-  final pinCtrl = TextEditingController();
+  String pin = _generatePin();
   String? nameError;
   String? usernameError;
-  String? pinError;
+
+  static String _generatePin() =>
+      (100000 + Random().nextInt(900000)).toString();
+
+  void regeneratePin() => pin = _generatePin();
 
   void dispose() {
     nameCtrl.dispose();
     usernameCtrl.dispose();
-    pinCtrl.dispose();
   }
 }
 

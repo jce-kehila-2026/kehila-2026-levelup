@@ -39,6 +39,7 @@ class AdminDashboardController extends ChangeNotifier {
 
   StreamSubscription<QuerySnapshot>? _usersSub;
   StreamSubscription<QuerySnapshot>? _groupsSub;
+  StreamSubscription<QuerySnapshot>? _levelsSub;
 
   // ── Initial load ───────────────────────────────────────────────────────────
 
@@ -72,7 +73,7 @@ class AdminDashboardController extends ChangeNotifier {
   // ── Real-time streams ──────────────────────────────────────────────────────
 
   void _startStreams() {
-    // Live student/instructor counts from the users collection
+    // Live student/instructor counts from the users collection (excluding archived users)
     _usersSub?.cancel();
     _usersSub = FirebaseFirestore.instance
         .collection('users')
@@ -82,7 +83,10 @@ class AdminDashboardController extends ChangeNotifier {
       int students = 0;
       int instructors = 0;
       for (final doc in snap.docs) {
-        final role = doc.data()['role'] as String?;
+        final data = doc.data();
+        final role = data['role'] as String?;
+        final isArchived = data['isArchived'] as bool? ?? false;
+        if (isArchived) continue;
         if (role == 'student') { students++; }
         else if (role == 'instructor') { instructors++; }
       }
@@ -91,14 +95,36 @@ class AdminDashboardController extends ChangeNotifier {
       notifyListeners();
     });
 
-    // Live group count from the groups collection
+    // Live group count from the groups collection (excluding archived groups)
     _groupsSub?.cancel();
     _groupsSub = FirebaseFirestore.instance
         .collection('groups')
         .snapshots()
         .skip(1) // skip duplicate of the initial load
         .listen((snap) {
-      _groupCount = snap.docs.length;
+      int activeGroups = 0;
+      for (final doc in snap.docs) {
+        final data = doc.data();
+        final isArchived = data['isArchived'] as bool? ?? false;
+        if (!isArchived) {
+          activeGroups++;
+        }
+      }
+      _groupCount = activeGroups;
+      notifyListeners();
+    });
+
+    // Live curriculum count and lessons count from the curriculum collection
+    _levelsSub?.cancel();
+    _levelsSub = FirebaseFirestore.instance
+        .collection('curriculum')
+        .snapshots()
+        .skip(1)
+        .listen((snap) {
+      final levels = snap.docs.map((d) => LevelModel.fromMap(d.data(), d.id)).toList();
+      _levelCount = levels.length;
+      _lessonCount = levels.fold(
+          0, (acc, l) => acc + l.weeks.fold(0, (ws, w) => ws + w.items.length));
       notifyListeners();
     });
   }
@@ -109,6 +135,7 @@ class AdminDashboardController extends ChangeNotifier {
   void dispose() {
     _usersSub?.cancel();
     _groupsSub?.cancel();
+    _levelsSub?.cancel();
     super.dispose();
   }
 

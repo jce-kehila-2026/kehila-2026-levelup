@@ -130,7 +130,9 @@ exports.createUser = onCall({
         `,
       });
     } catch (emailError) {
-      console.error("Failed to send welcome email:", emailError);
+      console.error("Failed to send welcome email:", emailError.message);
+      console.error("GMAIL_USER:", process.env.GMAIL_USER ? "SET" : "NOT SET");
+      console.error("GMAIL_PASS:", process.env.GMAIL_PASS ? "SET" : "NOT SET");
       // Don't throw — user was created successfully
     }
   }

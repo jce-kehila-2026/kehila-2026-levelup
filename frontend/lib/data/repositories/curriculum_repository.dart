@@ -19,6 +19,8 @@ class CurriculumRepository {
   /// Weeks within each level are sorted by name; items within each week by title.
   /// Seeds 3 default levels if the collection is empty.
   Future<List<LevelModel>> getLevels() async {
+    if (_cache.isNotEmpty) return List<LevelModel>.from(_cache);
+
     var snap = await _db.collection('curriculum').get();
     if (snap.docs.isEmpty) {
       await initializeIfEmpty();
@@ -27,8 +29,8 @@ class CurriculumRepository {
     _cache = snap.docs
         .map((doc) => _applySorting(LevelModel.fromMap(doc.data(), doc.id)))
         .toList()
-      ..sort((a, b) => a.id.compareTo(b.id));
-    return List.unmodifiable(_cache);
+      ..sort((a, b) => a.name.compareTo(b.name));
+    return List<LevelModel>.from(_cache);
   }
 
   /// Creates l1/l2/l3 default levels if the curriculum collection is empty.
@@ -69,6 +71,36 @@ class CurriculumRepository {
 
   Future<void> editLevel(String levelId, String newName) async {
     await _db.collection('curriculum').doc(levelId).update({'name': newName});
+    _cache = [];
+  }
+
+  /// Creates a new level document with a sequential ID (e.g. l4, l5...)
+  Future<void> addLevel(String name) async {
+    final snap = await _db.collection('curriculum').get();
+    int maxSeq = 3; // defaults to 3 as l1, l2, l3 are standard
+    for (final doc in snap.docs) {
+      final id = doc.id;
+      if (id.startsWith('l')) {
+        final numPart = id.substring(1);
+        final val = int.tryParse(numPart);
+        if (val != null && val > maxSeq) {
+          maxSeq = val;
+        }
+      }
+    }
+    final id = 'l${maxSeq + 1}';
+
+    await _db.collection('curriculum').doc(id).set({
+      'name': name,
+      'weeks': <dynamic>[],
+    });
+    _cache = []; // invalidate cache so next getLevels() fetches fresh data
+  }
+
+  /// Deletes a level document.
+  Future<void> deleteLevel(String levelId) async {
+    await _db.collection('curriculum').doc(levelId).delete();
+    _cache = []; // invalidate cache so next getLevels() fetches fresh data
   }
 
   // ── Week Operations ─────────────────────────────────────────────────────────

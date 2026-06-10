@@ -7,6 +7,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import '../../data/models/assignment_model.dart';
+import '../../data/models/group_model.dart';
 import '../../data/models/user_model.dart';
 import '../../data/repositories/assignment_repository.dart';
 import '../../data/repositories/group_repository.dart';
@@ -23,8 +24,14 @@ class InstructorDashboardController extends ChangeNotifier {
   List<AssignmentModel> _activeAssignments = [];
   int _myGroupsCount = 0;
   int _studentsCount = 0;
+  String _instructorName = '';
 
+  List<GroupModel> _myGroups = [];
+  List<UserModel> _allStudents = [];
+
+  StreamSubscription<DocumentSnapshot>? _userSub;
   StreamSubscription<QuerySnapshot>? _groupsSub;
+  StreamSubscription<QuerySnapshot>? _usersSub;
   StreamSubscription<QuerySnapshot>? _assignmentsSub;
 
   InstructorDashboardController(this._assignmentRepo, this._groupRepository, this._userRepository) {
@@ -55,17 +62,27 @@ class InstructorDashboardController extends ChangeNotifier {
     ]);
     _activeAssignments = results[0] as List<AssignmentModel>;
     if (uid != null) {
-      final allGroups = results[1] as List;
-      final myGroups = allGroups
-          .where((g) => (g.instructorIds as List).contains(uid))
-          .toList();
-      final myGroupIds = myGroups.map((g) => g.id as String).toSet();
-      _myGroupsCount = myGroups.length;
-      final allStudents = results[2] as List<UserModel>;
-      _studentsCount = allStudents
-          .where((s) => s.groupId != null && myGroupIds.contains(s.groupId))
-          .length;
+      // Fetch user document for instructor name
+      final userDoc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      if (userDoc.exists) {
+        _instructorName = (userDoc.data()?['name'] as String?) ?? '';
+      }
+
+      final allGroups = results[1] as List<GroupModel>;
+      _myGroups = allGroups.where((g) => g.instructorIds.contains(uid)).toList();
+      _myGroupsCount = _myGroups.length;
+      _allStudents = results[2] as List<UserModel>;
+      _recalcStudentsCount();
     }
+  }
+
+  void _recalcStudentsCount() {
+    final activeStudentIds = _allStudents.map((s) => s.id).toSet();
+    final myGroupStudentIds = <String>{};
+    for (final g in _myGroups) {
+      myGroupStudentIds.addAll(g.studentIds);
+    }
+    _studentsCount = myGroupStudentIds.where((id) => activeStudentIds.contains(id)).length;
   }
 
   // ── Real-time streams ──────────────────────────────────────────────────────
@@ -74,30 +91,50 @@ class InstructorDashboardController extends ChangeNotifier {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return;
 
-    // Live group counts: filter docs where instructorIds contains this UID
+    // 1. Live Instructor Profile
+    _userSub?.cancel();
+    _userSub = FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .snapshots()
+        .listen((snap) {
+      if (snap.exists) {
+        _instructorName = (snap.data()?['name'] as String?) ?? '';
+        notifyListeners();
+      }
+    });
+
+    // 2. Live group counts: filter docs where instructorIds contains this UID
     _groupsSub?.cancel();
     _groupsSub = FirebaseFirestore.instance
         .collection('groups')
         .snapshots()
-        .listen((snap) async {
-      final myGroupDocs = snap.docs.where((d) {
-        final ids = List<String>.from(d.data()['instructorIds'] as List? ?? []);
-        return ids.contains(uid);
-      }).toList();
-      _myGroupsCount = myGroupDocs.length;
-      final myGroupIds = myGroupDocs.map((d) => d.id).toSet();
-      try {
-        final allStudents = await _userRepository.getStudents();
-        _studentsCount = allStudents
-            .where((s) => s.groupId != null && myGroupIds.contains(s.groupId))
-            .length;
-      } catch (e) {
-        debugPrint('InstructorDashboardController groups stream error: $e');
-      }
+        .listen((snap) {
+      _myGroups = snap.docs
+          .map((d) => GroupModel.fromMap(d.data(), d.id))
+          .where((g) => g.instructorIds.contains(uid) && !g.isArchived)
+          .toList();
+      _myGroupsCount = _myGroups.length;
+      _recalcStudentsCount();
       notifyListeners();
     });
 
-    // Live assignment list: re-fetch from repository on any change
+    // 3. Live student changes: update _allStudents list in real-time
+    _usersSub?.cancel();
+    _usersSub = FirebaseFirestore.instance
+        .collection('users')
+        .where('role', isEqualTo: 'student')
+        .snapshots()
+        .listen((snap) {
+      _allStudents = snap.docs
+          .map((d) => UserModel.fromMap(d.data(), d.id))
+          .where((s) => s.isArchived == false)
+          .toList();
+      _recalcStudentsCount();
+      notifyListeners();
+    });
+
+    // 4. Live assignment list: re-fetch from repository on any change
     _assignmentsSub?.cancel();
     _assignmentsSub = FirebaseFirestore.instance
         .collection('assignments')
@@ -131,12 +168,16 @@ class InstructorDashboardController extends ChangeNotifier {
 
   @override
   void dispose() {
+    _userSub?.cancel();
     _groupsSub?.cancel();
+    _usersSub?.cancel();
     _assignmentsSub?.cancel();
     super.dispose();
   }
 
   // ── Getters ────────────────────────────────────────────────────────────────
+
+  String get instructorName => _instructorName;
 
   Map<String, String> get stats => {
         'myGroups': _myGroupsCount.toString(),

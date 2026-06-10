@@ -21,6 +21,10 @@ class StudentDashboardController extends ChangeNotifier {
 
   StreamSubscription<DocumentSnapshot>? _userDocSub;
   StreamSubscription<DocumentSnapshot>? _curriculumSub;
+  StreamSubscription<DocumentSnapshot>? _groupSub;
+
+  String? _subscribedLevelId;
+  String? _subscribedGroupId;
 
   StudentDashboardController() {
     _load();
@@ -73,6 +77,7 @@ class StudentDashboardController extends ChangeNotifier {
           final students = data['students'] as List<dynamic>? ?? [];
           if (students.any((s) => (s as Map)['id'] == uid)) {
             groupData = data;
+            groupId = doc.id;
             break;
           }
         }
@@ -90,6 +95,10 @@ class StudentDashboardController extends ChangeNotifier {
         if (levelId == null || levelId.isEmpty) {
           levelId = groupData['globalLevel'] as String?;
         }
+      }
+
+      if (groupId != null && groupId.isNotEmpty) {
+        _subscribeToGroup(groupId);
       }
 
       // 3. Level name and visible lesson library
@@ -122,15 +131,31 @@ class StudentDashboardController extends ChangeNotifier {
         .doc(uid)
         .snapshots()
         .skip(1) // skip the first event which duplicates the initial load
-        .listen((snap) {
+        .listen((snap) async {
       if (!snap.exists || snap.data() == null) return;
-      final data = snap.data()!;
-      _studentName = data['name'] as String? ?? _studentName;
+      await _fetchAll();
+      notifyListeners();
+    });
+  }
+
+  void _subscribeToGroup(String groupId) {
+    if (_subscribedGroupId == groupId) return;
+    _subscribedGroupId = groupId;
+    _groupSub?.cancel();
+    _groupSub = FirebaseFirestore.instance
+        .collection('groups')
+        .doc(groupId)
+        .snapshots()
+        .skip(1)
+        .listen((snap) async {
+      await _fetchAll();
       notifyListeners();
     });
   }
 
   void _subscribeToCurriculum(String levelId) {
+    if (_subscribedLevelId == levelId) return;
+    _subscribedLevelId = levelId;
     _curriculumSub?.cancel();
     _curriculumSub = FirebaseFirestore.instance
         .collection('curriculum')
@@ -170,6 +195,7 @@ class StudentDashboardController extends ChangeNotifier {
   void dispose() {
     _userDocSub?.cancel();
     _curriculumSub?.cancel();
+    _groupSub?.cancel();
     super.dispose();
   }
 

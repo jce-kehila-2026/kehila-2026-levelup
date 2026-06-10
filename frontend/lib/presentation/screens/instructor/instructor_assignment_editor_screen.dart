@@ -10,6 +10,7 @@ import '../../../data/models/group_model.dart';
 import '../../../theme/app_theme.dart';
 import '../../../logic/controllers/instructor_assignment_controller.dart';
 import '../../../logic/controllers/instructor_group_controller.dart';
+import '../../../logic/controllers/auth_controller.dart';
 import '../../../di/service_locator.dart';
 
 class _ImageEmbedBuilder extends quill.EmbedBuilder {
@@ -57,6 +58,9 @@ class InstructorAssignmentEditorScreen extends StatefulWidget {
 class _InstructorAssignmentEditorScreenState extends State<InstructorAssignmentEditorScreen> {
   final InstructorAssignmentController _controller = getIt<InstructorAssignmentController>();
   final InstructorGroupController _groupController = getIt<InstructorGroupController>();
+  final AuthController _authController = getIt<AuthController>();
+
+  List<String> _assignedLevelIds = [];
 
   late TextEditingController _titleCtrl;
   late quill.QuillController _quillCtrl;
@@ -83,6 +87,10 @@ class _InstructorAssignmentEditorScreenState extends State<InstructorAssignmentE
   @override
   void initState() {
     super.initState();
+    _authController.getCurrentAssignedLevels().then((ids) {
+      if (mounted) setState(() => _assignedLevelIds = ids);
+    });
+
     final a = widget.initialAssignment;
 
     _titleCtrl = TextEditingController(text: a?.title ?? '');
@@ -316,7 +324,9 @@ class _InstructorAssignmentEditorScreenState extends State<InstructorAssignmentE
     }
 
     final groups = _groupController.myGroups;
-    final levels = resolvedGroup?.activeLevels.toList() ?? <String>[];
+    final levels = (resolvedGroup?.activeLevels.toList() ?? <String>[])
+        .where((l) => _assignedLevelIds.contains(l))
+        .toList();
 
     return Scaffold(
       backgroundColor: AppColors.background,
