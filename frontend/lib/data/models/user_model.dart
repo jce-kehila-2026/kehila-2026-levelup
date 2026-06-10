@@ -2,25 +2,27 @@
 /// Path: lib/data/models/user_model.dart
 library;
 
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 enum UserRole { admin, instructor, student }
 
 class UserModel {
   final String id;
   final int userNumber;
   final String name;
-  final String? email; // null for students (student auth uses username/pin)
+  final String? email;
   final String? phoneNumber;
-  final String? address; // Admin/Instructor only
+  final String? address;
   final UserRole role;
-  final List<String> assignedLevels; // Instructor only
-  final List<String> searchKeywords; // Segmented array for Firestore search
-
-  /// Student-specific fields (populated only for student roles).
-  final String? levelId; // Student only
-  final String? studentNumber; // e.g., "#1005"
-  final String? username; // English-only username
-  final String? pinCode; // e.g., "9575"
-  final DateTime? lastActive; // Tracks online status
+  final List<String> assignedLevels;
+  final List<String> searchKeywords;
+  final String? levelId;
+  final String? studentNumber;
+  final String? username;
+  final String? pinCode;
+  final DateTime? lastActive;
+  final bool isArchived;
+  final DateTime? createdAt;
 
   UserModel({
     required this.id,
@@ -37,15 +39,15 @@ class UserModel {
     this.username,
     this.pinCode,
     this.lastActive,
+    this.isArchived = false,
+    this.createdAt,
   });
 
-  /// Returns true if the student was active within the last 5 minutes.
   bool get isOnline {
     if (lastActive == null) return false;
     return DateTime.now().difference(lastActive!).inMinutes < 5;
   }
 
-  /// Returns a human-readable label for the student's last activity.
   String get lastActiveLabel {
     if (lastActive == null) return 'Never';
     final diff = DateTime.now().difference(lastActive!);
@@ -62,7 +64,7 @@ class UserModel {
 
     return UserModel(
       id: documentId,
-      userNumber: map['userNumber'] ?? 0,
+      userNumber: (map['userNumber'] as num?)?.toInt() ?? 0,
       name: map['name'] ?? '',
       email: map['email'],
       phoneNumber: map['phoneNumber'],
@@ -74,9 +76,9 @@ class UserModel {
       studentNumber: map['studentNumber'],
       username: map['username'],
       pinCode: map['pinCode'],
-      lastActive: map['lastActive'] != null
-          ? DateTime.parse(map['lastActive'].toString())
-          : null,
+      lastActive: _parseTimestamp(map['lastActive']),
+      isArchived: map['isArchived'] as bool? ?? false,
+      createdAt: _parseTimestamp(map['createdAt']),
     );
   }
 
@@ -95,6 +97,21 @@ class UserModel {
       'username': username,
       'pinCode': pinCode,
       'lastActive': lastActive?.toIso8601String(),
+      'isArchived': isArchived,
+      'createdAt': createdAt?.toIso8601String(),
     };
   }
+}
+
+DateTime? _parseTimestamp(dynamic value) {
+  if (value == null) return null;
+  if (value is Timestamp) return value.toDate();
+  if (value is String && value.isNotEmpty) {
+    try {
+      return DateTime.parse(value);
+    } catch (_) {
+      return null;
+    }
+  }
+  return null;
 }

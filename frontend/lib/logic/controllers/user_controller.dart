@@ -2,17 +2,22 @@
 /// Path: lib/logic/controllers/user_controller.dart
 library;
 
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/foundation.dart';
 import '../../data/models/user_model.dart';
 import '../../data/repositories/user_repository.dart';
 
 class UserController extends ChangeNotifier {
   final UserRepository _repository;
+  final FirebaseFunctions _functions =
+      FirebaseFunctions.instanceFor(region: 'us-central1');
 
   bool _isLoading = false;
   bool get isLoading => _isLoading;
 
   List<UserModel> _instructors = [];
+  List<UserModel> _students = [];
+  List<UserModel> _archivedUsers = [];
 
   UserController(this._repository) {
     _init();
@@ -21,9 +26,13 @@ class UserController extends ChangeNotifier {
   Future<void> _init() async {
     _isLoading = true;
     notifyListeners();
-    _instructors = await _repository.getInstructors();
-    _isLoading = false;
-    notifyListeners();
+    try {
+      _instructors = await _repository.getInstructors();
+      _students = await _repository.getStudents();
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
   }
 
   // ── State ──────────────────────────────
@@ -40,6 +49,18 @@ class UserController extends ChangeNotifier {
     ).toList();
   }
 
+  List<UserModel> get students {
+    if (_search.isEmpty) return _students;
+    final q = _search.toLowerCase();
+    return _students.where((s) =>
+      s.name.toLowerCase().contains(q) ||
+      (s.username ?? '').toLowerCase().contains(q) ||
+      (s.studentNumber ?? '').toLowerCase().contains(q)
+    ).toList();
+  }
+
+  List<UserModel> get archivedUsers => _archivedUsers;
+
   // ── Actions ────────────────────────────
 
   void setSearch(String value) {
@@ -51,14 +72,14 @@ class UserController extends ChangeNotifier {
     if (name.isEmpty) return;
     _isLoading = true;
     notifyListeners();
-
-    // Auto-generate a URL-safe English username from the email prefix
-    final generatedUsername = _generateUsername(email);
-
-    await _repository.addInstructor(name, email, phoneNumber, homeAddress, assignedLevels, username: generatedUsername);
-    _instructors = await _repository.getInstructors();
-    _isLoading = false;
-    notifyListeners();
+    try {
+      final generatedUsername = _generateUsername(email);
+      await _repository.addInstructor(name, email, phoneNumber, homeAddress, assignedLevels, username: generatedUsername);
+      _instructors = await _repository.getInstructors();
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
   }
 
   /// Generates a clean, lowercase, URL-safe username from an email address.
@@ -76,27 +97,113 @@ class UserController extends ChangeNotifier {
   Future<void> updateInstructorLevels(String instructorId, List<String> levels) async {
     _isLoading = true;
     notifyListeners();
-    await _repository.updateInstructorLevels(instructorId, levels);
-    _instructors = await _repository.getInstructors();
-    _isLoading = false;
-    notifyListeners();
+    try {
+      await _repository.updateInstructorLevels(instructorId, levels);
+      _instructors = await _repository.getInstructors();
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
   }
 
   Future<void> updateInstructorProfile(String instructorId, String name, String email, String? phoneNumber, String? homeAddress) async {
     _isLoading = true;
     notifyListeners();
-    await _repository.updateInstructorProfile(instructorId, name, email, phoneNumber, homeAddress);
-    _instructors = await _repository.getInstructors();
-    _isLoading = false;
-    notifyListeners();
+    try {
+      await _repository.updateInstructorProfile(instructorId, name, email, phoneNumber, homeAddress);
+      _instructors = await _repository.getInstructors();
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
   }
 
   Future<void> deleteInstructor(String instructorId) async {
     _isLoading = true;
     notifyListeners();
-    await _repository.deleteInstructor(instructorId);
-    _instructors = await _repository.getInstructors();
-    _isLoading = false;
+    try {
+      await _repository.deleteInstructor(instructorId);
+      _instructors = await _repository.getInstructors();
+      _archivedUsers = await _repository.getArchivedUsers();
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> deleteStudent(String studentId) async {
+    _isLoading = true;
     notifyListeners();
+    try {
+      await _repository.deleteStudent(studentId);
+      _students = await _repository.getStudents();
+      _archivedUsers = await _repository.getArchivedUsers();
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> emailExists(String email) => _repository.emailExists(email);
+
+  Future<bool> usernameExists(String username) => _repository.usernameExists(username);
+
+  Future<void> addStudent({
+    required String name,
+    required String username,
+    required String pinCode,
+    required String levelId,
+  }) async {
+    _isLoading = true;
+    notifyListeners();
+    try {
+      final userNumber = DateTime.now().millisecondsSinceEpoch % 900000 + 100000;
+      await _repository.addStudent(
+        name: name,
+        username: username.toLowerCase().trim(),
+        pinCode: pinCode,
+        levelId: levelId,
+        userNumber: userNumber,
+      );
+      _students = await _repository.getStudents();
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> resetStudentPin(String studentId, String newPin) async {
+    final callable = _functions.httpsCallable('resetStudentPin');
+    await callable.call({'studentId': studentId, 'newPin': newPin});
+  }
+
+  Future<void> resendWelcomeEmail(String instructorId) async {
+    final callable = _functions.httpsCallable('resendWelcomeEmail');
+    await callable.call({'instructorId': instructorId});
+  }
+
+  Future<void> getArchivedUsers() async {
+    _isLoading = true;
+    notifyListeners();
+    try {
+      _archivedUsers = await _repository.getArchivedUsers();
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> restoreUser(String uid) async {
+    _isLoading = true;
+    notifyListeners();
+    try {
+      await _repository.restoreUser(uid);
+      _archivedUsers = await _repository.getArchivedUsers();
+      _instructors = await _repository.getInstructors();
+      _students = await _repository.getStudents();
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
   }
 }

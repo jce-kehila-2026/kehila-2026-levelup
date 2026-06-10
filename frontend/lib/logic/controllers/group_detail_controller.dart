@@ -145,39 +145,62 @@ class GroupDetailController extends ChangeNotifier {
   Future<bool> deleteGroup() async {
     _isLoading = true;
     notifyListeners();
-    await _groupRepository.deleteGroup(groupId);
-    return true;
+    try {
+      await _groupRepository.deleteGroup(groupId);
+      return true;
+    } catch (e) {
+      _isLoading = false;
+      notifyListeners();
+      rethrow;
+    }
   }
 
   Future<void> addInstructor(String instructorId) async {
     _isLoading = true;
     notifyListeners();
-    await _groupRepository.addInstructorToGroup(groupId, instructorId);
-    _availableInstructorsSearch = '';
-    await _init();
+    try {
+      await _groupRepository.addInstructorToGroup(groupId, instructorId);
+      _availableInstructorsSearch = '';
+      await _init();
+    } catch (e) {
+      _isLoading = false;
+      notifyListeners();
+      rethrow;
+    }
   }
 
   Future<void> removeInstructor(String instructorId) async {
     _isLoading = true;
     notifyListeners();
-    await _groupRepository.removeInstructorFromGroup(groupId, instructorId);
-    await _init();
+    try {
+      await _groupRepository.removeInstructorFromGroup(groupId, instructorId);
+      await _init();
+    } catch (e) {
+      _isLoading = false;
+      notifyListeners();
+      rethrow;
+    }
   }
 
   Future<void> addStudent(String studentId, String levelId) async {
     _isLoading = true;
     notifyListeners();
-    // Find the student to pass name & pin to the embed
-    final student = _allStudents.where((s) => s.id == studentId).firstOrNull;
-    await _groupRepository.addStudentToGroup(
-      groupId,
-      studentId,
-      levelId,
-      name: student?.name ?? '',
-      pin: student?.pinCode ?? '',
-    );
-    _availableStudentsSearch = '';
-    await _init();
+    try {
+      final student = _allStudents.where((s) => s.id == studentId).firstOrNull;
+      await _groupRepository.addStudentToGroup(
+        groupId,
+        studentId,
+        levelId,
+        name: student?.name ?? '',
+        pin: student?.pinCode ?? '',
+      );
+      _availableStudentsSearch = '';
+      await _init();
+    } catch (e) {
+      _isLoading = false;
+      notifyListeners();
+      rethrow;
+    }
   }
 
   Future<void> bulkAddStudents(String levelId) async {
@@ -206,46 +229,47 @@ class GroupDetailController extends ChangeNotifier {
     }
   }
 
-  /// Creates a new student via Cloud Function, then adds them to this group.
-  Future<UserModel> createStudent(String fullName, String levelId) async {
+  /// Creates a new student, then adds them to this group.
+  Future<UserModel> createStudent(
+    String fullName,
+    String levelId, {
+    String? username,
+    String? pinCode,
+  }) async {
     _isLoading = true;
     notifyListeners();
     try {
-      final username = _generateUsername(fullName);
-      final pinCode = (1000 + Random().nextInt(9000)).toString();
-      // Use timestamp-based userNumber to avoid needing counter transaction
+      final actualUsername = username ?? _generateUsername(fullName);
+      final actualPinCode = pinCode ?? (1000 + Random().nextInt(9000)).toString();
       final userNumber = DateTime.now().millisecondsSinceEpoch % 1000000 + 1000;
 
-      // ✅ Save to Firebase via Cloud Function
       final uid = await _userRepository.addStudent(
         name: fullName,
-        username: username,
-        pinCode: pinCode,
+        username: actualUsername,
+        pinCode: actualPinCode,
         levelId: levelId,
         userNumber: userNumber,
       );
 
-      // Add to group with the real Firebase UID
       await _groupRepository.addStudentToGroup(
         groupId,
         uid,
         levelId,
         name: fullName,
-        pin: pinCode,
+        pin: actualPinCode,
       );
 
       await _init();
 
-      // Return UserModel with credentials to show in dialog
       return UserModel(
         id: uid,
         userNumber: userNumber,
         name: fullName,
-        email: '${username.replaceAll('_', '').replaceAll('.', '')}@levelup.edu',
+        email: '${actualUsername.replaceAll('_', '').replaceAll('.', '')}@levelup.edu',
         role: UserRole.student,
         studentNumber: '#$userNumber',
-        username: username,
-        pinCode: pinCode,
+        username: actualUsername,
+        pinCode: actualPinCode,
         lastActive: null,
       );
     } catch (e) {
@@ -255,19 +279,20 @@ class GroupDetailController extends ChangeNotifier {
     }
   }
 
-  /// Creates multiple students via Cloud Function, then adds them all to this group.
+  /// Creates multiple students, then adds them all to this group.
   Future<List<UserModel>> bulkCreateStudents(
       List<({String name, String levelId})> entries) async {
     _isLoading = true;
     notifyListeners();
     final created = <UserModel>[];
+    _isLoading = true;
+    notifyListeners();
     try {
       for (final e in entries) {
         final username = _generateUsername(e.name);
         final pinCode = (1000 + Random().nextInt(9000)).toString();
         final userNumber = DateTime.now().millisecondsSinceEpoch % 1000000 + 1000 + created.length;
 
-        // ✅ Save to Firebase via Cloud Function
         final uid = await _userRepository.addStudent(
           name: e.name,
           username: username,
@@ -276,7 +301,6 @@ class GroupDetailController extends ChangeNotifier {
           userNumber: userNumber,
         );
 
-        // Add to group with real Firebase UID
         await _groupRepository.addStudentToGroup(
           groupId,
           uid,
@@ -309,17 +333,31 @@ class GroupDetailController extends ChangeNotifier {
   Future<void> removeStudent(String studentId) async {
     _isLoading = true;
     notifyListeners();
-    await _groupRepository.removeStudentFromGroup(groupId, studentId);
-    await _init();
+    try {
+      await _groupRepository.removeStudentFromGroup(groupId, studentId);
+      await _init();
+    } catch (e) {
+      _isLoading = false;
+      notifyListeners();
+      rethrow;
+    }
   }
 
   Future<void> deleteStudent(String studentId) async {
     _isLoading = true;
     notifyListeners();
-    await _groupRepository.removeStudentFromGroup(groupId, studentId);
-    await _userRepository.deleteStudent(studentId);
-    await _init();
+    try {
+      await _groupRepository.removeStudentFromGroup(groupId, studentId);
+      await _userRepository.deleteStudent(studentId);
+      await _init();
+    } catch (e) {
+      _isLoading = false;
+      notifyListeners();
+      rethrow;
+    }
   }
+
+  Future<bool> usernameExists(String username) => _userRepository.usernameExists(username);
 
   /// Resets the PIN for a student (in-memory only for display; real update via repo).
   String resetStudentPin(String studentId) {

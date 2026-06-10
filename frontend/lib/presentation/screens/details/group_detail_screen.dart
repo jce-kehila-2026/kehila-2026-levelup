@@ -266,18 +266,49 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
   }
 
   void _showCreateStudentDialog() {
-    final namesCtrl = TextEditingController();
+    final rows = [_CreateStudentRow()];
     String selectedLevel = 'l1';
+    bool isCreating = false;
 
-    showDialog<List<({String name, String levelId})>>(
+    showDialog<void>(
       context: context,
+      barrierDismissible: false,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setDialogState) {
           final l10n = AppLocalizations.of(context)!;
-          final lines = namesCtrl.text
-              .split('\n')
-              .where((l) => l.trim().isNotEmpty)
-              .length;
+
+          bool validate() {
+            bool valid = true;
+            for (final row in rows) {
+              row.nameError = null;
+              row.usernameError = null;
+              row.pinError = null;
+
+              if (row.nameCtrl.text.trim().isEmpty) {
+                row.nameError = 'Required';
+                valid = false;
+              }
+
+              final u = row.usernameCtrl.text.trim();
+              if (u.isEmpty) {
+                row.usernameError = 'Required';
+                valid = false;
+              } else if (u.contains(' ') || u != u.toLowerCase()) {
+                row.usernameError = 'Lowercase, no spaces';
+                valid = false;
+              }
+
+              final pin = row.pinCtrl.text;
+              if (pin.isEmpty) {
+                row.pinError = 'Required';
+                valid = false;
+              } else if (!RegExp(r'^\d{6}$').hasMatch(pin)) {
+                row.pinError = 'Exactly 6 digits';
+                valid = false;
+              }
+            }
+            return valid;
+          }
 
           return AlertDialog(
             backgroundColor: AppColors.background,
@@ -294,33 +325,6 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    l10n.enterNamesPerLine,
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.mutedForeground),
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: namesCtrl,
-                    maxLines: 6,
-                    minLines: 4,
-                    autofocus: true,
-                    onChanged: (_) => setDialogState(() {}),
-                    decoration: InputDecoration(
-                      hintText: 'Lina Chen\nJames Walker\nفاطمة الزهراء',
-                      hintStyle: TextStyle(fontSize: 13, color: AppColors.mutedForeground.withValues(alpha: 0.6)),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: AppColors.input, width: 1.5),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
-                      ),
-                      contentPadding: const EdgeInsets.all(14),
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  Text(
                     l10n.assignToLevel,
                     style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.mutedForeground),
                   ),
@@ -331,7 +335,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                       return Padding(
                         padding: const EdgeInsetsDirectional.only(end: 8),
                         child: GestureDetector(
-                          onTap: () => setDialogState(() => selectedLevel = e.key),
+                          onTap: isCreating ? null : () => setDialogState(() => selectedLevel = e.key),
                           child: AnimatedContainer(
                             duration: const Duration(milliseconds: 120),
                             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -342,224 +346,254 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                             ),
                             child: Text(
                               e.value,
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                                color: sel ? Colors.white : AppColors.mutedForeground,
-                              ),
+                              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: sel ? Colors.white : AppColors.mutedForeground),
                             ),
                           ),
                         ),
                       );
                     }).toList(),
                   ),
+                  const SizedBox(height: 14),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxHeight: 300),
+                    child: SingleChildScrollView(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: rows.asMap().entries.map((entry) {
+                          final i = entry.key;
+                          final row = entry.value;
+                          return _buildStudentFormRow(
+                            row: row,
+                            canRemove: rows.length > 1,
+                            enabled: !isCreating,
+                            onRemove: () => setDialogState(() {
+                              row.dispose();
+                              rows.removeAt(i);
+                            }),
+                            onChange: () => setDialogState(() {}),
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                  ),
+                  if (!isCreating)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: TextButton.icon(
+                        onPressed: () => setDialogState(() => rows.add(_CreateStudentRow())),
+                        icon: const Icon(Icons.add, size: 15),
+                        label: const Text('+ Add Another Student', style: TextStyle(fontSize: 13)),
+                        style: TextButton.styleFrom(
+                          foregroundColor: AppColors.primary,
+                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                      ),
+                    ),
                 ],
               ),
             ),
             actions: [
               TextButton(
-                onPressed: () => Navigator.pop(ctx),
+                onPressed: isCreating ? null : () {
+                  for (final row in rows) { row.dispose(); }
+                  Navigator.pop(ctx);
+                },
                 child: Text(l10n.cancelButton, style: TextStyle(color: AppColors.mutedForeground)),
               ),
               ElevatedButton(
-                onPressed: lines == 0 ? null : () {
-                  // Synchronous pop — returns entries as the dialog result.
-                  // Async work runs in .then() below, after the barrier is gone.
-                  final entries = namesCtrl.text
-                      .split('\n')
-                      .map((l) => l.trim())
-                      .where((l) => l.isNotEmpty)
-                      .map((name) => (name: name, levelId: selectedLevel))
-                      .toList();
-                  Navigator.pop(ctx, entries);
+                onPressed: isCreating ? null : () async {
+                  if (!validate()) {
+                    setDialogState(() {});
+                    return;
+                  }
+                  // Duplicate username check
+                  bool hasDupe = false;
+                  for (final row in rows) {
+                    final exists = await _controller.usernameExists(row.usernameCtrl.text.trim());
+                    if (exists) {
+                      row.usernameError = 'Username already taken';
+                      hasDupe = true;
+                    }
+                  }
+                  if (hasDupe) {
+                    setDialogState(() {});
+                    return;
+                  }
+                  setDialogState(() => isCreating = true);
+                  try {
+                    for (final row in rows) {
+                      await _controller.createStudent(
+                        row.nameCtrl.text.trim(),
+                        selectedLevel,
+                        username: row.usernameCtrl.text.trim(),
+                        pinCode: row.pinCtrl.text.trim(),
+                      );
+                    }
+                    final count = rows.length;
+                    for (final row in rows) { row.dispose(); }
+                    if (ctx.mounted) Navigator.pop(ctx);
+                    if (mounted) {
+                      ScaffoldMessenger.of(this.context).showSnackBar(SnackBar(
+                        content: Text(count == 1 ? 'Student created successfully' : '$count students created successfully'),
+                        backgroundColor: AppColors.success,
+                        behavior: SnackBarBehavior.floating,
+                      ));
+                    }
+                  } catch (e) {
+                    setDialogState(() => isCreating = false);
+                    if (mounted) {
+                      ScaffoldMessenger.of(this.context).showSnackBar(SnackBar(
+                        content: Text('Failed to create student: $e'),
+                        backgroundColor: AppColors.error,
+                        behavior: SnackBarBehavior.floating,
+                        duration: const Duration(seconds: 6),
+                      ));
+                    }
+                  }
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                 ),
-                child: Text(
-                  lines <= 1 ? l10n.createButton : l10n.createNStudents(lines.toString()),
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
+                child: isCreating
+                    ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    : Text(
+                        rows.length <= 1 ? l10n.createButton : l10n.createNStudents(rows.length.toString()),
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
               ),
             ],
           );
         },
       ),
-    ).then((entries) async {
-      if (entries == null || entries.isEmpty || !mounted) return;
-      if (entries.length == 1) {
-        final student = await _controller.createStudent(entries[0].name, entries[0].levelId);
-        if (mounted) _showStudentCreatedDialog(student);
-      } else {
-        final students = await _controller.bulkCreateStudents(entries);
-        // Defer to post-frame so the loading-state rebuild finishes before
-        // we push a new route onto the overlay.
-        if (mounted) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted) _showBulkStudentsCreatedDialog(students);
-          });
-        }
-      }
-    }).whenComplete(namesCtrl.dispose);
-  }
-
-  void _showStudentCreatedDialog(UserModel student) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        contentPadding: const EdgeInsets.all(28),
-        content: Column(mainAxisSize: MainAxisSize.min, children: [
-          Container(
-            width: 60, height: 60,
-            decoration: BoxDecoration(color: AppColors.success.withValues(alpha: 0.12), shape: BoxShape.circle),
-            child: const Icon(Icons.check_circle, size: 36, color: AppColors.success),
-          ),
-          const SizedBox(height: 16),
-          Text(AppLocalizations.of(context)!.studentAdded, style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.text)),
-          const SizedBox(height: 6),
-          Text(AppLocalizations.of(context)!.shareCredentialsMsg,
-            textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 13, color: AppColors.mutedForeground, height: 1.4)),
-          const SizedBox(height: 20),
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: AppColors.background,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.border),
-            ),
-            child: Column(children: [
-              _credentialRow(AppLocalizations.of(context)!.credFullName, student.name, Icons.person),
-              const Divider(height: 20),
-              _credentialRow(AppLocalizations.of(context)!.credUsername, student.username ?? '', Icons.alternate_email),
-              const Divider(height: 20),
-              _credentialRow(AppLocalizations.of(context)!.credPinCode, student.pinCode ?? '', Icons.lock),
-              const Divider(height: 20),
-              _credentialRow(AppLocalizations.of(context)!.credStudentNumber, student.studentNumber ?? '', Icons.tag),
-            ]),
-          ),
-          const SizedBox(height: 22),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: () => Navigator.pop(ctx),
-              style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)), elevation: 4, shadowColor: AppColors.primary.withValues(alpha: 0.3)),
-              child: Text(AppLocalizations.of(context)!.doneButton, style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
-            ),
-          ),
-        ]),
-      ),
     );
   }
 
-  void _showBulkStudentsCreatedDialog(List<UserModel> students) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) {
-        final l10n = AppLocalizations.of(ctx)!;
-        return AlertDialog(
-          backgroundColor: AppColors.white,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-          contentPadding: const EdgeInsets.all(24),
-          // SizedBox(width: double.maxFinite) is required so that the
-          // AlertDialog's IntrinsicWidth pass gives the ListView a bounded
-          // horizontal constraint — without it the viewport throws.
-          content: SizedBox(
-            width: double.maxFinite,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 60, height: 60,
-                  decoration: BoxDecoration(color: AppColors.success.withValues(alpha: 0.12), shape: BoxShape.circle),
-                  child: const Icon(Icons.check_circle, size: 36, color: AppColors.success),
-                ),
-                const SizedBox(height: 14),
-                Text(
-                  l10n.studentsCreatedBulk(students.length.toString()),
-                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.text),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  l10n.shareCredentialsMsg,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(fontSize: 13, color: AppColors.mutedForeground, height: 1.4),
-                ),
-                const SizedBox(height: 16),
-                // ConstrainedBox + shrinkWrap: list is no taller than its
-                // content, capped at 300. Avoids a fixed-height dead zone
-                // when fewer than ~4 students are created.
-                ConstrainedBox(
-                  constraints: const BoxConstraints(maxHeight: 300),
-                  child: ListView.separated(
-                    shrinkWrap: true,
-                    itemCount: students.length,
-                    separatorBuilder: (_, _) => const SizedBox(height: 6),
-                    itemBuilder: (context, i) {
-                      final s = students[i];
-                      return ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: ExpansionTile(
-                          tilePadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
-                          childrenPadding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
-                          backgroundColor: AppColors.background,
-                          collapsedBackgroundColor: AppColors.background,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          collapsedShape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          leading: CircleAvatar(
-                            radius: 16,
-                            backgroundColor: AppColors.success.withValues(alpha: 0.12),
-                            child: const Icon(Icons.check, size: 16, color: AppColors.success),
-                          ),
-                          title: Text(s.name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-                          children: [
-                            _credentialRow(l10n.credUsername, s.username ?? '', Icons.alternate_email),
-                            const Divider(height: 14),
-                            _credentialRow(l10n.credPinCode, s.pinCode ?? '', Icons.lock),
-                            const Divider(height: 14),
-                            _credentialRow(l10n.credStudentNumber, s.studentNumber ?? '', Icons.tag),
-                          ],
-                        ),
-                      );
-                    },
+  Widget _buildStudentFormRow({
+    required _CreateStudentRow row,
+    required bool canRemove,
+    required bool enabled,
+    required VoidCallback onRemove,
+    required VoidCallback onChange,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: row.nameCtrl,
+                  enabled: enabled,
+                  onChanged: (_) => onChange(),
+                  decoration: InputDecoration(
+                    labelText: 'Full Name',
+                    isDense: true,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: BorderSide(color: row.nameError != null ? AppColors.error : AppColors.input),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+                    ),
+                    errorText: row.nameError,
+                    errorStyle: const TextStyle(fontSize: 10),
                   ),
                 ),
-                const SizedBox(height: 16),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () => Navigator.pop(ctx),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              ),
+              if (canRemove) ...[
+                const SizedBox(width: 8),
+                GestureDetector(
+                  onTap: enabled ? onRemove : null,
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: AppColors.error.withValues(alpha: 0.1),
+                      shape: BoxShape.circle,
                     ),
-                    child: Text(l10n.doneButton, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                    child: const Icon(Icons.close, size: 14, color: AppColors.error),
                   ),
                 ),
               ],
-            ),
+            ],
           ),
-        );
-      },
+          const SizedBox(height: 8),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                flex: 3,
+                child: TextField(
+                  controller: row.usernameCtrl,
+                  enabled: enabled,
+                  onChanged: (_) => onChange(),
+                  textInputAction: TextInputAction.next,
+                  decoration: InputDecoration(
+                    labelText: 'Username',
+                    hintText: 'ali.hassan',
+                    isDense: true,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: BorderSide(color: row.usernameError != null ? AppColors.error : AppColors.input),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+                    ),
+                    errorText: row.usernameError,
+                    errorStyle: const TextStyle(fontSize: 10),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                flex: 2,
+                child: TextField(
+                  controller: row.pinCtrl,
+                  enabled: enabled,
+                  onChanged: (_) => onChange(),
+                  keyboardType: TextInputType.number,
+                  maxLength: 6,
+                  decoration: InputDecoration(
+                    labelText: 'PIN',
+                    hintText: '123456',
+                    counterText: '',
+                    isDense: true,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: BorderSide(color: row.pinError != null ? AppColors.error : AppColors.input),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+                    ),
+                    errorText: row.pinError,
+                    errorStyle: const TextStyle(fontSize: 10),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
-  }
-
-  Widget _credentialRow(String label, String value, IconData icon) {
-    return Row(children: [
-      Icon(icon, size: 16, color: AppColors.primary),
-      const SizedBox(width: 10),
-      Text(label, style: const TextStyle(fontSize: 12, color: AppColors.mutedForeground, fontWeight: FontWeight.w500)),
-      const Spacer(),
-      Text(value, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.text)),
-    ]);
   }
 
   void _showResetPinDialog(UserModel student) {
@@ -1092,6 +1126,26 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
         ],
       ),
     );
+  }
+}
+
+// ── Private helper: Returns the human-readable display name for a level ID ──
+String levelDisplayName(String levelId) =>
+    GroupDetailController.levelMap[levelId] ?? levelId;
+
+// ── Private data class: Holds form state for one student row in the create dialog ──
+class _CreateStudentRow {
+  final nameCtrl = TextEditingController();
+  final usernameCtrl = TextEditingController();
+  final pinCtrl = TextEditingController();
+  String? nameError;
+  String? usernameError;
+  String? pinError;
+
+  void dispose() {
+    nameCtrl.dispose();
+    usernameCtrl.dispose();
+    pinCtrl.dispose();
   }
 }
 

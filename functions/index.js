@@ -1,11 +1,15 @@
-﻿const { onCall, HttpsError } = require("firebase-functions/v2/https");
+const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const admin = require("firebase-admin");
+const nodemailer = require("nodemailer");
 
 admin.initializeApp();
 
 const STUDENT_EMAIL_DOMAIN = "@students.levelup-26.local";
 
-exports.createUser = onCall(async (request) => {
+exports.createUser = onCall({
+  cors: ["http://localhost:53996", "http://localhost:5000", /^http:\/\/localhost(:\d+)?$/, "https://levelup-26.web.app", "https://levelup-26.firebaseapp.com"],
+  region: "us-central1",
+}, async (request) => {
   if (!request.auth) {
     throw new HttpsError("unauthenticated", "You must be signed in.");
   }
@@ -71,6 +75,8 @@ exports.createUser = onCall(async (request) => {
     name: name,
     role: role,
     userNumber: data.userNumber || null,
+    isArchived: false,
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
     searchKeywords: name.toLowerCase().split(" ").concat([role]),
   };
 
@@ -88,5 +94,219 @@ exports.createUser = onCall(async (request) => {
 
   await admin.firestore().collection("users").doc(uid).set(userDoc);
 
+  if (role === "instructor") {
+    try {
+      const resetLink = await admin.auth().generatePasswordResetLink(email);
+
+      const transporter = nodemailer.createTransport({
+        service: "gmail",
+        auth: {
+          user: process.env.GMAIL_USER,
+          pass: process.env.GMAIL_PASS,
+        },
+      });
+
+      await transporter.sendMail({
+        from: process.env.GMAIL_USER,
+        to: email,
+        subject: "Welcome to LevelUp — Set Your Password",
+        html: `
+          <h2>Welcome to LevelUp, ${name}!</h2>
+          <p>Your instructor account has been created.</p>
+          <p>Click the link below to set your password and access the platform:</p>
+          <a href="${resetLink}" style="
+            background-color: #6B21A8;
+            color: white;
+            padding: 12px 24px;
+            text-decoration: none;
+            border-radius: 8px;
+            display: inline-block;
+            margin: 16px 0;
+          ">Set Your Password</a>
+          <p>If the button doesn't work, copy this link: ${resetLink}</p>
+          <p>This link expires in 24 hours.</p>
+          <br>
+          <p>The LevelUp Team</p>
+        `,
+      });
+    } catch (emailError) {
+      console.error("Failed to send welcome email:", emailError);
+      // Don't throw — user was created successfully
+    }
+  }
+
   return { uid: uid };
+});
+
+exports.archiveUser = onCall({
+  cors: ["http://localhost:53996", "http://localhost:5000", /^http:\/\/localhost(:\d+)?$/, "https://levelup-26.web.app", "https://levelup-26.firebaseapp.com"],
+  region: "us-central1",
+}, async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "You must be signed in.");
+  }
+
+  const callerDoc = await admin.firestore()
+    .collection("users")
+    .doc(request.auth.uid)
+    .get();
+  const callerRole = callerDoc.exists ? callerDoc.data().role : null;
+
+  if (callerRole !== "admin") {
+    throw new HttpsError("permission-denied", "Only admins can archive users.");
+  }
+
+  const uid = request.data.uid;
+  if (!uid) {
+    throw new HttpsError("invalid-argument", "uid is required.");
+  }
+
+  await admin.auth().updateUser(uid, { disabled: true });
+
+  await admin.firestore().collection("users").doc(uid).update({
+    isArchived: true,
+    archivedAt: admin.firestore.FieldValue.serverTimestamp(),
+  });
+
+  return { success: true };
+});
+
+exports.restoreUser = onCall({
+  cors: ["http://localhost:53996", "http://localhost:5000", /^http:\/\/localhost(:\d+)?$/, "https://levelup-26.web.app", "https://levelup-26.firebaseapp.com"],
+  region: "us-central1",
+}, async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "You must be signed in.");
+  }
+
+  const callerDoc = await admin.firestore()
+    .collection("users")
+    .doc(request.auth.uid)
+    .get();
+  const callerRole = callerDoc.exists ? callerDoc.data().role : null;
+
+  if (callerRole !== "admin") {
+    throw new HttpsError("permission-denied", "Only admins can restore users.");
+  }
+
+  const uid = request.data.uid;
+  if (!uid) {
+    throw new HttpsError("invalid-argument", "uid is required.");
+  }
+
+  await admin.auth().updateUser(uid, { disabled: false });
+
+  await admin.firestore().collection("users").doc(uid).update({
+    isArchived: false,
+    archivedAt: admin.firestore.FieldValue.delete(),
+  });
+
+  return { success: true };
+});
+
+exports.resetStudentPin = onCall({ cors: true, region: "us-central1" }, async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "You must be signed in.");
+  }
+
+  const callerDoc = await admin.firestore()
+    .collection("users")
+    .doc(request.auth.uid)
+    .get();
+  const callerRole = callerDoc.exists ? callerDoc.data().role : null;
+
+  if (callerRole !== "admin" && callerRole !== "instructor") {
+    throw new HttpsError("permission-denied", "Only admins or instructors can reset PINs.");
+  }
+
+  const { studentId, newPin } = request.data;
+  if (!studentId || !newPin) {
+    throw new HttpsError("invalid-argument", "studentId and newPin are required.");
+  }
+  if (!/^\d{6}$/.test(newPin)) {
+    throw new HttpsError("invalid-argument", "PIN must be exactly 6 digits.");
+  }
+
+  const studentDoc = await admin.firestore()
+    .collection("users")
+    .doc(studentId)
+    .get();
+
+  if (!studentDoc.exists) {
+    throw new HttpsError("not-found", "Student not found.");
+  }
+
+  await admin.auth().updateUser(studentId, { password: newPin });
+
+  await admin.firestore().collection("users").doc(studentId).update({
+    pinCode: newPin,
+  });
+
+  return { success: true };
+});
+
+exports.resendWelcomeEmail = onCall({ cors: true, region: "us-central1" }, async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "You must be signed in.");
+  }
+
+  const callerDoc = await admin.firestore()
+    .collection("users")
+    .doc(request.auth.uid)
+    .get();
+  const callerRole = callerDoc.exists ? callerDoc.data().role : null;
+
+  if (callerRole !== "admin") {
+    throw new HttpsError("permission-denied", "Only admins can resend welcome emails.");
+  }
+
+  const { instructorId } = request.data;
+  if (!instructorId) {
+    throw new HttpsError("invalid-argument", "instructorId is required.");
+  }
+
+  const instructorDoc = await admin.firestore()
+    .collection("users")
+    .doc(instructorId)
+    .get();
+
+  if (!instructorDoc.exists) {
+    throw new HttpsError("not-found", "Instructor not found.");
+  }
+
+  const { email, name } = instructorDoc.data();
+  const resetLink = await admin.auth().generatePasswordResetLink(email);
+
+  const transporter = nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+      user: process.env.GMAIL_USER,
+      pass: process.env.GMAIL_PASS,
+    },
+  });
+
+  await transporter.sendMail({
+    from: process.env.GMAIL_USER,
+    to: email,
+    subject: "LevelUp — Password Reset Link",
+    html: `
+      <h2>Hello ${name},</h2>
+      <p>Here is your new password reset link:</p>
+      <a href="${resetLink}" style="
+        background-color: #6B21A8;
+        color: white;
+        padding: 12px 24px;
+        text-decoration: none;
+        border-radius: 8px;
+        display: inline-block;
+        margin: 16px 0;
+      ">Set Your Password</a>
+      <p>If the button does not work, copy this link: ${resetLink}</p>
+      <p>This link expires in 24 hours.</p>
+      <br>
+      <p>The LevelUp Team</p>
+    `,
+  });
+
+  return { success: true };
 });

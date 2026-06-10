@@ -1,12 +1,10 @@
 // ignore_for_file: experimental_member_use
 import 'dart:async';
 import 'dart:convert';
-import 'dart:js_interop';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart' as quill;
 import 'package:frontend/l10n/app_localizations.dart';
-import 'package:web/web.dart' as webapi;
+import '../../../utils/editor_paste_listener.dart';
 import '../../../theme/app_theme.dart';
 import '../../../data/models/curriculum_model.dart';
 import '../../../logic/controllers/curriculum_controller.dart';
@@ -67,7 +65,7 @@ class _MaterialEditorScreenState extends State<MaterialEditorScreen> {
   late quill.QuillController _quillCtrl;
   StreamSubscription<quill.DocChange>? _docChangeSub;
   bool _processingImage = false;
-  JSFunction? _pasteListener;
+  dynamic _pasteListener;
 
   static final _imageUrlRegex = RegExp(
     r'^https?://\S+\.(?:jpg|jpeg|png|gif|webp|svg)(\?[^\s]*)?\s*$',
@@ -102,41 +100,12 @@ class _MaterialEditorScreenState extends State<MaterialEditorScreen> {
     }
     _docChangeSub = _quillCtrl.document.changes.listen(_onDocumentChange);
 
-    if (kIsWeb) {
-      _pasteListener = _handleWebPaste.toJS;
-      webapi.window.addEventListener('paste', _pasteListener);
-    }
-  }
-
-  void _handleWebPaste(webapi.ClipboardEvent event) {
-    final files = event.clipboardData?.files;
-    if (files == null || files.length == 0) return;
-    for (int i = 0; i < files.length; i++) {
-      final file = files.item(i);
-      if (file == null || !file.type.startsWith('image/')) continue;
-      event.preventDefault();
-      final reader = webapi.FileReader();
-      void onLoad(webapi.Event _) {
-        final jsResult = reader.result;
-        if (jsResult == null) return;
-        final dataUri = (jsResult as JSString).toDart;
-        final index = _quillCtrl.selection.baseOffset;
-        final safeIndex = index < 0 ? 0 : index;
-        _quillCtrl.document.insert(safeIndex, '\n');
-        _quillCtrl.document.insert(safeIndex + 1, quill.BlockEmbed.image(dataUri));
-        _quillCtrl.document.insert(safeIndex + 2, '\n');
-      }
-      reader.onload = onLoad.toJS;
-      reader.readAsDataURL(file);
-      return;
-    }
+    _pasteListener = addImagePasteListener(_quillCtrl);
   }
 
   @override
   void dispose() {
-    if (kIsWeb && _pasteListener != null) {
-      webapi.window.removeEventListener('paste', _pasteListener);
-    }
+    removeImagePasteListener(_pasteListener);
     _docChangeSub?.cancel();
     _titleCtrl.dispose();
     _quillCtrl.dispose();

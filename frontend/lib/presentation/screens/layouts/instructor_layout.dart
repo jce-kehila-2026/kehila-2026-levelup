@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:frontend/l10n/app_localizations.dart';
 import 'package:go_router/go_router.dart';
@@ -6,6 +7,7 @@ import '../../widgets/locale_toggle_button.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../../di/service_locator.dart';
 import '../../../logic/controllers/auth_controller.dart';
+import '../../../data/repositories/user_repository.dart';
 
 import '../instructor/instructor_dashboard.dart';
 import '../instructor/groups_screen.dart';
@@ -33,7 +35,7 @@ class _InstructorLayoutState extends State<InstructorLayout> {
     const InstructorLogsScreen(),
   ];
 
-  Widget _buildLogoutButton(BuildContext context) {
+  Widget _buildIconButton({required IconData icon, required VoidCallback onPressed}) {
     return Container(
       width: 38,
       height: 38,
@@ -43,12 +45,152 @@ class _InstructorLayoutState extends State<InstructorLayout> {
         border: Border.all(color: AppColors.border),
       ),
       child: IconButton(
-        icon: const Icon(Icons.logout, size: 15, color: AppColors.mutedForeground),
-        onPressed: () async {
-          getIt<AuthController>().reset();
-          await FirebaseAuth.instance.signOut();
-          if (context.mounted) context.go('/login');
-        },
+        icon: Icon(icon, size: 15, color: AppColors.mutedForeground),
+        onPressed: onPressed,
+        padding: EdgeInsets.zero,
+      ),
+    );
+  }
+
+  Future<void> _showProfileSheet() async {
+    final firebaseUser = FirebaseAuth.instance.currentUser;
+    if (firebaseUser == null) return;
+
+    final doc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(firebaseUser.uid)
+        .get();
+    if (!doc.exists || !mounted) return;
+
+    final data = doc.data()!;
+    final name = (data['name'] as String?) ?? '';
+    final email = (data['email'] as String?) ?? firebaseUser.email ?? '';
+    final phoneCtrl = TextEditingController(text: (data['phoneNumber'] as String?) ?? '');
+    final addressCtrl = TextEditingController(text: (data['address'] as String?) ?? '');
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.background,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
+            left: 20,
+            right: 20,
+            top: 16,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: AppColors.border,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                AppLocalizations.of(context)!.myProfile,
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.text),
+              ),
+              const SizedBox(height: 16),
+              _readOnlyField(AppLocalizations.of(context)!.fullNameLabel, name),
+              const SizedBox(height: 12),
+              _readOnlyField(AppLocalizations.of(context)!.emailAddressLabel, email),
+              const SizedBox(height: 12),
+              TextField(
+                controller: phoneCtrl,
+                decoration: InputDecoration(
+                  labelText: AppLocalizations.of(context)!.phoneNumberLabel,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: addressCtrl,
+                decoration: InputDecoration(
+                  labelText: AppLocalizations.of(context)!.homeAddressLabel,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                ),
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: AppColors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                  onPressed: () async {
+                    final nav = Navigator.of(ctx);
+                    try {
+                      await getIt<UserRepository>().updateInstructorProfile(
+                        firebaseUser.uid,
+                        name,
+                        email,
+                        phoneCtrl.text.isNotEmpty ? phoneCtrl.text : null,
+                        addressCtrl.text.isNotEmpty ? addressCtrl.text : null,
+                      );
+                      nav.pop();
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                          content: Text(AppLocalizations.of(context)!.profileUpdated(name)),
+                          backgroundColor: AppColors.primary,
+                          behavior: SnackBarBehavior.floating,
+                        ));
+                      }
+                    } catch (e) {
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                          content: Text('Failed to update profile: $e'),
+                          backgroundColor: AppColors.error,
+                          behavior: SnackBarBehavior.floating,
+                        ));
+                      }
+                    }
+                  },
+                  child: Text(AppLocalizations.of(context)!.save, style: const TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    ).then((_) {
+      phoneCtrl.dispose();
+      addressCtrl.dispose();
+    });
+  }
+
+  Widget _readOnlyField(String label, String value) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        border: Border.all(color: AppColors.border),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: const TextStyle(fontSize: 12, color: AppColors.mutedForeground)),
+          const SizedBox(height: 2),
+          Text(value, style: const TextStyle(fontSize: 14, color: AppColors.text)),
+        ],
       ),
     );
   }
@@ -73,8 +215,17 @@ class _InstructorLayoutState extends State<InstructorLayout> {
         ),
         actions: [
           const LocaleToggleButton(),
-          const SizedBox(width: 10),
-          _buildLogoutButton(context),
+          const SizedBox(width: 6),
+          _buildIconButton(icon: Icons.person_outline, onPressed: _showProfileSheet),
+          const SizedBox(width: 6),
+          _buildIconButton(
+            icon: Icons.logout,
+            onPressed: () async {
+              getIt<AuthController>().reset();
+              await FirebaseAuth.instance.signOut();
+              if (context.mounted) context.go('/login');
+            },
+          ),
           const SizedBox(width: 8),
         ],
       ),

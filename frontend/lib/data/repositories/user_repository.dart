@@ -3,10 +3,13 @@
 library;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import '../models/user_model.dart';
 
 class UserRepository {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
+  final FirebaseFunctions _functions = FirebaseFunctions.instanceFor(region: 'us-central1');
+
   CollectionReference<Map<String, dynamic>> get _users =>
       _db.collection('users');
 
@@ -20,6 +23,7 @@ class UserRepository {
   Future<List<UserModel>> getInstructors() async {
     final snap = await _users
         .where('role', isEqualTo: 'instructor')
+        .where('isArchived', isEqualTo: false)
         .get();
     return snap.docs.map((d) => UserModel.fromMap(d.data(), d.id)).toList();
   }
@@ -27,6 +31,7 @@ class UserRepository {
   Future<List<UserModel>> getStudents() async {
     final snap = await _users
         .where('role', isEqualTo: 'student')
+        .where('isArchived', isEqualTo: false)
         .get();
     return snap.docs.map((d) => UserModel.fromMap(d.data(), d.id)).toList();
   }
@@ -40,10 +45,18 @@ class UserRepository {
   Future<int> getStudentCountByLevel(String levelId) async {
     final snap = await _users
         .where('role', isEqualTo: 'student')
+        .where('isArchived', isEqualTo: false)
         .where('levelId', isEqualTo: levelId)
         .count()
         .get();
     return snap.count ?? 0;
+  }
+
+  Future<List<UserModel>> getArchivedUsers() async {
+    final snap = await _users
+        .where('isArchived', isEqualTo: true)
+        .get();
+    return snap.docs.map((d) => UserModel.fromMap(d.data(), d.id)).toList();
   }
 
   // ─────────────────────────────────────────────
@@ -53,7 +66,9 @@ class UserRepository {
   Future<List<UserModel>> searchUsers(String query, {String? role}) async {
     final term = query.toLowerCase().trim();
     if (term.isEmpty) return [];
-    var q = _users.where('searchKeywords', arrayContains: term);
+    var q = _users
+        .where('searchKeywords', arrayContains: term)
+        .where('isArchived', isEqualTo: false);
     if (role != null) q = q.where('role', isEqualTo: role);
     final snap = await q.limit(20).get();
     return snap.docs.map((d) => UserModel.fromMap(d.data(), d.id)).toList();
@@ -153,8 +168,11 @@ class UserRepository {
     });
   }
 
-  Future<void> updateStudentProfile(String studentId,
-      {String? pinCode, String? levelId}) async {
+  Future<void> updateStudentProfile(
+    String studentId, {
+    String? pinCode,
+    String? levelId,
+  }) async {
     final updates = <String, dynamic>{};
     if (pinCode != null) updates['pinCode'] = pinCode;
     if (levelId != null) updates['levelId'] = levelId;
@@ -164,6 +182,7 @@ class UserRepository {
   Future<void> unassignStudentsFromLevel(String levelId) async {
     final snap = await _users
         .where('role', isEqualTo: 'student')
+        .where('isArchived', isEqualTo: false)
         .where('levelId', isEqualTo: levelId)
         .get();
     final batch = _db.batch();
@@ -183,6 +202,27 @@ class UserRepository {
 
   Future<void> deleteStudent(String studentId) async {
     await _users.doc(studentId).delete();
+  }
+
+  Future<void> restoreUser(String uid) async {
+    final callable = _functions.httpsCallable('restoreUser');
+    await callable.call({'uid': uid});
+  }
+
+  Future<bool> emailExists(String email) async {
+    final snap = await _users
+        .where('email', isEqualTo: email.trim().toLowerCase())
+        .limit(1)
+        .get();
+    return snap.docs.isNotEmpty;
+  }
+
+  Future<bool> usernameExists(String username) async {
+    final snap = await _users
+        .where('username', isEqualTo: username.trim().toLowerCase())
+        .limit(1)
+        .get();
+    return snap.docs.isNotEmpty;
   }
 
   // ─────────────────────────────────────────────
