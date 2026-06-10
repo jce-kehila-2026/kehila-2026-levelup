@@ -40,33 +40,7 @@ class _CurriculumScreenState extends State<CurriculumScreen> {
   final CurriculumController _controller = getIt<CurriculumController>();
 
   // -- Dialog Helpers (pure UI — no state mutation) ---
-  void _showAddLevelDialog() {
-    String name = '';
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppColors.background,
-        title: Text(AppLocalizations.of(context)!.addLevelTitle, style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.text)),
-        content: TextField(
-          decoration: InputDecoration(labelText: AppLocalizations.of(context)!.levelNameLabel, border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))),
-          onChanged: (val) => name = val,
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: Text(AppLocalizations.of(context)!.cancel, style: const TextStyle(color: AppColors.mutedForeground))),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: AppColors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
-            onPressed: () {
-              _controller.addLevel(name);
-              Navigator.pop(context);
-            },
-            child: Text(AppLocalizations.of(context)!.add, style: const TextStyle(fontWeight: FontWeight.bold)),
-          )
-        ],
-      ),
-    );
-  }
-
-  void _showAddWeekDialog(int levelIndex) {
+  void _showAddWeekDialog(String levelId) {
     String name = '';
     showDialog(
       context: context,
@@ -82,7 +56,7 @@ class _CurriculumScreenState extends State<CurriculumScreen> {
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: AppColors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
             onPressed: () {
-              _controller.addWeek(levelIndex, name);
+              _controller.addWeek(levelId, name);
               Navigator.pop(context);
             },
             child: Text(AppLocalizations.of(context)!.add, style: const TextStyle(fontWeight: FontWeight.bold)),
@@ -92,63 +66,63 @@ class _CurriculumScreenState extends State<CurriculumScreen> {
     );
   }
 
-  void _showAddMaterialDialog(int levelIndex, int weekIndex) {
+  void _showAddMaterialDialog(String levelId, String weekId) {
     Navigator.push(
       context,
       MaterialPageRoute(
         fullscreenDialog: true,
         builder: (_) => MaterialEditorScreen(
-          levelIndex: levelIndex,
-          weekIndex: weekIndex,
+          levelId: levelId,
+          weekId: weekId,
         ),
       ),
     );
   }
 
-  void _showAddAssignmentDialog(int levelIndex, int weekIndex) {
+  void _showAddAssignmentDialog(String levelId, String weekId) {
     Navigator.push(
       context,
       MaterialPageRoute(
         fullscreenDialog: true,
         builder: (_) => AssignmentEditorScreen(
-          levelIndex: levelIndex,
-          weekIndex: weekIndex,
+          levelId: levelId,
+          weekId: weekId,
         ),
       ),
     );
   }
 
-  void _showEditMaterialSheet(int levelIndex, int weekIndex, int itemIndex, CurriculumItem item) {
+  void _showEditMaterialSheet(String levelId, String weekId, String itemId, CurriculumItem item) {
     Navigator.push(
       context,
       MaterialPageRoute(
         fullscreenDialog: true,
         builder: (_) => MaterialEditorScreen(
-          levelIndex: levelIndex,
-          weekIndex: weekIndex,
-          itemIndex: itemIndex,
+          levelId: levelId,
+          weekId: weekId,
+          itemId: itemId,
           item: item,
         ),
       ),
     );
   }
 
-  void _showEditAssignmentSheet(int levelIndex, int weekIndex, int itemIndex, CurriculumItem item) {
+  void _showEditAssignmentSheet(String levelId, String weekId, String itemId, CurriculumItem item) {
     Navigator.push(
       context,
       MaterialPageRoute(
         fullscreenDialog: true,
         builder: (_) => AssignmentEditorScreen(
-          levelIndex: levelIndex,
-          weekIndex: weekIndex,
-          itemIndex: itemIndex,
+          levelId: levelId,
+          weekId: weekId,
+          itemId: itemId,
           item: item,
         ),
       ),
     );
   }
 
-  void _showEditLevelDialog(int levelIndex, LevelModel level) {
+  void _showEditLevelDialog(LevelModel level) {
     final nameCtrl = TextEditingController(text: level.name);
     showDialog(
       context: context,
@@ -171,7 +145,7 @@ class _CurriculumScreenState extends State<CurriculumScreen> {
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: AppColors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
             onPressed: () {
-              _controller.editLevel(levelIndex, nameCtrl.text.trim());
+              _controller.editLevel(level.id, nameCtrl.text.trim());
               Navigator.pop(ctx);
             },
             child: Text(AppLocalizations.of(context)!.save, style: const TextStyle(fontWeight: FontWeight.bold)),
@@ -179,57 +153,6 @@ class _CurriculumScreenState extends State<CurriculumScreen> {
         ],
       ),
     );
-  }
-
-  Future<void> _showDeleteLevelDialog(int levelIndex, LevelModel level) async {
-    final count = await _controller.getStudentCountForLevel(level.id);
-    if (!mounted) return;
-
-    final bool? confirmed;
-    if (count == 0) {
-      confirmed = await showDialog<bool>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          backgroundColor: AppColors.background,
-          title: const Text('Delete Level?', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.text)),
-          content: Text('Delete "${level.name}"? This cannot be undone.'),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(AppLocalizations.of(context)!.cancel, style: const TextStyle(color: AppColors.mutedForeground))),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: AppColors.error, foregroundColor: AppColors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
-              onPressed: () => Navigator.pop(ctx, true),
-              child: Text(AppLocalizations.of(context)!.delete, style: const TextStyle(fontWeight: FontWeight.bold)),
-            ),
-          ],
-        ),
-      );
-    } else {
-      confirmed = await showDialog<bool>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          backgroundColor: AppColors.background,
-          title: const Row(children: [
-            Icon(Icons.warning_amber_rounded, color: AppColors.error),
-            SizedBox(width: 8),
-            Text('Warning', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.error)),
-          ]),
-          content: Text(
-            'There are $count student${count == 1 ? '' : 's'} assigned to this level. '
-            'Deleting it will leave them unassigned.\n\nAre you absolutely sure you want to proceed?',
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(AppLocalizations.of(context)!.cancel, style: const TextStyle(color: AppColors.mutedForeground))),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: AppColors.error, foregroundColor: AppColors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Delete Anyway', style: TextStyle(fontWeight: FontWeight.bold)),
-            ),
-          ],
-        ),
-      );
-    }
-
-    if (confirmed == true) _controller.deleteLevel(levelIndex);
   }
 
   // -- Build ------------------------------------------
@@ -271,19 +194,6 @@ class _CurriculumScreenState extends State<CurriculumScreen> {
                             Text(AppLocalizations.of(context)!.levelsCount((levels.length).toString()), style: const TextStyle(fontSize: 13, color: AppColors.mutedForeground)),
                           ],
                         ),
-                      ),
-                      ElevatedButton.icon(
-                        onPressed: _showAddLevelDialog,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.accent,
-                          foregroundColor: AppColors.text,
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          elevation: 3,
-                          shadowColor: AppColors.accent.withValues(alpha: 0.3),
-                        ),
-                        icon: const Icon(Icons.add, size: 15),
-                        label: Text(AppLocalizations.of(context)!.addLevelTitle, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
                       ),
                     ],
                   ),
@@ -338,7 +248,7 @@ class _CurriculumScreenState extends State<CurriculumScreen> {
                           padding: const EdgeInsets.only(bottom: 100),
                           itemCount: levels.length,
                           itemBuilder: (context, index) {
-                            return _buildLevelBlock(index, levels[index]);
+                            return _buildLevelBlock(levels[index]);
                           },
                         ),
                 ),
@@ -350,7 +260,7 @@ class _CurriculumScreenState extends State<CurriculumScreen> {
     );
   }
 
-  Widget _buildLevelBlock(int levelIndex, LevelModel level) {
+  Widget _buildLevelBlock(LevelModel level) {
     final isExpanded = _controller.isLevelExpanded(level.id);
 
     return Container(
@@ -376,17 +286,10 @@ class _CurriculumScreenState extends State<CurriculumScreen> {
                   Expanded(child: Text(level.name, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.text))),
                   Text(AppLocalizations.of(context)!.weeksCount((level.weeks.length).toString()), style: const TextStyle(fontSize: 12, color: AppColors.mutedForeground)),
                   const SizedBox(width: 4),
-                  PopupMenuButton<String>(
-                    icon: const Icon(Icons.more_vert, size: 18, color: AppColors.mutedForeground),
+                  IconButton(
+                    icon: const Icon(Icons.edit_outlined, size: 18, color: AppColors.mutedForeground),
                     padding: EdgeInsets.zero,
-                    onSelected: (val) {
-                      if (val == 'edit') _showEditLevelDialog(levelIndex, level);
-                      if (val == 'delete') _showDeleteLevelDialog(levelIndex, level);
-                    },
-                    itemBuilder: (_) => [
-                      const PopupMenuItem(value: 'edit', child: Row(children: [Icon(Icons.edit_outlined, size: 16), SizedBox(width: 8), Text('Edit')])),
-                      const PopupMenuItem(value: 'delete', child: Row(children: [Icon(Icons.delete_outline, size: 16, color: AppColors.error), SizedBox(width: 8), Text('Delete', style: TextStyle(color: AppColors.error))])),
-                    ],
+                    onPressed: () => _showEditLevelDialog(level),
                   ),
                   Icon(isExpanded ? Icons.expand_less : Icons.expand_more, size: 18, color: AppColors.mutedForeground),
                 ],
@@ -402,11 +305,9 @@ class _CurriculumScreenState extends State<CurriculumScreen> {
               ),
               child: Column(
                 children: [
-                  ...List.generate(level.weeks.length, (weekIndex) {
-                    return _buildWeekBlock(levelIndex, weekIndex, level.weeks[weekIndex]);
-                  }),
+                  ...level.weeks.map((week) => _buildWeekBlock(level.id, week)),
                   GestureDetector(
-                    onTap: () => _showAddWeekDialog(levelIndex),
+                    onTap: () => _showAddWeekDialog(level.id),
                     child: Padding(
                       padding: const EdgeInsetsDirectional.only(top: 4, bottom: 8, start: 8, end: 8),
                       child: Row(
@@ -426,7 +327,7 @@ class _CurriculumScreenState extends State<CurriculumScreen> {
     );
   }
 
-  Widget _buildWeekBlock(int levelIndex, int weekIndex, WeekModel week) {
+  Widget _buildWeekBlock(String levelId, WeekModel week) {
     final isExpanded = _controller.isWeekExpanded(week.id);
 
     return Container(
@@ -455,15 +356,14 @@ class _CurriculumScreenState extends State<CurriculumScreen> {
               padding: const EdgeInsets.only(top: 8),
               child: Column(
                 children: [
-                  ...List.generate(week.items.length, (itemIndex) {
-                    final item = week.items[itemIndex];
+                  ...week.items.map((item) {
                     if (item.type == CurriculumItemType.material) {
                       return LessonCard(
                         title: item.title,
                         searchTags: item.searchTags,
                         isVisible: item.visible,
                         showToggle: true,
-                        onToggle: () => _controller.toggleVisibility(levelIndex, weekIndex, itemIndex),
+                        onToggle: () => _controller.toggleVisibility(levelId, week.id, item.id),
                         onPress: () => context.push('/lesson/${item.id}'),
                         trailing: PopupMenuButton<String>(
                           icon: const Icon(Icons.more_vert, size: 18, color: AppColors.mutedForeground),
@@ -472,8 +372,8 @@ class _CurriculumScreenState extends State<CurriculumScreen> {
                             const PopupMenuItem(value: 'delete', child: Row(children: [Icon(Icons.delete_outline, size: 16, color: AppColors.error), SizedBox(width: 8), Text('Delete', style: TextStyle(color: AppColors.error))])),
                           ],
                           onSelected: (val) {
-                            if (val == 'edit') _showEditMaterialSheet(levelIndex, weekIndex, itemIndex, item);
-                            if (val == 'delete') _controller.deleteItem(levelIndex, weekIndex, itemIndex);
+                            if (val == 'edit') _showEditMaterialSheet(levelId, week.id, item.id, item);
+                            if (val == 'delete') _controller.deleteItem(levelId, week.id, item.id);
                           },
                         ),
                       );
@@ -485,7 +385,7 @@ class _CurriculumScreenState extends State<CurriculumScreen> {
                         isActive: item.isActive,
                         isVisible: item.visible,
                         showToggle: true,
-                        onToggle: () => _controller.toggleVisibility(levelIndex, weekIndex, itemIndex),
+                        onToggle: () => _controller.toggleVisibility(levelId, week.id, item.id),
                         deadlineText: item.deadlineText,
                         isOverdue: false,
                         pendingCount: 0,
@@ -498,8 +398,8 @@ class _CurriculumScreenState extends State<CurriculumScreen> {
                             const PopupMenuItem(value: 'delete', child: Row(children: [Icon(Icons.delete_outline, size: 16, color: AppColors.error), SizedBox(width: 8), Text('Delete', style: TextStyle(color: AppColors.error))])),
                           ],
                           onSelected: (val) {
-                            if (val == 'edit') _showEditAssignmentSheet(levelIndex, weekIndex, itemIndex, item);
-                            if (val == 'delete') _controller.deleteItem(levelIndex, weekIndex, itemIndex);
+                            if (val == 'edit') _showEditAssignmentSheet(levelId, week.id, item.id, item);
+                            if (val == 'delete') _controller.deleteItem(levelId, week.id, item.id);
                           },
                         ),
                       );
@@ -517,7 +417,7 @@ class _CurriculumScreenState extends State<CurriculumScreen> {
                       children: [
                         Expanded(
                           child: OutlinedButton.icon(
-                            onPressed: () => _showAddMaterialDialog(levelIndex, weekIndex),
+                            onPressed: () => _showAddMaterialDialog(levelId, week.id),
                             style: OutlinedButton.styleFrom(
                               foregroundColor: AppColors.primary,
                               side: const BorderSide(color: AppColors.border),
@@ -531,7 +431,7 @@ class _CurriculumScreenState extends State<CurriculumScreen> {
                         const SizedBox(width: 8),
                         Expanded(
                           child: ElevatedButton.icon(
-                            onPressed: () => _showAddAssignmentDialog(levelIndex, weekIndex),
+                            onPressed: () => _showAddAssignmentDialog(levelId, week.id),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AppColors.accent,
                               foregroundColor: AppColors.text,

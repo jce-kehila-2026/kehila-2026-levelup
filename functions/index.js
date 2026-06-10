@@ -152,13 +152,24 @@ exports.archiveUser = onCall({
     .get();
   const callerRole = callerDoc.exists ? callerDoc.data().role : null;
 
-  if (callerRole !== "admin") {
-    throw new HttpsError("permission-denied", "Only admins can archive users.");
+  if (callerRole !== "admin" && callerRole !== "instructor") {
+    throw new HttpsError("permission-denied", "Only admins or instructors can archive users.");
   }
 
   const uid = request.data.uid;
   if (!uid) {
     throw new HttpsError("invalid-argument", "uid is required.");
+  }
+
+  if (callerRole === "instructor") {
+    const targetDoc = await admin.firestore()
+      .collection("users")
+      .doc(uid)
+      .get();
+    const targetRole = targetDoc.exists ? targetDoc.data().role : null;
+    if (targetRole !== "student") {
+      throw new HttpsError("permission-denied", "Instructors can only archive students.");
+    }
   }
 
   await admin.auth().updateUser(uid, { disabled: true });

@@ -138,22 +138,34 @@ class _StudentDashboardState extends State<StudentDashboard> {
 
                 // List
                 Expanded(
-                  child: ListView.builder(
-                    padding: const EdgeInsetsDirectional.only(start: 20, end: 20, bottom: 100),
-                    itemCount: lessons.length,
-                    itemBuilder: (context, index) {
-                      final lesson = lessons[index];
-                      return LessonCard(
-                        title: lesson.title,
-                        searchTags: lesson.searchTags,
-                        isVisible: lesson.visible,
-                        showToggle: false,
-                        onPress: () {
-                          context.push('/lesson/${lesson.id}');
-                        },
-                      );
-                    },
-                  ),
+                  child: lessons.isEmpty
+                      ? Center(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 40),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.menu_book_outlined, size: 48, color: AppColors.mutedForeground.withValues(alpha: 0.4)),
+                                const SizedBox(height: 12),
+                                Text(AppLocalizations.of(context)!.noCurriculum, textAlign: TextAlign.center, style: const TextStyle(fontSize: 14, color: AppColors.mutedForeground)),
+                              ],
+                            ),
+                          ),
+                        )
+                      : ListView.builder(
+                          padding: const EdgeInsetsDirectional.only(start: 20, end: 20, bottom: 100),
+                          itemCount: lessons.length,
+                          itemBuilder: (context, index) {
+                            final lesson = lessons[index];
+                            return LessonCard(
+                              title: lesson.title,
+                              searchTags: lesson.searchTags,
+                              isVisible: lesson.visible,
+                              showToggle: false,
+                              onPress: () => context.push('/lesson/${lesson.id}'),
+                            );
+                          },
+                        ),
                 ),
               ],
             ),

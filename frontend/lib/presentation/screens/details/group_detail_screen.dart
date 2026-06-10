@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../../theme/app_theme.dart';
 import '../../widgets/empty_state.dart';
+import '../../../data/models/curriculum_model.dart';
 import '../../../data/models/user_model.dart';
 import '../../../logic/controllers/group_detail_controller.dart';
 import '../../../di/service_locator.dart';
@@ -46,12 +47,9 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
   }
 
   String _localizedLevelName(String levelId, AppLocalizations l10n) {
-    switch (levelId) {
-      case 'l1': return l10n.levelOneLabel;
-      case 'l2': return l10n.levelTwoLabel;
-      case 'l3': return l10n.levelThreeLabel;
-      default: return GroupDetailController.levelMap[levelId] ?? levelId;
-    }
+    return _controller.levels
+        .firstWhere((l) => l.id == levelId, orElse: () => LevelModel(id: levelId, name: levelId))
+        .name;
   }
 
   // ── Dialogs ──────────────────────────────
@@ -122,7 +120,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
   void _showAddStudentDialog() {
     _controller.setAvailableStudentsSearch('');
     _controller.clearBulkSelection();
-    String globalLevel = 'l1';
+    String globalLevel = _controller.levels.isNotEmpty ? _controller.levels.first.id : '';
 
     showDialog(
       context: context,
@@ -133,7 +131,9 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
             final available = _controller.availableStudents;
             final selCount = _controller.bulkSelectionCount;
             final l10n = AppLocalizations.of(context)!;
-            final levelName = GroupDetailController.levelMap[globalLevel] ?? globalLevel;
+            final levelName = _controller.levels
+                .firstWhere((l) => l.id == globalLevel, orElse: () => LevelModel(id: globalLevel, name: globalLevel))
+                .name;
 
             return AlertDialog(
               backgroundColor: AppColors.background,
@@ -186,10 +186,10 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                             borderRadius: BorderRadius.circular(12),
                             icon: const Icon(Icons.expand_more, size: 16, color: AppColors.mutedForeground),
                             style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.primaryDark),
-                            items: GroupDetailController.levelMap.entries.map((e) =>
+                            items: _controller.levels.map((l) =>
                               DropdownMenuItem(
-                                value: e.key,
-                                child: Text(e.value),
+                                value: l.id,
+                                child: Text(l.name),
                               ),
                             ).toList(),
                             onChanged: (v) { if (v != null) setDialogState(() => globalLevel = v); },
@@ -267,7 +267,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
 
   void _showCreateStudentDialog() {
     final rows = [_CreateStudentRow()];
-    String selectedLevel = 'l1';
+    String selectedLevel = _controller.levels.isNotEmpty ? _controller.levels.first.id : '';
     bool isCreating = false;
 
     showDialog<void>(
@@ -330,12 +330,12 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                   ),
                   const SizedBox(height: 8),
                   Row(
-                    children: GroupDetailController.levelMap.entries.map((e) {
-                      final sel = selectedLevel == e.key;
+                    children: _controller.levels.map((l) {
+                      final sel = selectedLevel == l.id;
                       return Padding(
                         padding: const EdgeInsetsDirectional.only(end: 8),
                         child: GestureDetector(
-                          onTap: isCreating ? null : () => setDialogState(() => selectedLevel = e.key),
+                          onTap: isCreating ? null : () => setDialogState(() => selectedLevel = l.id),
                           child: AnimatedContainer(
                             duration: const Duration(milliseconds: 120),
                             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -345,7 +345,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                               border: Border.all(color: sel ? AppColors.primary : AppColors.border),
                             ),
                             child: Text(
-                              e.value,
+                              l.name,
                               style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: sel ? Colors.white : AppColors.mutedForeground),
                             ),
                           ),
@@ -1136,12 +1136,28 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
               foregroundColor: AppColors.white,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
-            onPressed: () {
+            onPressed: () async {
               Navigator.pop(ctx);
-              _controller.deleteStudent(student.id);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text(AppLocalizations.of(context)!.studentDeleted(student.name)), behavior: SnackBarBehavior.floating),
-              );
+              final messenger = ScaffoldMessenger.of(context);
+              final l10n = AppLocalizations.of(context)!;
+              try {
+                await _controller.deleteStudent(student.id);
+                if (mounted) {
+                  messenger.showSnackBar(
+                    SnackBar(content: Text(l10n.studentDeleted(student.name)), behavior: SnackBarBehavior.floating),
+                  );
+                }
+              } catch (e) {
+                if (mounted) {
+                  messenger.showSnackBar(
+                    SnackBar(
+                      content: Text('Failed to delete ${student.name}: $e'),
+                      backgroundColor: AppColors.error,
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                }
+              }
             },
             child: Text(AppLocalizations.of(context)!.deleteButton, style: TextStyle(fontWeight: FontWeight.bold)),
           ),
@@ -1150,10 +1166,6 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
     );
   }
 }
-
-// ── Private helper: Returns the human-readable display name for a level ID ──
-String levelDisplayName(String levelId) =>
-    GroupDetailController.levelMap[levelId] ?? levelId;
 
 // ── Private data class: Holds form state for one student row in the create dialog ──
 class _CreateStudentRow {

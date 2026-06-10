@@ -4,8 +4,10 @@ library;
 
 import 'dart:math';
 import 'package:flutter/foundation.dart';
+import '../../data/models/curriculum_model.dart';
 import '../../data/models/group_model.dart';
 import '../../data/models/user_model.dart';
+import '../../data/repositories/curriculum_repository.dart';
 import '../../data/repositories/group_repository.dart';
 import '../../data/repositories/user_repository.dart';
 
@@ -13,22 +15,19 @@ class GroupDetailController extends ChangeNotifier {
   final String groupId;
   final GroupRepository _groupRepository;
   final UserRepository _userRepository;
+  final CurriculumRepository _curriculumRepository;
 
   late GroupModel group;
   List<UserModel> _allInstructors = [];
   List<UserModel> _allStudents = [];
+  List<LevelModel> _levels = [];
 
   bool _isLoading = true;
   bool get isLoading => _isLoading;
 
-  /// Canonical level map used throughout the app.
-  static const Map<String, String> levelMap = {
-    'l1': 'Level 1',
-    'l2': 'Level 2',
-    'l3': 'Level 3',
-  };
+  List<LevelModel> get levels => List.unmodifiable(_levels);
 
-  GroupDetailController(this.groupId, this._groupRepository, this._userRepository) {
+  GroupDetailController(this.groupId, this._groupRepository, this._userRepository, this._curriculumRepository) {
     _init();
   }
 
@@ -36,10 +35,17 @@ class GroupDetailController extends ChangeNotifier {
     _isLoading = true;
     notifyListeners();
     try {
-      group = await _groupRepository.getGroupById(groupId) ??
-        GroupModel(id: groupId, serialNumber: 0, name: 'Unknown Group', instructorIds: [], students: [], createdAt: DateTime.now());
-      _allInstructors = await _userRepository.getInstructors();
-      _allStudents = await _userRepository.getStudents();
+      final results = await Future.wait([
+        _groupRepository.getGroupById(groupId),
+        _userRepository.getInstructors(),
+        _userRepository.getStudents(),
+        _curriculumRepository.getLevels(),
+      ]);
+      group = (results[0] as GroupModel?) ??
+          GroupModel(id: groupId, serialNumber: 0, name: 'Unknown Group', instructorIds: [], students: [], createdAt: DateTime.now());
+      _allInstructors = results[1] as List<UserModel>;
+      _allStudents = results[2] as List<UserModel>;
+      _levels = results[3] as List<LevelModel>;
     } catch (e) {
       debugPrint('GroupDetailController._init error: $e');
     } finally {
@@ -345,14 +351,22 @@ class GroupDetailController extends ChangeNotifier {
     _isLoading = true;
     notifyListeners();
     try {
-      await _groupRepository.removeStudentFromGroup(groupId, studentId);
+      // 1. Archive the student (disables Auth + sets isArchived: true)
       await _userRepository.deleteStudent(studentId);
-      await _init();
+
+      // 2. Remove from group (clears groupId on user doc too)
+      await _groupRepository.removeStudentFromGroup(group.id, studentId);
+
+      // 3. Targeted refresh — only reload the data that changed
+      group = await _groupRepository.getGroupById(group.id) ?? group;
+      _allStudents = await _userRepository.getStudents();
     } catch (e) {
       _isLoading = false;
       notifyListeners();
       rethrow;
     }
+    _isLoading = false;
+    notifyListeners();
   }
 
   Future<bool> usernameExists(String username) => _userRepository.usernameExists(username);

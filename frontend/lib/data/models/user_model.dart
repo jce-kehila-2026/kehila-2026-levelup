@@ -23,6 +23,7 @@ class UserModel {
   final DateTime? lastActive;
   final bool isArchived;
   final DateTime? createdAt;
+  final String? groupId;
 
   UserModel({
     required this.id,
@@ -41,6 +42,7 @@ class UserModel {
     this.lastActive,
     this.isArchived = false,
     this.createdAt,
+    this.groupId,
   });
 
   bool get isOnline {
@@ -79,6 +81,7 @@ class UserModel {
       lastActive: _parseTimestamp(map['lastActive']),
       isArchived: map['isArchived'] as bool? ?? false,
       createdAt: _parseTimestamp(map['createdAt']),
+      groupId: map['groupId'] as String?,
     );
   }
 
@@ -99,6 +102,7 @@ class UserModel {
       'lastActive': lastActive?.toIso8601String(),
       'isArchived': isArchived,
       'createdAt': createdAt?.toIso8601String(),
+      'groupId': groupId,
     };
   }
 }

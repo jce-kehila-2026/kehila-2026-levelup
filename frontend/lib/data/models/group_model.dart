@@ -67,6 +67,9 @@ class GroupModel {
   /// Embedded student objects for optimised local reads.
   final List<GroupStudentEmbed> students;
 
+  /// Curriculum material IDs shared with this group by the instructor.
+  final List<String> sharedMaterialIds;
+
   GroupModel({
     required this.id,
     required this.serialNumber,
@@ -76,6 +79,7 @@ class GroupModel {
     this.archivedAt,
     this.instructorIds = const [],
     this.students = const [],
+    this.sharedMaterialIds = const [],
   });
 
   /// Derived map of studentId → levelId for backward-compatible lookups.
@@ -98,6 +102,7 @@ class GroupModel {
               ?.map((s) => GroupStudentEmbed.fromMap(s as Map<String, dynamic>))
               .toList() ??
           [],
+      sharedMaterialIds: List<String>.from(map['sharedMaterialIds'] ?? []),
       // ✅ Handles Firestore Timestamp, ISO String, or null
       createdAt: _parseDate(map['createdAt']) ?? DateTime.now(),
       isArchived: map['isArchived'] as bool? ?? false,
@@ -111,6 +116,7 @@ class GroupModel {
       'name': name,
       'instructorIds': instructorIds,
       'students': students.map((s) => s.toMap()).toList(),
+      'sharedMaterialIds': sharedMaterialIds,
       'createdAt': createdAt.toIso8601String(),
       'isArchived': isArchived,
       if (archivedAt != null) 'archivedAt': archivedAt!.toIso8601String(),

@@ -101,6 +101,9 @@ class AuthController extends ChangeNotifier {
     }
   }
 
+  Future<List<String>> getCurrentAssignedLevels() =>
+      _repository.getCurrentAssignedLevels();
+
   /// Resets the controller state (e.g., on logout).
   void reset() {
     _mode = 'student';

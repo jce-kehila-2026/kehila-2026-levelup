@@ -14,7 +14,7 @@ class CurriculumItem {
   bool isActive;
   String deadlineText;
   final String? imageUrl;
-  final String? deltaJson; // Rich text content as Delta JSON string
+  String? deltaJson;
 
   CurriculumItem({
     this.id = '',
@@ -84,6 +84,7 @@ class WeekModel {
 
   Map<String, dynamic> toMap() {
     return {
+      'id': id,   // always persist id so it survives Firestore round-trips
       'name': name,
       'items': items.map((item) => item.toMap()).toList(),
     };
@@ -102,13 +103,21 @@ class LevelModel {
   }) : weeks = weeks ?? [];
 
   factory LevelModel.fromMap(Map<String, dynamic> map, String documentId) {
+    final rawWeeks = (map['weeks'] as List<dynamic>?) ?? [];
     return LevelModel(
       id: documentId,
       name: map['name'] ?? '',
-      weeks: (map['weeks'] as List<dynamic>?)
-              ?.map((week) => WeekModel.fromMap(week as Map<String, dynamic>, week['id'] ?? ''))
-              .toList() ??
-          [],
+      // Use stored id when available; fall back to a stable index-based id for
+      // manually-imported documents that don't have 'id' in their week objects.
+      weeks: rawWeeks.asMap().entries.map((entry) {
+        final idx = entry.key;
+        final week = entry.value as Map<String, dynamic>;
+        final storedId = (week['id'] as String?);
+        final weekId = (storedId != null && storedId.isNotEmpty)
+            ? storedId
+            : '${documentId}_w$idx';
+        return WeekModel.fromMap(week, weekId);
+      }).toList(),
     );
   }
 

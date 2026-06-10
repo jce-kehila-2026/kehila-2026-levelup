@@ -70,13 +70,18 @@ void setupServiceLocator() {
   // Logic Tier — Controllers: Admin
   // ──────────────────────────────────────
   getIt.registerLazySingleton<AdminDashboardController>(
-    () => AdminDashboardController(getIt<AuditLogRepository>()),
+    () => AdminDashboardController(
+      getIt<AuditLogRepository>(),
+      getIt<UserRepository>(),
+      getIt<GroupRepository>(),
+      getIt<CurriculumRepository>(),
+    ),
   );
   getIt.registerLazySingleton<CurriculumController>(
     () => CurriculumController(getIt<CurriculumRepository>(), getIt<AssignmentRepository>(), getIt<UserRepository>()),
   );
   getIt.registerLazySingleton<UserController>(
-    () => UserController(getIt<UserRepository>(), getIt<GroupRepository>()),
+    () => UserController(getIt<UserRepository>(), getIt<GroupRepository>(), getIt<CurriculumRepository>()),
   );
   getIt.registerLazySingleton<GroupController>(
     () => GroupController(getIt<GroupRepository>()),
@@ -89,7 +94,7 @@ void setupServiceLocator() {
   // Logic Tier — Controllers: Instructor
   // ──────────────────────────────────────
   getIt.registerFactory<InstructorDashboardController>(
-    () => InstructorDashboardController(getIt<AssignmentRepository>()),
+    () => InstructorDashboardController(getIt<AssignmentRepository>(), getIt<GroupRepository>(), getIt<UserRepository>()),
   );
   getIt.registerFactory<InstructorAssignmentController>(
     () => InstructorAssignmentController(getIt<AssignmentRepository>()),
@@ -124,7 +129,7 @@ void setupServiceLocator() {
     (id, _) => AssignmentDetailController(id, getIt<AssignmentRepository>(), getIt<AuthController>(), getIt<SubmissionRepository>(), getIt<UserRepository>()),
   );
   getIt.registerFactoryParam<GroupDetailController, String, void>(
-    (id, _) => GroupDetailController(id, getIt<GroupRepository>(), getIt<UserRepository>()),
+    (id, _) => GroupDetailController(id, getIt<GroupRepository>(), getIt<UserRepository>(), getIt<CurriculumRepository>()),
   );
   getIt.registerFactoryParam<LessonDetailController, String, void>(
     (id, _) => LessonDetailController(id, getIt<CurriculumRepository>()),
