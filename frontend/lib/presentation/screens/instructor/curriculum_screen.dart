@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 import '../../../theme/app_theme.dart';
 import '../../../data/models/curriculum_model.dart';
 import '../../../data/models/group_model.dart';
+import '../../../logic/controllers/auth_controller.dart';
 import '../../../logic/controllers/curriculum_controller.dart';
 import '../../../logic/controllers/instructor_assignment_controller.dart';
 import '../../../logic/controllers/instructor_group_controller.dart';
@@ -31,7 +32,17 @@ class _InstructorCurriculumScreenState extends State<InstructorCurriculumScreen>
   final CurriculumController _controller = getIt<CurriculumController>();
   final InstructorAssignmentController _assignmentController = getIt<InstructorAssignmentController>();
   final InstructorGroupController _groupController = getIt<InstructorGroupController>();
+  final AuthController _authController = getIt<AuthController>();
 
+  List<String> _assignedLevelIds = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _authController.getCurrentAssignedLevels().then((ids) {
+      if (mounted) setState(() => _assignedLevelIds = ids);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -41,7 +52,20 @@ class _InstructorCurriculumScreenState extends State<InstructorCurriculumScreen>
         if (_controller.isLoading) {
           return const Scaffold(body: Center(child: CircularProgressIndicator()));
         }
-        final levels = _controller.levels;
+
+        // Only levels this instructor is assigned to, with only visible items.
+        final levels = _controller.levels
+            .where((l) => _assignedLevelIds.contains(l.id))
+            .map((l) => LevelModel(
+                  id: l.id,
+                  name: l.name,
+                  weeks: l.weeks.map((w) => WeekModel(
+                        id: w.id,
+                        name: w.name,
+                        items: w.items.where((i) => i.visible).toList(),
+                      )).toList(),
+                ))
+            .toList();
 
         return Scaffold(
           backgroundColor: AppColors.background,
@@ -285,17 +309,19 @@ class _InstructorCurriculumScreenState extends State<InstructorCurriculumScreen>
             ),
             ElevatedButton(
               onPressed: selectedGroup == null ? null : () async {
+                final messenger = ScaffoldMessenger.of(context);
+                final groupName = selectedGroup!.name;
                 Navigator.pop(ctx);
                 await _assignmentController.addAssignment(
                   item.title,
                   type: 'central',
                   groupId: selectedGroup!.id,
-                  groupName: selectedGroup!.name,
+                  groupName: groupName,
                 );
                 if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
+                  messenger.showSnackBar(
                     SnackBar(
-                      content: Text('"${item.title}" assigned to ${selectedGroup!.name}'),
+                      content: Text('"${item.title}" assigned to $groupName'),
                       behavior: SnackBarBehavior.floating,
                     ),
                   );

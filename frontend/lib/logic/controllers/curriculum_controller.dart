@@ -31,8 +31,8 @@ class CurriculumController extends ChangeNotifier {
   // ── State ──────────────────────────────
   List<LevelModel> _levels = [];
   String _search = '';
-  final Set<String> _expandedLevels = {'l1'};
-  final Set<String> _expandedWeeks = {'l1_w1'};
+  final Set<String> _expandedLevels = {};
+  final Set<String> _expandedWeeks = {};
 
   // ── Getters ────────────────────────────
   String get search => _search;
@@ -125,91 +125,70 @@ class CurriculumController extends ChangeNotifier {
   Future<int> getStudentCountForLevel(String levelId) =>
       _userRepository.getStudentCountByLevel(levelId);
 
-  Future<void> editLevel(int levelIndex, String newName) async {
+  Future<void> editLevel(String levelId, String newName) async {
     if (newName.isEmpty) return;
     _isLoading = true;
     notifyListeners();
-    await _repository.editLevel(_levels[levelIndex].id, newName);
+    await _repository.editLevel(levelId, newName);
     _levels = await _repository.getLevels();
     _isLoading = false;
     notifyListeners();
   }
 
-  Future<void> deleteLevel(int levelIndex) async {
-    final levelId = _levels[levelIndex].id;
-    _isLoading = true;
-    notifyListeners();
-    await _userRepository.unassignStudentsFromLevel(levelId);
-    await _repository.deleteLevel(levelId);
-    _levels = await _repository.getLevels();
-    _isLoading = false;
-    notifyListeners();
-  }
-
-  Future<void> addLevel(String name) async {
+  Future<void> addWeek(String levelId, String name) async {
     if (name.isEmpty) return;
     _isLoading = true;
     notifyListeners();
-    await _repository.addLevel(name);
+    await _repository.addWeek(levelId, name);
     _levels = await _repository.getLevels();
     _isLoading = false;
     notifyListeners();
   }
 
-  Future<void> addWeek(int levelIndex, String name) async {
-    if (name.isEmpty) return;
-    _isLoading = true;
-    notifyListeners();
-    await _repository.addWeek(levelIndex, name);
-    _levels = await _repository.getLevels();
-    _isLoading = false;
-    notifyListeners();
-  }
-
-  Future<void> addMaterial(int levelIndex, int weekIndex, String title, {String? content}) async {
+  Future<void> addMaterial(String levelId, String weekId, String title, {String? content}) async {
     if (title.isEmpty) return;
     _isLoading = true;
     notifyListeners();
-    await _repository.addMaterial(levelIndex, weekIndex, title, content: content);
+    await _repository.addMaterial(levelId, weekId, title, content: content);
     _levels = await _repository.getLevels();
     _isLoading = false;
     notifyListeners();
   }
 
-  Future<void> addAssignment(int levelIndex, int weekIndex, String title, {String? content}) async {
+  Future<void> addAssignment(String levelId, String weekId, String title, {String? content}) async {
     if (title.isEmpty) return;
     _isLoading = true;
     notifyListeners();
     final id = 'ca_${DateTime.now().millisecondsSinceEpoch}';
-    await _repository.addAssignment(levelIndex, weekIndex, title, content: content, id: id);
+    await _repository.addAssignment(levelId, weekId, title, content: content, id: id);
     await _assignmentRepository.addCentralAssignment(id, title, content: content);
     _levels = await _repository.getLevels();
     _isLoading = false;
     notifyListeners();
   }
 
-  Future<void> toggleVisibility(int levelIndex, int weekIndex, int itemIndex) async {
+  Future<void> toggleVisibility(String levelId, String weekId, String itemId) async {
     _isLoading = true;
     notifyListeners();
-    await _repository.toggleVisibility(levelIndex, weekIndex, itemIndex);
+    await _repository.toggleVisibility(levelId, weekId, itemId);
     _levels = await _repository.getLevels();
     _isLoading = false;
     notifyListeners();
   }
 
-  Future<void> updateItem(int levelIndex, int weekIndex, int itemIndex, String title, String content) async {
+  Future<void> updateItem(String levelId, String weekId, String itemId, String title, String content) async {
     _isLoading = true;
     notifyListeners();
-    await _repository.updateItem(levelIndex, weekIndex, itemIndex, title, content);
+    await _repository.updateItem(levelId, weekId, itemId, title, content);
     _levels = await _repository.getLevels();
     _isLoading = false;
     notifyListeners();
   }
 
-  Future<void> deleteItem(int levelIndex, int weekIndex, int itemIndex) async {
+  Future<void> deleteItem(String levelId, String weekId, String itemId) async {
     _isLoading = true;
     notifyListeners();
-    await _repository.deleteItem(levelIndex, weekIndex, itemIndex);
+    await _repository.deleteItem(levelId, weekId, itemId);
     _levels = await _repository.getLevels();
     _isLoading = false;
     notifyListeners();

@@ -8,11 +8,11 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:frontend/l10n/app_localizations.dart';
+import '../../../data/models/curriculum_model.dart';
 import '../../../data/models/user_model.dart';
 import '../../../theme/app_theme.dart';
 import '../../../logic/controllers/user_controller.dart';
 import '../../../di/service_locator.dart';
-import '../../../utils/level_helpers.dart';
 import 'package:intl/intl.dart';
 
 class UsersScreen extends StatefulWidget {
@@ -432,11 +432,15 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
                   'Assigned Levels',
                   user.assignedLevels.isEmpty
                       ? '—'
-                      : user.assignedLevels.map(levelDisplayName).join(', '),
+                      : user.assignedLevels.map((id) =>
+                          _controller.levels.firstWhere((l) => l.id == id, orElse: () => LevelModel(id: id, name: id)).name
+                        ).join(', '),
                 ),
               ] else ...[
                 _detailRow(Icons.alternate_email, 'Username', '@${user.username ?? '—'}'),
-                _detailRow(Icons.layers_outlined, 'Level', levelDisplayName(user.levelId)),
+                _detailRow(Icons.layers_outlined, 'Level',
+                  _controller.levels.firstWhere((l) => l.id == user.levelId, orElse: () => LevelModel(id: user.levelId ?? '', name: user.levelId ?? '—')).name,
+                ),
                 _detailRow(Icons.numbers, 'Student Number', user.studentNumber ?? '#${user.userNumber}'),
               ],
               _detailRow(Icons.archive_outlined, 'Archived', archivedDateStr),
@@ -699,17 +703,17 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
                   const SizedBox(height: 8),
                   Wrap(
                     spacing: 8,
-                    children: ['l1', 'l2', 'l3'].map((level) {
-                      final isSelected = assignedLevels.contains(level);
+                    children: _controller.levels.map((level) {
+                      final isSelected = assignedLevels.contains(level.id);
                       return ChoiceChip(
-                        label: Text(AppLocalizations.of(context)!.levelLabel(level.substring(1))),
+                        label: Text(level.name),
                         selected: isSelected,
                         onSelected: (selected) {
                           setDialogState(() {
                             if (selected) {
-                              assignedLevels.add(level);
+                              assignedLevels.add(level.id);
                             } else {
-                              assignedLevels.remove(level);
+                              assignedLevels.remove(level.id);
                             }
                           });
                         },
@@ -772,7 +776,7 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
     String name = '';
     String username = '';
     String pin = '';
-    String levelId = 'l1';
+    String levelId = _controller.levels.isNotEmpty ? _controller.levels.first.id : '';
     String? nameError;
     String? usernameError;
     String? pinError;
@@ -840,17 +844,13 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
                     const SizedBox(height: 8),
                     Wrap(
                       spacing: 8,
-                      children: [
-                        ('l1', 'Level 1'),
-                        ('l2', 'Level 2'),
-                        ('l3', 'Level 3'),
-                      ].map((entry) {
-                        final isSelected = levelId == entry.$1;
+                      children: _controller.levels.map((level) {
+                        final isSelected = levelId == level.id;
                         return ChoiceChip(
-                          label: Text(entry.$2),
+                          label: Text(level.name),
                           selected: isSelected,
                           onSelected: (selected) {
-                            if (selected) setDialogState(() => levelId = entry.$1);
+                            if (selected) setDialogState(() => levelId = level.id);
                           },
                         );
                       }).toList(),
@@ -1044,13 +1044,11 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
                 children: [
                   Text(AppLocalizations.of(context)!.selectLevelsSubtitle, style: const TextStyle(fontSize: 13, color: AppColors.mutedForeground)),
                   const SizedBox(height: 16),
-                  ...['l1', 'l2', 'l3'].map((level) {
-                    final isSelected = selectedLevels.contains(level);
-                    final l10n = AppLocalizations.of(context)!;
-                    final labelMap = {'l1': l10n.levelOneLabel, 'l2': l10n.levelTwoLabel, 'l3': l10n.levelThreeLabel};
+                  ..._controller.levels.map((level) {
+                    final isSelected = selectedLevels.contains(level.id);
                     return CheckboxListTile(
                       value: isSelected,
-                      title: Text(labelMap[level] ?? level, style: const TextStyle(fontSize: 14)),
+                      title: Text(level.name, style: const TextStyle(fontSize: 14)),
                       activeColor: AppColors.primary,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                       contentPadding: EdgeInsets.zero,
@@ -1058,9 +1056,9 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
                       onChanged: (val) {
                         setDialogState(() {
                           if (val == true) {
-                            selectedLevels.add(level);
+                            selectedLevels.add(level.id);
                           } else {
-                            selectedLevels.remove(level);
+                            selectedLevels.remove(level.id);
                           }
                         });
                       },

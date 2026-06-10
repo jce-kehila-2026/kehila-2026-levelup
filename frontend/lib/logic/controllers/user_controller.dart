@@ -4,14 +4,17 @@ library;
 
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/foundation.dart';
+import '../../data/models/curriculum_model.dart';
 import '../../data/models/user_model.dart';
 import '../../data/models/group_model.dart';
+import '../../data/repositories/curriculum_repository.dart';
 import '../../data/repositories/user_repository.dart';
 import '../../data/repositories/group_repository.dart';
 
 class UserController extends ChangeNotifier {
   final UserRepository _repository;
   final GroupRepository _groupRepository;
+  final CurriculumRepository _curriculumRepository;
   final FirebaseFunctions _functions =
       FirebaseFunctions.instanceFor(region: 'us-central1');
 
@@ -22,8 +25,11 @@ class UserController extends ChangeNotifier {
   List<UserModel> _students = [];
   List<UserModel> _archivedUsers = [];
   List<GroupModel> _archivedGroups = [];
+  List<LevelModel> _levels = [];
 
-  UserController(this._repository, this._groupRepository) {
+  List<LevelModel> get levels => List.unmodifiable(_levels);
+
+  UserController(this._repository, this._groupRepository, this._curriculumRepository) {
     _init();
   }
 
@@ -31,8 +37,14 @@ class UserController extends ChangeNotifier {
     _isLoading = true;
     notifyListeners();
     try {
-      _instructors = await _repository.getInstructors();
-      _students = await _repository.getStudents();
+      final results = await Future.wait([
+        _repository.getInstructors(),
+        _repository.getStudents(),
+        _curriculumRepository.getLevels(),
+      ]);
+      _instructors = results[0] as List<UserModel>;
+      _students = results[1] as List<UserModel>;
+      _levels = results[2] as List<LevelModel>;
     } finally {
       _isLoading = false;
       notifyListeners();

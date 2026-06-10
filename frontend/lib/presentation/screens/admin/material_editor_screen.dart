@@ -42,16 +42,16 @@ class _ImageEmbedBuilder extends quill.EmbedBuilder {
 }
 
 class MaterialEditorScreen extends StatefulWidget {
-  final int levelIndex;
-  final int weekIndex;
-  final int? itemIndex;
+  final String levelId;
+  final String weekId;
+  final String? itemId;
   final CurriculumItem? item;
 
   const MaterialEditorScreen({
     super.key,
-    required this.levelIndex,
-    required this.weekIndex,
-    this.itemIndex,
+    required this.levelId,
+    required this.weekId,
+    this.itemId,
     this.item,
   });
 
@@ -283,9 +283,9 @@ class _MaterialEditorScreenState extends State<MaterialEditorScreen> {
                         if (title.isEmpty) return;
                         final deltaJson = jsonEncode(_quillCtrl.document.toDelta().toJson());
                         if (isEdit) {
-                          _controller.updateItem(widget.levelIndex, widget.weekIndex, widget.itemIndex!, title, deltaJson);
+                          _controller.updateItem(widget.levelId, widget.weekId, widget.itemId!, title, deltaJson);
                         } else {
-                          _controller.addMaterial(widget.levelIndex, widget.weekIndex, title, content: deltaJson);
+                          _controller.addMaterial(widget.levelId, widget.weekId, title, content: deltaJson);
                         }
                         Navigator.pop(context);
                       },

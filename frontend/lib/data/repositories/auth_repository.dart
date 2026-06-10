@@ -64,6 +64,16 @@ class AuthRepository {
     }
   }
   Future<void> signOut() => _auth.signOut();
+
+  /// Returns the `assignedLevels` list for the currently signed-in user.
+  Future<List<String>> getCurrentAssignedLevels() async {
+    final uid = _auth.currentUser?.uid;
+    if (uid == null) return [];
+    final doc = await _db.collection('users').doc(uid).get();
+    if (!doc.exists) return [];
+    return List<String>.from(doc.data()?['assignedLevels'] ?? []);
+  }
+
   Future<String?> _roleForUid(String uid) async {
     final doc = await _db.collection('users').doc(uid).get();
     if (!doc.exists) return null;

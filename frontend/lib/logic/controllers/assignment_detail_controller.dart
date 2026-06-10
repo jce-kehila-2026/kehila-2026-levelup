@@ -84,7 +84,6 @@ class AssignmentDetailController extends ChangeNotifier {
   Future<void> submitAnswer() async {
     _isLoading = true;
     notifyListeners();
-    await Future.delayed(const Duration(milliseconds: 500));
     debugPrint('Submitting answer for $assignmentId: $_answer');
     _isLoading = false;
     notifyListeners();

@@ -70,7 +70,7 @@ class InstructorDashboard extends StatelessWidget {
           return const Scaffold(body: Center(child: CircularProgressIndicator()));
         }
         final stats = controller.stats;
-        final pending = controller.pendingReview;
+        final pending = int.tryParse(stats['pendingReview'] ?? '0') ?? 0;
         final activeAssignments = controller.activeAssignments;
 
         return Scaffold(
@@ -174,7 +174,7 @@ class InstructorDashboard extends StatelessWidget {
                               ),
                               const SizedBox(height: 14),
                               Text(
-                                controller.scopeLabel,
+                                '${stats['assignments']} ${AppLocalizations.of(context)!.dashboardAssignments}',
                                 style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white, height: 1.2),
                               ),
                             ],
