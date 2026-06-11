@@ -7,7 +7,23 @@
 library;
 
 /// Possible grading statuses for a submission.
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+/// Possible grading statuses for a submission.
 enum GradeStatus { pending, correct, incorrect }
+
+DateTime? _parseDate(dynamic value) {
+  if (value == null) return null;
+  if (value is Timestamp) return value.toDate();
+  if (value is String && value.isNotEmpty) {
+    try {
+      return DateTime.parse(value);
+    } catch (_) {
+      return null;
+    }
+  }
+  return null;
+}
 
 class SubmissionModel {
   final String id;
@@ -66,11 +82,9 @@ class SubmissionModel {
       id: documentId,
       assignmentId: map['assignmentId'] ?? '',
       studentId: map['studentId'] ?? '',
-      submittedAt: map['submittedAt'] != null
-          ? DateTime.parse(map['submittedAt'].toString())
-          : DateTime.now(),
+      submittedAt: _parseDate(map['submittedAt']) ?? DateTime.now(),
       answer: map['answer'] ?? '',
-      selectedChoice: map['selectedChoice'],
+      selectedChoice: map['selectedChoice'] ?? map['answer'],
       feedback: map['feedback'],
       status: parsedStatus,
     );

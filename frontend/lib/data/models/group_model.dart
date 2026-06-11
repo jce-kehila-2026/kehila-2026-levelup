@@ -57,7 +57,7 @@ DateTime? _parseDate(dynamic value) {
 
 class GroupModel {
   final String id;
-  final int serialNumber;
+  final String _groupNumberStr;
   final String name;
   final List<String> instructorIds;
   final DateTime createdAt;
@@ -72,7 +72,8 @@ class GroupModel {
 
   GroupModel({
     required this.id,
-    required this.serialNumber,
+    int? serialNumber,
+    String? groupNumber,
     required this.name,
     required this.createdAt,
     this.isArchived = false,
@@ -80,7 +81,10 @@ class GroupModel {
     this.instructorIds = const [],
     this.students = const [],
     this.sharedMaterialIds = const [],
-  });
+  }) : _groupNumberStr = groupNumber ?? serialNumber?.toString() ?? '0';
+
+  // Backward-compatibility getter
+  int get serialNumber => int.tryParse(_groupNumberStr) ?? 0;
 
   /// Derived map of studentId → levelId for backward-compatible lookups.
   Map<String, String> get studentLevels =>
@@ -95,7 +99,7 @@ class GroupModel {
   factory GroupModel.fromMap(Map<String, dynamic> map, String documentId) {
     return GroupModel(
       id: documentId,
-      serialNumber: (map['serialNumber'] as num?)?.toInt() ?? 0,
+      groupNumber: map['groupNumber']?.toString() ?? map['serialNumber']?.toString() ?? '0',
       name: map['name'] ?? '',
       instructorIds: List<String>.from(map['instructorIds'] ?? []),
       students: (map['students'] as List<dynamic>?)
@@ -103,7 +107,6 @@ class GroupModel {
               .toList() ??
           [],
       sharedMaterialIds: List<String>.from(map['sharedMaterialIds'] ?? []),
-      // ✅ Handles Firestore Timestamp, ISO String, or null
       createdAt: _parseDate(map['createdAt']) ?? DateTime.now(),
       isArchived: map['isArchived'] as bool? ?? false,
       archivedAt: _parseDate(map['archivedAt']),
@@ -112,7 +115,7 @@ class GroupModel {
 
   Map<String, dynamic> toMap() {
     return {
-      'serialNumber': serialNumber,
+      'groupNumber': _groupNumberStr,
       'name': name,
       'instructorIds': instructorIds,
       'students': students.map((s) => s.toMap()).toList(),

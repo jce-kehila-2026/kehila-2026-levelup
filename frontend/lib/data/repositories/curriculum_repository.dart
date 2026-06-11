@@ -217,6 +217,7 @@ class CurriculumRepository {
   /// Writes the full level document back to Firestore.
   Future<void> _saveLevel(LevelModel level) async {
     await _db.collection('curriculum').doc(level.id).set(level.toMap());
+    _cache = [];
   }
 
   /// Sorts weeks by name and items within each week by title, in place.

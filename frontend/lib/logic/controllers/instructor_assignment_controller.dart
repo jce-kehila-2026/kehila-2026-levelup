@@ -102,18 +102,32 @@ class InstructorAssignmentController extends ChangeNotifier {
     List<String>? choices,
     String? groupId,
     String? groupName,
+    String? levelId,
   }) async {
     if (title.isEmpty) return;
+    
+    // Check for active duplicates (same group, same level, and same title)
+    final isDuplicate = _allAssignments.any((a) =>
+        a.title.toLowerCase().trim() == title.toLowerCase().trim() &&
+        a.groupId == groupId &&
+        a.levelId == levelId &&
+        a.isActive);
+    if (isDuplicate) {
+      throw Exception('This assignment is already active for this level in this group.');
+    }
+
     _isLoading = true;
     notifyListeners();
     await _repository.addInstructorAssignment(
       title,
       deadline: deadline,
       textContent: textContent,
+      type: type,
       assignmentType: assignmentType,
       choices: choices,
       groupId: groupId,
       groupName: groupName,
+      levelId: levelId,
     );
     _allAssignments = await _repository.getInstructorAssignments();
     _isLoading = false;
@@ -154,11 +168,11 @@ class InstructorAssignmentController extends ChangeNotifier {
 
   Future<void> updateContent(String id, String title, String textContent,
       AssignmentType assignmentType, List<String> choices,
-      {String? groupId, String? groupName}) async {
+      {String? groupId, String? groupName, String? levelId}) async {
     _isLoading = true;
     notifyListeners();
     await _repository.updateAssignmentContent(id, title, textContent, assignmentType, choices,
-        groupId: groupId, groupName: groupName);
+        groupId: groupId, groupName: groupName, levelId: levelId);
     
     // Inject Mock Notification
     final notifRepo = getIt<NotificationRepository>();

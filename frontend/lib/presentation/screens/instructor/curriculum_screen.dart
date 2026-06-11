@@ -121,7 +121,6 @@ class _InstructorCurriculumScreenState extends State<InstructorCurriculumScreen>
                                 isVisible: item.visible,
                                 showToggle: false,
                                 onPress: () => context.push('/lesson/${item.id}'),
-                                trailing: _buildAssignButton(item),
                               );
                             } else if (item.type == CurriculumItemType.assignment) {
                               return AssignmentCard(
@@ -134,6 +133,7 @@ class _InstructorCurriculumScreenState extends State<InstructorCurriculumScreen>
                                 gradedCount: 0,
                                 isAdminView: true,
                                 onPress: () => context.push('/lesson/${item.id}'),
+                                trailing: _buildAssignButton(item),
                               );
                             }
                             return const SizedBox.shrink();
@@ -218,7 +218,6 @@ class _InstructorCurriculumScreenState extends State<InstructorCurriculumScreen>
                     isVisible: item.visible,
                     showToggle: false,
                     onPress: () => context.push('/lesson/${item.id}'),
-                    trailing: _buildAssignButton(item),
                   );
                 } else if (item.type == CurriculumItemType.assignment) {
                   return AssignmentCard(
@@ -231,6 +230,7 @@ class _InstructorCurriculumScreenState extends State<InstructorCurriculumScreen>
                     gradedCount: 0,
                     isAdminView: true,
                     onPress: () => context.push('/lesson/${item.id}'),
+                    trailing: _buildAssignButton(item),
                   );
                 }
                 return const SizedBox.shrink();
@@ -248,7 +248,7 @@ class _InstructorCurriculumScreenState extends State<InstructorCurriculumScreen>
 
   Widget _buildAssignButton(CurriculumItem item) {
     return IconButton(
-      onPressed: () => _showAssignMaterialDialog(item),
+      onPressed: () => _showAssignAssignmentDialog(item),
       icon: const Icon(Icons.assignment_add, size: 20, color: AppColors.primary),
       tooltip: AppLocalizations.of(context)!.assignToLevelTooltip,
       padding: EdgeInsets.zero,
@@ -257,7 +257,7 @@ class _InstructorCurriculumScreenState extends State<InstructorCurriculumScreen>
     );
   }
 
-  void _showAssignMaterialDialog(CurriculumItem item) {
+  void _showAssignAssignmentDialog(CurriculumItem item) {
     GroupModel? selectedGroup;
     LevelModel? selectedLevel;
 
@@ -310,23 +310,38 @@ class _InstructorCurriculumScreenState extends State<InstructorCurriculumScreen>
               child: const Text('Cancel', style: TextStyle(color: AppColors.mutedForeground)),
             ),
             ElevatedButton(
-              onPressed: selectedGroup == null ? null : () async {
+              onPressed: (selectedGroup == null || selectedLevel == null) ? null : () async {
                 final messenger = ScaffoldMessenger.of(context);
                 final groupName = selectedGroup!.name;
+                final levelName = selectedLevel!.name;
                 Navigator.pop(ctx);
-                await _assignmentController.addAssignment(
-                  item.title,
-                  type: 'central',
-                  groupId: selectedGroup!.id,
-                  groupName: groupName,
-                );
-                if (mounted) {
-                  messenger.showSnackBar(
-                    SnackBar(
-                      content: Text('"${item.title}" assigned to $groupName'),
-                      behavior: SnackBarBehavior.floating,
-                    ),
+                try {
+                  await _assignmentController.addAssignment(
+                    item.title,
+                    type: 'central',
+                    groupId: selectedGroup!.id,
+                    groupName: groupName,
+                    levelId: selectedLevel!.id,
+                    textContent: item.content,
                   );
+                  if (mounted) {
+                    messenger.showSnackBar(
+                      SnackBar(
+                        content: Text('"${item.title}" assigned to $groupName ($levelName)'),
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    messenger.showSnackBar(
+                      SnackBar(
+                        content: Text('"${item.title}" is already assigned to $groupName for $levelName!'),
+                        backgroundColor: AppColors.error,
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                  }
                 }
               },
               style: ElevatedButton.styleFrom(

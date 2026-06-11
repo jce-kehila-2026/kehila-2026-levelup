@@ -5,7 +5,80 @@
 /// No file-upload parameters are permitted in this model.
 library;
 
+import 'dart:convert';
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 enum AssignmentType { text, multipleChoice }
+
+DateTime? _parseDate(dynamic value) {
+  if (value == null) return null;
+  if (value is Timestamp) return value.toDate();
+  if (value is String && value.isNotEmpty) {
+    try {
+      return DateTime.parse(value);
+    } catch (_) {
+      return null;
+    }
+  }
+  return null;
+}
+
+String _extractTitle(String? content) {
+  if (content == null || content.isEmpty) return 'Untitled Assignment';
+  try {
+    final decoded = jsonDecode(content);
+    if (decoded is List && decoded.isNotEmpty) {
+      final firstOp = decoded.first;
+      if (firstOp is Map && firstOp.containsKey('insert')) {
+        final text = firstOp['insert'] as String;
+        final firstLine = text.split('\n').first;
+        if (firstLine.trim().isNotEmpty) {
+          return firstLine.trim();
+        }
+      }
+    }
+  } catch (_) {
+    final firstLine = content.split('\n').first;
+    if (firstLine.trim().isNotEmpty) {
+      return firstLine.trim();
+    }
+  }
+  return 'Untitled Assignment';
+}
+
+String _extractBody(String? content) {
+  if (content == null || content.isEmpty) return '';
+  try {
+    final decoded = jsonDecode(content);
+    if (decoded is List && decoded.length > 1) {
+      final remainingOps = decoded.skip(1).toList();
+      return jsonEncode(remainingOps);
+    }
+  } catch (_) {
+    final lines = content.split('\n');
+    if (lines.length > 1) {
+      return lines.skip(1).join('\n').trim();
+    }
+  }
+  return content;
+}
+
+String _mergeTitleAndContent(String title, String? body) {
+  try {
+    if (body != null && body.isNotEmpty) {
+      final decoded = jsonDecode(body);
+      if (decoded is List) {
+        final titleOp = {
+          'insert': '$title\n',
+          'attributes': {'header': 1}
+        };
+        final merged = [titleOp, ...decoded];
+        return jsonEncode(merged);
+      }
+    }
+  } catch (_) {}
+  return '$title\n${body ?? ""}';
+}
 
 class AssignmentModel {
   final String id;
@@ -15,6 +88,7 @@ class AssignmentModel {
   String? groupName; // Display name (kept for UI convenience)
   String? groupId; // Firestore group document reference
   String? instructorId; // Firestore instructor uid reference
+  String? levelId; // Firestore level reference (assigned target level)
   int pendingCount;
   int gradedCount;
 
@@ -44,6 +118,7 @@ class AssignmentModel {
     this.groupName,
     this.groupId,
     this.instructorId,
+    this.levelId,
     this.pendingCount = 0,
     this.gradedCount = 0,
     this.searchTags = const [],
@@ -75,24 +150,25 @@ class AssignmentModel {
   }
 
   factory AssignmentModel.fromMap(Map<String, dynamic> map, String documentId) {
+    final rawContent = map['content']?.toString() ?? map['textContent']?.toString() ?? '';
+    final deadlineVal = _parseDate(map['deadline']) ?? DateTime.now();
+    final createdAtVal = _parseDate(map['createdAt']) ?? DateTime.now();
+
     return AssignmentModel(
       id: documentId,
-      title: map['title'] ?? '',
-      type: map['type'] ?? 'central',
-      isActive: map['isActive'] ?? true,
+      title: map['title'] ?? _extractTitle(rawContent),
+      type: map['type'] ?? (documentId.startsWith('ca_') ? 'central' : 'custom'),
+      isActive: map['isActive'] ?? DateTime.now().isBefore(deadlineVal),
       groupName: map['groupName'],
       groupId: map['groupId'],
       instructorId: map['instructorId'],
+      levelId: map['levelId'],
       pendingCount: map['pendingCount']?.toInt() ?? 0,
       gradedCount: map['gradedCount']?.toInt() ?? 0,
       searchTags: List<String>.from(map['searchTags'] ?? []),
-      createdAt: map['createdAt'] != null
-          ? DateTime.parse(map['createdAt'].toString())
-          : DateTime.now(),
-      deadline: map['deadline'] != null
-          ? DateTime.parse(map['deadline'].toString())
-          : DateTime.now(),
-      textContent: map['textContent'],
+      createdAt: createdAtVal,
+      deadline: deadlineVal,
+      textContent: _extractBody(rawContent),
       assignmentType: map['assignmentType'] == 'multipleChoice'
           ? AssignmentType.multipleChoice
           : AssignmentType.text,
@@ -102,18 +178,16 @@ class AssignmentModel {
 
   Map<String, dynamic> toMap() {
     return {
-      'title': title,
       'type': type,
-      'isActive': isActive,
       'groupName': groupName,
+      'isActive': isActive,
       'groupId': groupId,
       'instructorId': instructorId,
-      'pendingCount': pendingCount,
-      'gradedCount': gradedCount,
+      'levelId': levelId,
+      'content': _mergeTitleAndContent(title, textContent),
       'searchTags': searchTags,
-      'createdAt': createdAt.toIso8601String(),
       'deadline': deadline.toIso8601String(),
-      'textContent': textContent,
+      'createdAt': createdAt.toIso8601String(),
       'assignmentType': assignmentType.name,
       'choices': choices,
     };
