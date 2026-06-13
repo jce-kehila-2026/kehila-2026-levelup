@@ -288,6 +288,7 @@ class _InstructorAssignmentsScreenState extends State<InstructorAssignmentsScree
               onPressed: selectedGroup == null ? null : () async {
                 final group = selectedGroup!;
                 final messenger = ScaffoldMessenger.of(context);
+                final l10n = AppLocalizations.of(context)!;
                 Navigator.pop(ctx);
                 await _controller.addAssignment(
                   templateTitle,
@@ -299,7 +300,7 @@ class _InstructorAssignmentsScreenState extends State<InstructorAssignmentsScree
                 if (mounted) {
                   messenger.showSnackBar(
                     SnackBar(
-                      content: Text(AppLocalizations.of(context)!.assignmentAssignedToGroup(templateTitle, group.name)),
+                      content: Text(l10n.assignmentAssignedToGroup(templateTitle, group.name)),
                       behavior: SnackBarBehavior.floating,
                     ),
                   );

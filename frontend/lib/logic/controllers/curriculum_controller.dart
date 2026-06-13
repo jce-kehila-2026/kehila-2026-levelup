@@ -11,6 +11,7 @@ import '../../data/repositories/user_repository.dart';
 import '../../di/service_locator.dart';
 import '../../data/models/notification_model.dart';
 import '../../data/repositories/notification_repository.dart';
+import '../../data/repositories/material_assignment_repository.dart';
 import '../helpers/audit_log_helper.dart';
 
 class CurriculumController extends ChangeNotifier {
@@ -203,49 +204,92 @@ class CurriculumController extends ChangeNotifier {
       await _repository.addMaterial(levelId, weekId, title, content: content);
       _levels = await _repository.getLevels();
       notifyListeners();
-      // Trigger notifications for students assigned to this level
+      
       final level = _levels.firstWhere((l) => l.id == levelId, orElse: () => LevelModel(id: levelId, name: 'Level'));
       final levelName = level.name;
 
       // Write Audit Log
       _audit.log(action: 'Added material', category: 'curriculum', details: '"$title" in $levelName');
-
-      final snap = await FirebaseFirestore.instance
-          .collection('users')
-          .where('role', isEqualTo: 'student')
-          .where('levelId', isEqualTo: levelId)
-          .where('isArchived', isEqualTo: false)
-          .get();
-      final List<String> studentUids = snap.docs.map((d) => d.id).toList();
-
-      if (studentUids.isNotEmpty) {
-        final notif = AppNotification(
-          id: '',
-          title: 'New Material Added',
-          body: 'New lesson materials "$title" have been uploaded for $levelName.',
-          type: 'material',
-          relatedId: levelId,
-          createdAt: DateTime.now(),
-          recipientUid: '',
-        );
-
-        final notifRepo = getIt<NotificationRepository>();
-        for (final uid in studentUids) {
-          await notifRepo.addNotification(AppNotification(
-            id: '',
-            title: notif.title,
-            body: notif.body,
-            type: notif.type,
-            relatedId: notif.relatedId,
-            createdAt: notif.createdAt,
-            recipientUid: uid,
-          ));
-        }
-      }
     } catch (e) {
-      debugPrint('CurriculumController.addMaterial notification error: $e');
+      debugPrint('CurriculumController.addMaterial error: $e');
       rethrow;
     }
+  }
+
+  Future<void> assignMaterial({
+    required String materialId,
+    required String materialTitle,
+    required String groupId,
+    required String groupName,
+    required String levelId,
+    required String materialLevelId,
+  }) async {
+    final materialAssignmentRepo = getIt<MaterialAssignmentRepository>();
+    await materialAssignmentRepo.assignMaterial(
+      materialId: materialId,
+      materialTitle: materialTitle,
+      groupId: groupId,
+      groupName: groupName,
+      levelId: levelId,
+      materialLevelId: materialLevelId,
+    );
+
+    // Write Audit Log
+    _audit.log(
+      action: 'Assigned material',
+      category: 'curriculum',
+      details: '"$materialTitle" | Group: $groupName | Level: $levelId',
+    );
+
+    // Notify students of this group AND level
+    final snap = await FirebaseFirestore.instance
+        .collection('users')
+        .where('role', isEqualTo: 'student')
+        .where('groupId', isEqualTo: groupId)
+        .where('levelId', isEqualTo: levelId)
+        .where('isArchived', isEqualTo: false)
+        .get();
+    final studentUids = snap.docs.map((d) => d.id).toList();
+
+    if (studentUids.isNotEmpty) {
+      final notif = AppNotification(
+        id: '',
+        title: 'New Lesson Revealed',
+        body: 'Your instructor revealed a new lesson: "$materialTitle".',
+        type: 'material',
+        relatedId: levelId,
+        createdAt: DateTime.now(),
+        recipientUid: '',
+      );
+
+      final notifRepo = getIt<NotificationRepository>();
+      for (final uid in studentUids) {
+        await notifRepo.addNotification(AppNotification(
+          id: '',
+          title: notif.title,
+          body: notif.body,
+          type: notif.type,
+          relatedId: notif.relatedId,
+          createdAt: notif.createdAt,
+          recipientUid: uid,
+        ));
+      }
+    }
+  }
+
+  Future<void> unassignMaterial({
+    required String assignmentId,
+    required String materialTitle,
+    required String groupName,
+  }) async {
+    final materialAssignmentRepo = getIt<MaterialAssignmentRepository>();
+    await materialAssignmentRepo.deleteAssignment(assignmentId);
+
+    _audit.log(
+      action: 'Unassigned material',
+      category: 'curriculum',
+      details: '"$materialTitle" from Group: $groupName',
+    );
   }
 
   Future<void> addAssignment(String levelId, String weekId, String title, {String? content}) async {

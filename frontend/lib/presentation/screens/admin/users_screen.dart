@@ -658,14 +658,14 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
 
   void _showAddStudentDialog() {
     // Each entry: {name, username, pin, nameError, usernameError}
-    String _genPin() =>
+    String genPin() =>
         (100000 + Random().nextInt(900000)).toString();
 
     final rows = <Map<String, dynamic>>[
       {
         'nameCtrl': TextEditingController(),
         'usernameCtrl': TextEditingController(),
-        'pin': _genPin(),
+        'pin': genPin(),
         'nameError': null,
         'usernameError': null,
       }
@@ -702,7 +702,7 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
                       rows.add({
                         'nameCtrl': TextEditingController(),
                         'usernameCtrl': TextEditingController(),
-                        'pin': _genPin(),
+                        'pin': genPin(),
                         'nameError': null,
                         'usernameError': null,
                       });
@@ -860,7 +860,7 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
                                       child: InkWell(
                                         onTap: () => setDialogState(
                                             () => row['pin'] =
-                                                _genPin()),
+                                                genPin()),
                                         borderRadius:
                                             BorderRadius.circular(6),
                                         child: const Padding(
@@ -898,9 +898,10 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
                               label: Text(level.name),
                               selected: isSel,
                               onSelected: (sel) {
-                                if (sel)
+                                if (sel) {
                                   setDialogState(
                                       () => levelId = level.id);
+                                }
                               },
                             );
                           }).toList(),
@@ -1031,8 +1032,9 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
                     Navigator.pop(context);
 
                     // Show progress spinner
+                    if (!context.mounted) return;
                     showDialog(
-                      context: this.context,
+                      context: context,
                       barrierDismissible: false,
                       builder: (_) => const Center(
                           child: CircularProgressIndicator()),
@@ -1041,13 +1043,13 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
                     try {
                       final created = await _controller
                           .bulkAddStudents(payload);
-                      if (!mounted) return;
-                      Navigator.pop(this.context); // dismiss spinner
+                      if (!context.mounted) return;
+                      Navigator.pop(context); // dismiss spinner
                       _showCredentialsDialog(created);
                     } catch (e) {
-                      if (!mounted) return;
-                      Navigator.pop(this.context); // dismiss spinner
-                      ScaffoldMessenger.of(this.context).showSnackBar(
+                      if (!context.mounted) return;
+                      Navigator.pop(context); // dismiss spinner
+                      ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
                           content:
                               Text('Failed to add students: $e'),
@@ -1115,7 +1117,7 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
                     shrinkWrap: true,
                     physics: const ClampingScrollPhysics(),
                     itemCount: users.length,
-                    separatorBuilder: (_, __) => const Divider(height: 20),
+                    separatorBuilder: (_, index) => const Divider(height: 20),
                     itemBuilder: (context, idx) {
                       final u = users[idx];
                       return Column(
@@ -1698,7 +1700,7 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
                           ],
                         ),
                       ),
-                      if (headerAction case final action?) action,
+                      ?headerAction,
                     ],
                   ),
                 ),

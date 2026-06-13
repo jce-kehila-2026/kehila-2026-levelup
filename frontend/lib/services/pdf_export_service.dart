@@ -49,25 +49,56 @@ class PdfExportService {
         ops = <dynamic>[<String, dynamic>{'insert': '$deltaJsonStr\n'}];
       }
       final (processedOps, hadImageFailures) = await _resolveNetworkImages(ops);
-      final doc = quill.Document.fromJson(processedOps);
+      final alignedOps = _alignArabicParagraphs(processedOps);
+      final doc = quill.Document.fromJson(alignedOps);
+
+      // Automatically detect if the document has Arabic content to set RTL/LTR directionality.
+      // This prevents English (LTR) documents from rendering lines in reverse order due to global RTL constraints.
+      final hasArabic = RegExp(r'[\u0600-\u06FF]').hasMatch(doc.toPlainText());
+      final docDirection = hasArabic ? TextDirection.rtl : TextDirection.ltr;
 
       final pdfConverter = PDFConverter(
         backMatterDelta: null,
         frontMatterDelta: null,
         document: doc.toDelta(),
         fallbacks: [?arabicFont, ?arabicBoldFont], // fallback fonts for unsupported glyphs
-        textDirection: TextDirection.rtl, // RTL for Arabic; Bidi algorithm handles inline English
+        textDirection: docDirection, // Set dynamically
         themeData: pw.ThemeData.withFont(
           base: arabicFont,
           bold: arabicBoldFont,
+        ).copyWith(
+          defaultTextStyle: pw.TextStyle(
+            fontSize: 16,
+            font: arabicFont,
+          ),
+          paragraphStyle: pw.TextStyle(
+            fontSize: 16,
+            font: arabicFont,
+            lineSpacing: 3,
+          ),
+          header1: pw.TextStyle(
+            fontSize: 26,
+            fontWeight: pw.FontWeight.bold,
+            font: arabicBoldFont,
+          ),
+          header2: pw.TextStyle(
+            fontSize: 22,
+            fontWeight: pw.FontWeight.bold,
+            font: arabicBoldFont,
+          ),
+          header3: pw.TextStyle(
+            fontSize: 18,
+            fontWeight: pw.FontWeight.bold,
+            font: arabicBoldFont,
+          ),
         ),
         pageFormat: const PDFPageFormat(
-          width: 595, // A4 width in PDF points
-          height: 842, // A4 height in PDF points
-          marginTop: 60,
-          marginBottom: 60,
-          marginLeft: 40,
-          marginRight: 40,
+          width: 390, // Mobile-optimized width in PDF points
+          height: 844, // Mobile-optimized height in PDF points
+          marginTop: 24,
+          marginBottom: 24,
+          marginLeft: 20,
+          marginRight: 20,
         ),
       );
 
@@ -146,5 +177,73 @@ class PdfExportService {
       result.add(op);
     }
     return (result, hadFailures);
+  }
+
+  static List<dynamic> _alignArabicParagraphs(List<dynamic> ops) {
+    final result = <dynamic>[];
+    int startOfParagraphIndex = 0;
+
+    for (int i = 0; i < ops.length; i++) {
+      final op = ops[i];
+      if (op is Map && op.containsKey('insert')) {
+        final insertVal = op['insert'];
+        if (insertVal is String && insertVal.contains('\n')) {
+          // Paragraph boundary found
+          bool hasArabic = false;
+          for (int j = startOfParagraphIndex; j <= i; j++) {
+            final prevOp = ops[j];
+            if (prevOp is Map && prevOp['insert'] is String) {
+              if (RegExp(r'[\u0600-\u06FF]').hasMatch(prevOp['insert'] as String)) {
+                hasArabic = true;
+                break;
+              }
+            }
+          }
+
+          if (hasArabic) {
+            if (insertVal == '\n') {
+              final attrs = Map<String, dynamic>.from(op['attributes'] as Map? ?? <String, dynamic>{});
+              attrs['align'] = 'right';
+              attrs['direction'] = 'rtl';
+              result.add({
+                'insert': '\n',
+                'attributes': attrs,
+              });
+            } else {
+              // Contains text and newline(s)
+              final parts = insertVal.split('\n');
+              for (int p = 0; p < parts.length; p++) {
+                final part = parts[p];
+                if (part.isNotEmpty) {
+                  result.add({
+                    'insert': part,
+                    if (op.containsKey('attributes')) 'attributes': op['attributes'],
+                  });
+                }
+                if (p < parts.length - 1) {
+                  result.add({
+                    'insert': '\n',
+                    'attributes': {
+                      ...?op['attributes'] as Map?,
+                      'align': 'right',
+                      'direction': 'rtl',
+                    },
+                  });
+                }
+              }
+            }
+          } else {
+            result.add(op);
+          }
+          startOfParagraphIndex = i + 1;
+        } else {
+          result.add(op);
+        }
+      } else {
+        result.add(op);
+        startOfParagraphIndex = i + 1; // Embedded block resets paragraph
+      }
+    }
+    return result;
   }
 }

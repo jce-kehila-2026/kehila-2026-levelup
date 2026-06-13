@@ -49,9 +49,6 @@ class AssignmentRepository {
     if (groupId != null && groupId.isNotEmpty) {
       queries.add(_col.where('groupId', isEqualTo: groupId).get());
     }
-    if (levelId != null && levelId.isNotEmpty) {
-      queries.add(_col.where('levelId', isEqualTo: levelId).get());
-    }
 
     final snapshots = await Future.wait(queries);
     final Map<String, AssignmentModel> uniqueAssignments = {};
@@ -61,11 +58,10 @@ class AssignmentRepository {
         final data = doc.data();
         final model = AssignmentModel.fromMap(data, doc.id);
         
-        final matchesGroup = groupId != null && groupId.isNotEmpty && model.groupId == groupId;
-        final matchesLevelWide = levelId != null && levelId.isNotEmpty && 
-            model.levelId == levelId && (model.groupId == null || model.groupId!.isEmpty);
+        final matchesGroup = groupId != null && groupId.isNotEmpty && model.groupId == groupId &&
+            (model.levelId == null || model.levelId!.isEmpty || model.levelId == levelId);
 
-        if (matchesGroup || matchesLevelWide) {
+        if (matchesGroup) {
           uniqueAssignments[model.id] = model;
         }
       }

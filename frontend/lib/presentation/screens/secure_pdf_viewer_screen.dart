@@ -71,7 +71,14 @@ class _SecurePdfViewerScreenState extends State<SecurePdfViewerScreen> {
               canDebug: false,
               padding: EdgeInsets.zero,
               maxPageWidth: double.infinity,
-              initialPageFormat: PdfPageFormat.a4,
+              initialPageFormat: const PdfPageFormat(
+                390,
+                844,
+                marginTop: 24,
+                marginBottom: 24,
+                marginLeft: 20,
+                marginRight: 20,
+              ),
             ),
           );
         }),

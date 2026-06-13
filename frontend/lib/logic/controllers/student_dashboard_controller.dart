@@ -7,6 +7,9 @@ import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../data/models/curriculum_model.dart';
+import '../../di/service_locator.dart';
+import 'student_assignment_controller.dart';
+import 'student_notification_controller.dart';
 
 class StudentDashboardController extends ChangeNotifier {
   bool _isLoading = true;
@@ -19,6 +22,10 @@ class StudentDashboardController extends ChangeNotifier {
   String _instructorName = '—';
   List<CurriculumItem> _allLessons = [];
 
+  StreamSubscription<User?>? _authSub;
+  late final StudentAssignmentController _assignmentController;
+  late final StudentNotificationController _notificationController;
+
   StreamSubscription<DocumentSnapshot>? _userDocSub;
   StreamSubscription<dynamic>? _curriculumSub;
   StreamSubscription<DocumentSnapshot>? _groupSub;
@@ -28,7 +35,33 @@ class StudentDashboardController extends ChangeNotifier {
   String? _subscribedAssignedMaterialsLevelId;
 
   StudentDashboardController() {
-    _load();
+    _assignmentController = getIt<StudentAssignmentController>();
+    _notificationController = getIt<StudentNotificationController>();
+    _assignmentController.addListener(notifyListeners);
+    _notificationController.addListener(notifyListeners);
+
+    _authSub = FirebaseAuth.instance.authStateChanges().listen((user) {
+      if (user != null) {
+        _load();
+      } else {
+        _clear();
+      }
+    });
+  }
+
+  void _clear() {
+    _studentName = '';
+    _levelLabel = '';
+    _groupLabel = '—';
+    _instructorName = '—';
+    _allLessons = [];
+    _subscribedGroupId = null;
+    _subscribedAssignedMaterialsGroupId = null;
+    _subscribedAssignedMaterialsLevelId = null;
+    _userDocSub?.cancel();
+    _curriculumSub?.cancel();
+    _groupSub?.cancel();
+    notifyListeners();
   }
 
   // ── Initial load ───────────────────────────────────────────────────────────
@@ -187,6 +220,9 @@ class StudentDashboardController extends ChangeNotifier {
 
   @override
   void dispose() {
+    _assignmentController.removeListener(notifyListeners);
+    _notificationController.removeListener(notifyListeners);
+    _authSub?.cancel();
     _userDocSub?.cancel();
     _curriculumSub?.cancel();
     _groupSub?.cancel();
@@ -201,8 +237,8 @@ class StudentDashboardController extends ChangeNotifier {
   String get groupLabel => _groupLabel;
   String get instructorName => _instructorName;
   int get lessonCount => _allLessons.length;
-  int get tasksDue => 0;
-  int get newNotifications => 0;
+  int get tasksDue => _assignmentController.pendingCount;
+  int get newNotifications => _notificationController.unreadCount;
 
   List<CurriculumItem> get lessons {
     if (_search.isEmpty) return _allLessons;
