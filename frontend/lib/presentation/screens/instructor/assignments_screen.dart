@@ -68,8 +68,8 @@ class _InstructorAssignmentsScreenState extends State<InstructorAssignmentsScree
           _buildOptionCard(
             icon: Icons.library_books,
             iconColor: AppColors.primary,
-            title: 'From Admin Template',
-            subtitle: 'Assign a fixed admin curriculum item to your group',
+            title: l10n.fromAdminTemplate,
+            subtitle: l10n.fromAdminTemplateDesc,
             onTap: () { Navigator.pop(ctx); _showAdminTemplatePicker(); },
           ),
           const SizedBox(height: 12),
@@ -138,16 +138,16 @@ class _InstructorAssignmentsScreenState extends State<InstructorAssignmentsScree
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.background,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Row(children: [
-          Icon(Icons.library_books, color: AppColors.primary, size: 20),
-          SizedBox(width: 8),
-          Text('Admin Templates', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+        title: Row(children: [
+          const Icon(Icons.library_books, color: AppColors.primary, size: 20),
+          const SizedBox(width: 8),
+          Text(AppLocalizations.of(context)!.adminTemplates, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
         ]),
         content: SizedBox(
           width: double.maxFinite,
           height: 300,
           child: templateItems.isEmpty
-            ? const Center(child: Text('No templates available.', style: TextStyle(color: AppColors.mutedForeground)))
+            ? Center(child: Text(AppLocalizations.of(context)!.noTemplatesAvailable, style: const TextStyle(color: AppColors.mutedForeground)))
             : ListView.builder(
                 itemCount: templateItems.length,
                 itemBuilder: (_, i) {
@@ -165,7 +165,7 @@ class _InstructorAssignmentsScreenState extends State<InstructorAssignmentsScree
                         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                           Text(item.title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
                           const SizedBox(height: 2),
-                          const Text('Central · Template', style: TextStyle(fontSize: 12, color: AppColors.mutedForeground)),
+                          Text(AppLocalizations.of(context)!.centralTemplate, style: const TextStyle(fontSize: 12, color: AppColors.mutedForeground)),
                         ])),
                         const Icon(Icons.add_circle_outline, size: 18, color: AppColors.primary),
                       ]),
@@ -177,7 +177,7 @@ class _InstructorAssignmentsScreenState extends State<InstructorAssignmentsScree
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel', style: TextStyle(color: AppColors.mutedForeground)),
+            child: Text(AppLocalizations.of(context)!.cancelButton, style: const TextStyle(color: AppColors.mutedForeground)),
           ),
         ],
       ),
@@ -196,7 +196,7 @@ class _InstructorAssignmentsScreenState extends State<InstructorAssignmentsScree
           backgroundColor: AppColors.background,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           title: Text(
-            'Assign "$templateTitle"',
+            AppLocalizations.of(context)!.assignTemplateTitle(templateTitle),
             style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
           ),
           content: Column(
@@ -204,7 +204,7 @@ class _InstructorAssignmentsScreenState extends State<InstructorAssignmentsScree
             children: [
               DropdownButtonFormField<GroupModel>(
                 decoration: InputDecoration(
-                  labelText: 'Select Group',
+                  labelText: AppLocalizations.of(context)!.selectGroupStep,
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                   contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 ),
@@ -218,7 +218,7 @@ class _InstructorAssignmentsScreenState extends State<InstructorAssignmentsScree
               DropdownButtonFormField<LevelModel>(
                 initialValue: selectedLevel,
                 decoration: InputDecoration(
-                  labelText: 'Select Level',
+                  labelText: AppLocalizations.of(context)!.selectLevelHint,
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                   contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 ),
@@ -268,7 +268,7 @@ class _InstructorAssignmentsScreenState extends State<InstructorAssignmentsScree
                     Text(
                       selectedDeadline != null
                         ? '${selectedDeadline!.day}/${selectedDeadline!.month}/${selectedDeadline!.year}  ${selectedDeadline!.hour}:${selectedDeadline!.minute.toString().padLeft(2, '0')}'
-                        : 'Select Deadline',
+                        : AppLocalizations.of(context)!.selectDeadline,
                       style: TextStyle(
                         fontSize: 14,
                         color: selectedDeadline != null ? AppColors.text : AppColors.mutedForeground,
@@ -282,7 +282,7 @@ class _InstructorAssignmentsScreenState extends State<InstructorAssignmentsScree
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel', style: TextStyle(color: AppColors.mutedForeground)),
+              child: Text(AppLocalizations.of(context)!.cancelButton, style: const TextStyle(color: AppColors.mutedForeground)),
             ),
             ElevatedButton(
               onPressed: selectedGroup == null ? null : () async {
@@ -299,7 +299,7 @@ class _InstructorAssignmentsScreenState extends State<InstructorAssignmentsScree
                 if (mounted) {
                   messenger.showSnackBar(
                     SnackBar(
-                      content: Text('"$templateTitle" assigned to ${group.name}'),
+                      content: Text(AppLocalizations.of(context)!.assignmentAssignedToGroup(templateTitle, group.name)),
                       behavior: SnackBarBehavior.floating,
                     ),
                   );
@@ -310,7 +310,7 @@ class _InstructorAssignmentsScreenState extends State<InstructorAssignmentsScree
                 foregroundColor: AppColors.white,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               ),
-              child: const Text('Assign', style: TextStyle(fontWeight: FontWeight.bold)),
+              child: Text(AppLocalizations.of(context)!.assign, style: const TextStyle(fontWeight: FontWeight.bold)),
             ),
           ],
         ),
@@ -354,7 +354,7 @@ class _InstructorAssignmentsScreenState extends State<InstructorAssignmentsScree
                         Text(l10n.assignmentsTitle, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontSize: 22, fontWeight: FontWeight.bold)),
                       ]),
                       const SizedBox(height: 4),
-                      Text('${_controller.allAssignments.length} total', style: const TextStyle(fontSize: 13, color: AppColors.mutedForeground)),
+                      Text(l10n.totalCount(_controller.allAssignments.length.toString()), style: const TextStyle(fontSize: 13, color: AppColors.mutedForeground)),
                     ])),
                   ]),
                 ),

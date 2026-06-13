@@ -1118,4 +1118,177 @@ class AppLocalizationsAr extends AppLocalizations {
   String addNStudentsToLevel(String count, String level) {
     return 'إضافة $count إلى $level';
   }
+
+  @override
+  String get fromAdminTemplate => 'من قالب المشرف';
+
+  @override
+  String get fromAdminTemplateDesc => 'تعيين عنصر منهج ثابت من المشرف لمجموعتك';
+
+  @override
+  String get adminTemplates => 'قوالب المشرف';
+
+  @override
+  String get noTemplatesAvailable => 'لا توجد قوالب متاحة.';
+
+  @override
+  String get centralTemplate => 'مركزي · قالب';
+
+  @override
+  String assignTemplateTitle(String title) {
+    return 'تعيين \"$title\"';
+  }
+
+  @override
+  String assignmentAssignedToGroup(String title, String group) {
+    return 'تم تعيين \"$title\" للمجموعة $group';
+  }
+
+  @override
+  String assignmentAssignedToGroupLevel(
+    String title,
+    String group,
+    String level,
+  ) {
+    return 'تم تعيين \"$title\" للمجموعة $group ($level)';
+  }
+
+  @override
+  String assignmentAlreadyAssignedGroupLevel(
+    String title,
+    String group,
+    String level,
+  ) {
+    return '\"$title\" معين بالفعل للمجموعة $group في $level!';
+  }
+
+  @override
+  String totalCount(String count) {
+    return 'الإجمالي $count';
+  }
+
+  @override
+  String get editGroupName => 'تعديل اسم المجموعة';
+
+  @override
+  String get groupName => 'اسم المجموعة';
+
+  @override
+  String deleteGroupConfirmDesc(String studentCount, String instructorCount) {
+    return 'هل أنت متأكد من حذف هذه المجموعة؟\nعدد الطلاب: $studentCount\nعدد المحاضرين: $instructorCount';
+  }
+
+  @override
+  String get deleteGroupWarning =>
+      'يمكن استعادة المجموعة بواسطة المشرف من الأرشيف.';
+
+  @override
+  String get editName => 'تعديل الاسم';
+
+  @override
+  String get archive => 'أرشفة';
+
+  @override
+  String get addAnotherStudentLabel => '+ إضافة طالب آخر';
+
+  @override
+  String get requiredFieldError => 'مطلوب';
+
+  @override
+  String get usernameFormatError => 'أحرف صغيرة، بدون مسافات';
+
+  @override
+  String get insertImageUrlTooltip => 'إدراج رابط صورة';
+
+  @override
+  String get insertImageTitle => 'إدراج صورة';
+
+  @override
+  String get insertButton => 'إدراج';
+
+  @override
+  String get assign => 'تعيين';
+
+  @override
+  String get usernameAlreadyTaken => 'اسم المستخدم مستخدم بالفعل';
+
+  @override
+  String failedToCreateStudent(String error) {
+    return 'فشل إنشاء الطالب: $error';
+  }
+
+  @override
+  String get pinCopiedToClipboard => 'تم نسخ الرمز السري إلى الحافظة';
+
+  @override
+  String get iHaveSavedPin => 'لقد قمت بحفظ الرمز السري';
+
+  @override
+  String get resetPinConfirm => 'إعادة تعيين الرمز السري؟';
+
+  @override
+  String resetPinConfirmDesc(String name) {
+    return 'هل أنت متأكد من إعادة تعيين الرمز السري لـ $name؟ سيؤدي هذا إلى إنشاء رمز سري عشوائي جديد مكون من 6 أرقام.';
+  }
+
+  @override
+  String failedToResetPin(String error) {
+    return 'فشل إعادة تعيين الرمز السري: $error';
+  }
+
+  @override
+  String failedToDeleteStudent(String name, String error) {
+    return 'فشل حذف $name: $error';
+  }
+
+  @override
+  String groupRenamed(String name) {
+    return 'تم تغيير اسم المجموعة إلى \"$name\"';
+  }
+
+  @override
+  String failedToRenameGroup(String error) {
+    return 'فشل تغيير اسم المجموعة: $error';
+  }
+
+  @override
+  String groupMovedToArchive(String name) {
+    return 'تم نقل \"$name\" إلى الأرشيف';
+  }
+
+  @override
+  String failedToArchiveGroup(String error) {
+    return 'فشل أرشفة المجموعة: $error';
+  }
+
+  @override
+  String failedToCreateGroup(String error) {
+    return 'فشل إنشاء المجموعة: $error';
+  }
+
+  @override
+  String assignMaterialTitle(String title) {
+    return 'تعيين المادة \"$title\"';
+  }
+
+  @override
+  String get currentAssignments => 'المجموعات المعينة';
+
+  @override
+  String get noGroupAssignmentsYet => 'لم يتم التعيين لأي مجموعات بعد.';
+
+  @override
+  String get alreadyAssignedToGroupLevel =>
+      'المادة معينة بالفعل لهذه المجموعة والمستوى!';
+
+  @override
+  String get levelLowerError => 'لا يمكن تعيين المادة لمستوى مجموعة أقل!';
+
+  @override
+  String get materialAssignedSuccess => 'تم تعيين المادة بنجاح!';
+
+  @override
+  String materialLevelLabel(String level) {
+    return 'مستوى المادة: $level';
+  }
 }

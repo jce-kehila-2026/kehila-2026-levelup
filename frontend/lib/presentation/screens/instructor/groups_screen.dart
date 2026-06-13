@@ -40,12 +40,12 @@ class _InstructorGroupsScreenState extends State<InstructorGroupsScreen> {
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.background,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Edit Group Name', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+        title: Text(AppLocalizations.of(context)!.editGroupName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
         content: TextField(
           controller: nameController,
           autofocus: true,
           decoration: InputDecoration(
-            hintText: 'Group name',
+            hintText: AppLocalizations.of(context)!.groupName,
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
             enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.input, width: 1.5)),
             focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.primary, width: 1.5)),
@@ -54,7 +54,7 @@ class _InstructorGroupsScreenState extends State<InstructorGroupsScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel', style: TextStyle(color: AppColors.mutedForeground)),
+            child: Text(AppLocalizations.of(context)!.cancelButton, style: const TextStyle(color: AppColors.mutedForeground)),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -65,13 +65,13 @@ class _InstructorGroupsScreenState extends State<InstructorGroupsScreen> {
                   await _controller.updateGroup(group.id, newName);
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Group renamed to "$newName"'), behavior: SnackBarBehavior.floating),
+                      SnackBar(content: Text(AppLocalizations.of(context)!.groupRenamed(newName)), behavior: SnackBarBehavior.floating),
                     );
                   }
                 } catch (e) {
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Failed to rename group: $e'), backgroundColor: AppColors.error, behavior: SnackBarBehavior.floating),
+                      SnackBar(content: Text(AppLocalizations.of(context)!.failedToRenameGroup(e.toString())), backgroundColor: AppColors.error, behavior: SnackBarBehavior.floating),
                     );
                   }
                 }
@@ -83,7 +83,7 @@ class _InstructorGroupsScreenState extends State<InstructorGroupsScreen> {
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
             ),
-            child: const Text('Save', style: TextStyle(fontWeight: FontWeight.bold)),
+            child: Text(AppLocalizations.of(context)!.save, style: const TextStyle(fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -95,12 +95,12 @@ class _InstructorGroupsScreenState extends State<InstructorGroupsScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text('Delete ${group.name}?', style: const TextStyle(fontWeight: FontWeight.bold)),
+        title: Text(AppLocalizations.of(context)!.deleteGroupConfirm(group.name), style: const TextStyle(fontWeight: FontWeight.bold)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Are you sure you want to delete this group?\nStudents count: ${group.students.length}\nInstructors count: ${group.instructorIds.length}'),
+            Text(AppLocalizations.of(context)!.deleteGroupConfirmDesc(group.students.length.toString(), group.instructorIds.length.toString())),
             const SizedBox(height: 12),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -108,14 +108,14 @@ class _InstructorGroupsScreenState extends State<InstructorGroupsScreen> {
                 color: AppColors.primary.withValues(alpha: 0.07),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: const Row(
+              child: Row(
                 children: [
-                  Icon(Icons.info_outline, size: 15, color: AppColors.primary),
-                  SizedBox(width: 8),
+                  const Icon(Icons.info_outline, size: 15, color: AppColors.primary),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'The group can be restored by an admin from the Archive.',
-                      style: TextStyle(fontSize: 12, color: AppColors.primary),
+                      AppLocalizations.of(context)!.deleteGroupWarning,
+                      style: const TextStyle(fontSize: 12, color: AppColors.primary),
                     ),
                   ),
                 ],
@@ -126,7 +126,7 @@ class _InstructorGroupsScreenState extends State<InstructorGroupsScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
+            child: Text(AppLocalizations.of(context)!.cancelButton),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -142,7 +142,7 @@ class _InstructorGroupsScreenState extends State<InstructorGroupsScreen> {
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text('"$name" moved to archive'),
+                      content: Text(AppLocalizations.of(context)!.groupMovedToArchive(name)),
                       behavior: SnackBarBehavior.floating,
                     ),
                   );
@@ -151,7 +151,7 @@ class _InstructorGroupsScreenState extends State<InstructorGroupsScreen> {
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text('Failed to archive group: $e'),
+                      content: Text(AppLocalizations.of(context)!.failedToArchiveGroup(e.toString())),
                       backgroundColor: AppColors.error,
                       behavior: SnackBarBehavior.floating,
                     ),
@@ -159,7 +159,7 @@ class _InstructorGroupsScreenState extends State<InstructorGroupsScreen> {
                 }
               }
             },
-            child: const Text('Delete', style: TextStyle(fontWeight: FontWeight.bold)),
+            child: Text(AppLocalizations.of(context)!.deleteButton, style: const TextStyle(fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -218,7 +218,7 @@ class _InstructorGroupsScreenState extends State<InstructorGroupsScreen> {
                 } catch (e) {
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Failed to create group: $e'), backgroundColor: AppColors.error, behavior: SnackBarBehavior.floating),
+                      SnackBar(content: Text(AppLocalizations.of(context)!.failedToCreateGroup(e.toString())), backgroundColor: AppColors.error, behavior: SnackBarBehavior.floating),
                     );
                   }
                 }
@@ -346,7 +346,7 @@ class _InstructorGroupsScreenState extends State<InstructorGroupsScreen> {
                               child: Row(children: [
                                 const Icon(Icons.edit_outlined, size: 16, color: AppColors.primary),
                                 const SizedBox(width: 8),
-                                const Text('Edit Name'),
+                                Text(AppLocalizations.of(context)!.editName),
                               ]),
                             ),
                             PopupMenuItem(
@@ -354,7 +354,7 @@ class _InstructorGroupsScreenState extends State<InstructorGroupsScreen> {
                               child: Row(children: [
                                 const Icon(Icons.archive_outlined, size: 16, color: AppColors.error),
                                 const SizedBox(width: 8),
-                                const Text('Archive', style: TextStyle(color: AppColors.error)),
+                                Text(AppLocalizations.of(context)!.archive, style: const TextStyle(color: AppColors.error)),
                               ]),
                             ),
                           ],

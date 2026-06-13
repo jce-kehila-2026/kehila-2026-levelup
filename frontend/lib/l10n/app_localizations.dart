@@ -2101,6 +2101,272 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Add {count} to {level}'**
   String addNStudentsToLevel(String count, String level);
+
+  /// No description provided for @fromAdminTemplate.
+  ///
+  /// In en, this message translates to:
+  /// **'From Admin Template'**
+  String get fromAdminTemplate;
+
+  /// No description provided for @fromAdminTemplateDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Assign a fixed admin curriculum item to your group'**
+  String get fromAdminTemplateDesc;
+
+  /// No description provided for @adminTemplates.
+  ///
+  /// In en, this message translates to:
+  /// **'Admin Templates'**
+  String get adminTemplates;
+
+  /// No description provided for @noTemplatesAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'No templates available.'**
+  String get noTemplatesAvailable;
+
+  /// No description provided for @centralTemplate.
+  ///
+  /// In en, this message translates to:
+  /// **'Central · Template'**
+  String get centralTemplate;
+
+  /// No description provided for @assignTemplateTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Assign \"{title}\"'**
+  String assignTemplateTitle(String title);
+
+  /// No description provided for @assignmentAssignedToGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'\"{title}\" assigned to {group}'**
+  String assignmentAssignedToGroup(String title, String group);
+
+  /// No description provided for @assignmentAssignedToGroupLevel.
+  ///
+  /// In en, this message translates to:
+  /// **'\"{title}\" assigned to {group} ({level})'**
+  String assignmentAssignedToGroupLevel(
+    String title,
+    String group,
+    String level,
+  );
+
+  /// No description provided for @assignmentAlreadyAssignedGroupLevel.
+  ///
+  /// In en, this message translates to:
+  /// **'\"{title}\" is already assigned to {group} for {level}!'**
+  String assignmentAlreadyAssignedGroupLevel(
+    String title,
+    String group,
+    String level,
+  );
+
+  /// No description provided for @totalCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} total'**
+  String totalCount(String count);
+
+  /// No description provided for @editGroupName.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit Group Name'**
+  String get editGroupName;
+
+  /// No description provided for @groupName.
+  ///
+  /// In en, this message translates to:
+  /// **'Group Name'**
+  String get groupName;
+
+  /// No description provided for @deleteGroupConfirmDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to delete this group?\nStudents count: {studentCount}\nInstructors count: {instructorCount}'**
+  String deleteGroupConfirmDesc(String studentCount, String instructorCount);
+
+  /// No description provided for @deleteGroupWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'The group can be restored by an admin from the Archive.'**
+  String get deleteGroupWarning;
+
+  /// No description provided for @editName.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit Name'**
+  String get editName;
+
+  /// No description provided for @archive.
+  ///
+  /// In en, this message translates to:
+  /// **'Archive'**
+  String get archive;
+
+  /// No description provided for @addAnotherStudentLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'+ Add Another Student'**
+  String get addAnotherStudentLabel;
+
+  /// No description provided for @requiredFieldError.
+  ///
+  /// In en, this message translates to:
+  /// **'Required'**
+  String get requiredFieldError;
+
+  /// No description provided for @usernameFormatError.
+  ///
+  /// In en, this message translates to:
+  /// **'Lowercase, no spaces'**
+  String get usernameFormatError;
+
+  /// No description provided for @insertImageUrlTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Insert Image URL'**
+  String get insertImageUrlTooltip;
+
+  /// No description provided for @insertImageTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Insert Image'**
+  String get insertImageTitle;
+
+  /// No description provided for @insertButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Insert'**
+  String get insertButton;
+
+  /// No description provided for @assign.
+  ///
+  /// In en, this message translates to:
+  /// **'Assign'**
+  String get assign;
+
+  /// No description provided for @usernameAlreadyTaken.
+  ///
+  /// In en, this message translates to:
+  /// **'Username already taken'**
+  String get usernameAlreadyTaken;
+
+  /// No description provided for @failedToCreateStudent.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to create student: {error}'**
+  String failedToCreateStudent(String error);
+
+  /// No description provided for @pinCopiedToClipboard.
+  ///
+  /// In en, this message translates to:
+  /// **'PIN copied to clipboard'**
+  String get pinCopiedToClipboard;
+
+  /// No description provided for @iHaveSavedPin.
+  ///
+  /// In en, this message translates to:
+  /// **'I have saved the PIN'**
+  String get iHaveSavedPin;
+
+  /// No description provided for @resetPinConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset PIN?'**
+  String get resetPinConfirm;
+
+  /// No description provided for @resetPinConfirmDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to reset the PIN for {name}? This will generate a new 6-digit random PIN.'**
+  String resetPinConfirmDesc(String name);
+
+  /// No description provided for @failedToResetPin.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to reset PIN: {error}'**
+  String failedToResetPin(String error);
+
+  /// No description provided for @failedToDeleteStudent.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to delete {name}: {error}'**
+  String failedToDeleteStudent(String name, String error);
+
+  /// No description provided for @groupRenamed.
+  ///
+  /// In en, this message translates to:
+  /// **'Group renamed to \"{name}\"'**
+  String groupRenamed(String name);
+
+  /// No description provided for @failedToRenameGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to rename group: {error}'**
+  String failedToRenameGroup(String error);
+
+  /// No description provided for @groupMovedToArchive.
+  ///
+  /// In en, this message translates to:
+  /// **'\"{name}\" moved to archive'**
+  String groupMovedToArchive(String name);
+
+  /// No description provided for @failedToArchiveGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to archive group: {error}'**
+  String failedToArchiveGroup(String error);
+
+  /// No description provided for @failedToCreateGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to create group: {error}'**
+  String failedToCreateGroup(String error);
+
+  /// No description provided for @assignMaterialTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Assign Material \"{title}\"'**
+  String assignMaterialTitle(String title);
+
+  /// No description provided for @currentAssignments.
+  ///
+  /// In en, this message translates to:
+  /// **'Assigned Groups'**
+  String get currentAssignments;
+
+  /// No description provided for @noGroupAssignmentsYet.
+  ///
+  /// In en, this message translates to:
+  /// **'Not assigned to any groups yet.'**
+  String get noGroupAssignmentsYet;
+
+  /// No description provided for @alreadyAssignedToGroupLevel.
+  ///
+  /// In en, this message translates to:
+  /// **'Material is already assigned to this group and level!'**
+  String get alreadyAssignedToGroupLevel;
+
+  /// No description provided for @levelLowerError.
+  ///
+  /// In en, this message translates to:
+  /// **'Cannot assign material to a lower group level!'**
+  String get levelLowerError;
+
+  /// No description provided for @materialAssignedSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Material assigned successfully!'**
+  String get materialAssignedSuccess;
+
+  /// No description provided for @materialLevelLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Material Level: {level}'**
+  String materialLevelLabel(String level);
 }
 
 class _AppLocalizationsDelegate

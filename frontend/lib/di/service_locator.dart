@@ -14,6 +14,7 @@ import '../data/repositories/audit_log_repository.dart';
 import '../data/repositories/notification_repository.dart';
 import '../data/repositories/student_profile_repository.dart';
 import '../data/repositories/submission_repository.dart';
+import '../data/repositories/material_assignment_repository.dart';
 
 // Helpers
 import '../logic/helpers/audit_log_helper.dart';
@@ -61,6 +62,7 @@ void setupServiceLocator() {
   getIt.registerLazySingleton<NotificationRepository>(() => NotificationRepository());
   getIt.registerLazySingleton<StudentProfileRepository>(() => StudentProfileRepository());
   getIt.registerLazySingleton<SubmissionRepository>(() => SubmissionRepository());
+  getIt.registerLazySingleton<MaterialAssignmentRepository>(() => MaterialAssignmentRepository());
   getIt.registerLazySingleton<AuditLogHelper>(() => AuditLogHelper(getIt<AuditLogRepository>()));
 
   // ──────────────────────────────────────

@@ -1122,4 +1122,179 @@ class AppLocalizationsEn extends AppLocalizations {
   String addNStudentsToLevel(String count, String level) {
     return 'Add $count to $level';
   }
+
+  @override
+  String get fromAdminTemplate => 'From Admin Template';
+
+  @override
+  String get fromAdminTemplateDesc =>
+      'Assign a fixed admin curriculum item to your group';
+
+  @override
+  String get adminTemplates => 'Admin Templates';
+
+  @override
+  String get noTemplatesAvailable => 'No templates available.';
+
+  @override
+  String get centralTemplate => 'Central · Template';
+
+  @override
+  String assignTemplateTitle(String title) {
+    return 'Assign \"$title\"';
+  }
+
+  @override
+  String assignmentAssignedToGroup(String title, String group) {
+    return '\"$title\" assigned to $group';
+  }
+
+  @override
+  String assignmentAssignedToGroupLevel(
+    String title,
+    String group,
+    String level,
+  ) {
+    return '\"$title\" assigned to $group ($level)';
+  }
+
+  @override
+  String assignmentAlreadyAssignedGroupLevel(
+    String title,
+    String group,
+    String level,
+  ) {
+    return '\"$title\" is already assigned to $group for $level!';
+  }
+
+  @override
+  String totalCount(String count) {
+    return '$count total';
+  }
+
+  @override
+  String get editGroupName => 'Edit Group Name';
+
+  @override
+  String get groupName => 'Group Name';
+
+  @override
+  String deleteGroupConfirmDesc(String studentCount, String instructorCount) {
+    return 'Are you sure you want to delete this group?\nStudents count: $studentCount\nInstructors count: $instructorCount';
+  }
+
+  @override
+  String get deleteGroupWarning =>
+      'The group can be restored by an admin from the Archive.';
+
+  @override
+  String get editName => 'Edit Name';
+
+  @override
+  String get archive => 'Archive';
+
+  @override
+  String get addAnotherStudentLabel => '+ Add Another Student';
+
+  @override
+  String get requiredFieldError => 'Required';
+
+  @override
+  String get usernameFormatError => 'Lowercase, no spaces';
+
+  @override
+  String get insertImageUrlTooltip => 'Insert Image URL';
+
+  @override
+  String get insertImageTitle => 'Insert Image';
+
+  @override
+  String get insertButton => 'Insert';
+
+  @override
+  String get assign => 'Assign';
+
+  @override
+  String get usernameAlreadyTaken => 'Username already taken';
+
+  @override
+  String failedToCreateStudent(String error) {
+    return 'Failed to create student: $error';
+  }
+
+  @override
+  String get pinCopiedToClipboard => 'PIN copied to clipboard';
+
+  @override
+  String get iHaveSavedPin => 'I have saved the PIN';
+
+  @override
+  String get resetPinConfirm => 'Reset PIN?';
+
+  @override
+  String resetPinConfirmDesc(String name) {
+    return 'Are you sure you want to reset the PIN for $name? This will generate a new 6-digit random PIN.';
+  }
+
+  @override
+  String failedToResetPin(String error) {
+    return 'Failed to reset PIN: $error';
+  }
+
+  @override
+  String failedToDeleteStudent(String name, String error) {
+    return 'Failed to delete $name: $error';
+  }
+
+  @override
+  String groupRenamed(String name) {
+    return 'Group renamed to \"$name\"';
+  }
+
+  @override
+  String failedToRenameGroup(String error) {
+    return 'Failed to rename group: $error';
+  }
+
+  @override
+  String groupMovedToArchive(String name) {
+    return '\"$name\" moved to archive';
+  }
+
+  @override
+  String failedToArchiveGroup(String error) {
+    return 'Failed to archive group: $error';
+  }
+
+  @override
+  String failedToCreateGroup(String error) {
+    return 'Failed to create group: $error';
+  }
+
+  @override
+  String assignMaterialTitle(String title) {
+    return 'Assign Material \"$title\"';
+  }
+
+  @override
+  String get currentAssignments => 'Assigned Groups';
+
+  @override
+  String get noGroupAssignmentsYet => 'Not assigned to any groups yet.';
+
+  @override
+  String get alreadyAssignedToGroupLevel =>
+      'Material is already assigned to this group and level!';
+
+  @override
+  String get levelLowerError =>
+      'Cannot assign material to a lower group level!';
+
+  @override
+  String get materialAssignedSuccess => 'Material assigned successfully!';
+
+  @override
+  String materialLevelLabel(String level) {
+    return 'Material Level: $level';
+  }
 }

@@ -376,5 +376,84 @@
       "count": { "type": "String" },
       "level": { "type": "String" }
     }
-  }
+  },
+  "fromAdminTemplate": "من قالب المشرف",
+  "fromAdminTemplateDesc": "تعيين عنصر منهج ثابت من المشرف لمجموعتك",
+  "adminTemplates": "قوالب المشرف",
+  "noTemplatesAvailable": "لا توجد قوالب متاحة.",
+  "centralTemplate": "مركزي · قالب",
+  "assignTemplateTitle": "تعيين \"{title}\"",
+  "@assignTemplateTitle": {
+    "placeholders": {
+      "title": { "type": "String" }
+    }
+  },
+  "assignmentAssignedToGroup": "تم تعيين \"{title}\" للمجموعة {group}",
+  "@assignmentAssignedToGroup": {
+    "placeholders": {
+      "title": { "type": "String" },
+      "group": { "type": "String" }
+    }
+  },
+  "assignmentAssignedToGroupLevel": "تم تعيين \"{title}\" للمجموعة {group} ({level})",
+  "@assignmentAssignedToGroupLevel": {
+    "placeholders": {
+      "title": { "type": "String" },
+      "group": { "type": "String" },
+      "level": { "type": "String" }
+    }
+  },
+  "assignmentAlreadyAssignedGroupLevel": "\"{title}\" معين بالفعل للمجموعة {group} في {level}!",
+  "@assignmentAlreadyAssignedGroupLevel": {
+    "placeholders": {
+      "title": { "type": "String" },
+      "group": { "type": "String" },
+      "level": { "type": "String" }
+    }
+  },
+  "totalCount": "الإجمالي {count}",
+  "@totalCount": {
+    "placeholders": {
+      "count": { "type": "String" }
+    }
+  },
+  "editGroupName": "تعديل اسم المجموعة",
+  "groupName": "اسم المجموعة",
+  "deleteGroupConfirmDesc": "هل أنت متأكد من حذف هذه المجموعة؟\nعدد الطلاب: {studentCount}\nعدد المحاضرين: {instructorCount}",
+  "@deleteGroupConfirmDesc": {
+    "placeholders": {
+      "studentCount": { "type": "String" },
+      "instructorCount": { "type": "String" }
+    }
+  },
+  "deleteGroupWarning": "يمكن استعادة المجموعة بواسطة المشرف من الأرشيف.",
+  "editName": "تعديل الاسم",
+  "archive": "أرشفة",
+  "addAnotherStudentLabel": "+ إضافة طالب آخر",
+  "requiredFieldError": "مطلوب",
+  "usernameFormatError": "أحرف صغيرة، بدون مسافات",
+  "insertImageUrlTooltip": "إدراج رابط صورة",
+  "insertImageTitle": "إدراج صورة",
+  "insertButton": "إدراج",
+  "assign": "تعيين",
+  "usernameAlreadyTaken": "اسم المستخدم مستخدم بالفعل",
+  "failedToCreateStudent": "فشل إنشاء الطالب: {error}",
+  "pinCopiedToClipboard": "تم نسخ الرمز السري إلى الحافظة",
+  "iHaveSavedPin": "لقد قمت بحفظ الرمز السري",
+  "resetPinConfirm": "إعادة تعيين الرمز السري؟",
+  "resetPinConfirmDesc": "هل أنت متأكد من إعادة تعيين الرمز السري لـ {name}؟ سيؤدي هذا إلى إنشاء رمز سري عشوائي جديد مكون من 6 أرقام.",
+  "failedToResetPin": "فشل إعادة تعيين الرمز السري: {error}",
+  "failedToDeleteStudent": "فشل حذف {name}: {error}",
+  "groupRenamed": "تم تغيير اسم المجموعة إلى \"{name}\"",
+  "failedToRenameGroup": "فشل تغيير اسم المجموعة: {error}",
+  "groupMovedToArchive": "تم نقل \"{name}\" إلى الأرشيف",
+  "failedToArchiveGroup": "فشل أرشفة المجموعة: {error}",
+  "failedToCreateGroup": "فشل إنشاء المجموعة: {error}",
+  "assignMaterialTitle": "تعيين المادة \"{title}\"",
+  "currentAssignments": "المجموعات المعينة",
+  "noGroupAssignmentsYet": "لم يتم التعيين لأي مجموعات بعد.",
+  "alreadyAssignedToGroupLevel": "المادة معينة بالفعل لهذه المجموعة والمستوى!",
+  "levelLowerError": "لا يمكن تعيين المادة لمستوى مجموعة أقل!",
+  "materialAssignedSuccess": "تم تعيين المادة بنجاح!",
+  "materialLevelLabel": "مستوى المادة: {level}"
 }

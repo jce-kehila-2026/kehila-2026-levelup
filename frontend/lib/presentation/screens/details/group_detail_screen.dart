@@ -286,16 +286,16 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
               row.usernameError = null;
 
               if (row.nameCtrl.text.trim().isEmpty) {
-                row.nameError = 'Required';
+                row.nameError = l10n.requiredFieldError;
                 valid = false;
               }
 
               final u = row.usernameCtrl.text.trim();
               if (u.isEmpty) {
-                row.usernameError = 'Required';
+                row.usernameError = l10n.requiredFieldError;
                 valid = false;
               } else if (u.contains(' ') || u != u.toLowerCase()) {
-                row.usernameError = 'Lowercase, no spaces';
+                row.usernameError = l10n.usernameFormatError;
                 valid = false;
               }
             }
@@ -374,7 +374,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                       child: TextButton.icon(
                         onPressed: () => setDialogState(() => rows.add(_CreateStudentRow())),
                         icon: const Icon(Icons.add, size: 15),
-                        label: const Text('+ Add Another Student', style: TextStyle(fontSize: 13)),
+                        label: Text(l10n.addAnotherStudentLabel, style: const TextStyle(fontSize: 13)),
                         style: TextButton.styleFrom(
                           foregroundColor: AppColors.primary,
                           padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
@@ -404,7 +404,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                   for (final row in rows) {
                     final exists = await _controller.usernameExists(row.usernameCtrl.text.trim());
                     if (exists) {
-                      row.usernameError = 'Username already taken';
+                      row.usernameError = l10n.usernameAlreadyTaken;
                       hasDupe = true;
                     }
                   }
@@ -433,7 +433,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                     setDialogState(() => isCreating = false);
                     if (mounted) {
                       ScaffoldMessenger.of(this.context).showSnackBar(SnackBar(
-                        content: Text('Failed to create student: $e'),
+                        content: Text(l10n.failedToCreateStudent(e.toString())),
                         backgroundColor: AppColors.error,
                         behavior: SnackBarBehavior.floating,
                         duration: const Duration(seconds: 6),
@@ -467,6 +467,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
     required VoidCallback onRemove,
     required VoidCallback onChange,
   }) {
+    final l10n = AppLocalizations.of(context)!;
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(12),
@@ -487,7 +488,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                   enabled: enabled,
                   onChanged: (_) => onChange(),
                   decoration: InputDecoration(
-                    labelText: 'Full Name',
+                    labelText: l10n.fullNameLabel,
                     isDense: true,
                     contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
@@ -527,7 +528,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
             enabled: enabled,
             onChanged: (_) => onChange(),
             decoration: InputDecoration(
-              labelText: 'Username',
+              labelText: l10n.usernameHint,
               hintText: 'ali.hassan',
               isDense: true,
               contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -559,7 +560,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'PIN: ${row.pin}',
+                    '${l10n.pinLabel}: ${row.pin}',
                     style: const TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
@@ -591,6 +592,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
   }
 
   void _showCredentialsDialog(List<UserModel> users) {
+    final l10n = AppLocalizations.of(context)!;
     showDialog<void>(
       context: context,
       barrierDismissible: false,
@@ -612,7 +614,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  users.length == 1 ? 'Student Created!' : 'Students Created!',
+                  users.length == 1 ? l10n.studentAdded : l10n.studentsCreatedBulk(users.length.toString()),
                   style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
                 ),
               ),
@@ -646,7 +648,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            'Username: ${u.username}',
+                            '${l10n.loginUsernameLabel}: ${u.username}',
                             style: const TextStyle(fontSize: 12, color: AppColors.mutedForeground),
                           ),
                           const SizedBox(height: 8),
@@ -661,7 +663,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 Text(
-                                  'PIN: ${u.pinCode}',
+                                  '${l10n.pinLabel}: ${u.pinCode}',
                                   style: const TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.bold,
@@ -674,8 +676,8 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                                   onPressed: () {
                                     Clipboard.setData(ClipboardData(text: u.pinCode ?? ''));
                                     ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text('PIN copied to clipboard'),
+                                      SnackBar(
+                                        content: Text(l10n.pinCopiedToClipboard),
                                         behavior: SnackBarBehavior.floating,
                                       ),
                                     );
@@ -704,7 +706,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
-                child: const Text('I have saved the PIN', style: TextStyle(fontWeight: FontWeight.bold)),
+                child: Text(l10n.iHaveSavedPin, style: const TextStyle(fontWeight: FontWeight.bold)),
               ),
             ),
           ],
@@ -714,17 +716,18 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
   }
 
   Future<void> _showResetPinDialog(UserModel student) async {
+    final l10n = AppLocalizations.of(context)!;
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Reset PIN?', style: TextStyle(fontWeight: FontWeight.bold)),
-        content: Text('Are you sure you want to reset the PIN for ${student.name}? This will generate a new 6-digit random PIN.'),
+        title: Text(l10n.resetPinConfirm, style: const TextStyle(fontWeight: FontWeight.bold)),
+        content: Text(l10n.resetPinConfirmDesc(student.name)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel', style: TextStyle(color: AppColors.mutedForeground)),
+            child: Text(l10n.cancelButton, style: const TextStyle(color: AppColors.mutedForeground)),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
@@ -732,7 +735,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
               backgroundColor: AppColors.error,
               foregroundColor: Colors.white,
             ),
-            child: const Text('Reset', style: TextStyle(fontWeight: FontWeight.bold)),
+            child: Text(l10n.resetPin, style: const TextStyle(fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -788,7 +791,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
       Navigator.pop(context); // dismiss loading
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Failed to reset PIN: $e'),
+          content: Text(l10n.failedToResetPin(e.toString())),
           backgroundColor: AppColors.error,
           behavior: SnackBarBehavior.floating,
         ),
@@ -1294,7 +1297,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                 if (mounted) {
                   messenger.showSnackBar(
                     SnackBar(
-                      content: Text('Failed to delete ${student.name}: $e'),
+                      content: Text(l10n.failedToDeleteStudent(student.name, e.toString())),
                       backgroundColor: AppColors.error,
                       behavior: SnackBarBehavior.floating,
                     ),

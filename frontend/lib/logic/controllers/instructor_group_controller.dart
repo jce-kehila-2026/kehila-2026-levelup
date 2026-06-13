@@ -3,6 +3,7 @@
 library;
 
 import 'package:flutter/foundation.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../data/models/group_model.dart';
 import '../../data/models/user_model.dart';
 import '../../data/repositories/group_repository.dart';
@@ -30,8 +31,16 @@ class InstructorGroupController extends ChangeNotifier {
     _error = null;
     notifyListeners();
     try {
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      UserModel? currentUser;
+      if (uid != null) {
+        currentUser = await _userRepository.getStudentById(uid);
+      }
+      final assignedLevels = currentUser?.assignedLevels ?? [];
+
       _groups = await _groupRepository.getGroups();
-      _allStudents = await _userRepository.getStudents();
+      final rawStudents = await _userRepository.getStudents();
+      _allStudents = rawStudents.where((s) => assignedLevels.contains(s.levelId)).toList();
     } catch (e) {
       _error = e.toString();
       debugPrint('InstructorGroupController._init error: $e');
@@ -135,8 +144,16 @@ class InstructorGroupController extends ChangeNotifier {
 
   Future<void> refresh() async {
     try {
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      UserModel? currentUser;
+      if (uid != null) {
+        currentUser = await _userRepository.getStudentById(uid);
+      }
+      final assignedLevels = currentUser?.assignedLevels ?? [];
+
       _groups = await _groupRepository.getGroups();
-      _allStudents = await _userRepository.getStudents();
+      final rawStudents = await _userRepository.getStudents();
+      _allStudents = rawStudents.where((s) => assignedLevels.contains(s.levelId)).toList();
       _error = null;
       notifyListeners();
     } catch (e) {

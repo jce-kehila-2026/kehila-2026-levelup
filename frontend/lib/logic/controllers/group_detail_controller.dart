@@ -4,6 +4,7 @@ library;
 
 import 'dart:math';
 import 'package:flutter/foundation.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../data/models/curriculum_model.dart';
 import '../../data/models/group_model.dart';
 import '../../data/models/user_model.dart';
@@ -24,6 +25,9 @@ class GroupDetailController extends ChangeNotifier {
   List<UserModel> _allStudents = [];
   List<LevelModel> _levels = [];
 
+  UserRole? _currentUserRole;
+  List<String> _currentUserAssignedLevels = [];
+
   bool _isLoading = true;
   bool get isLoading => _isLoading;
 
@@ -38,6 +42,14 @@ class GroupDetailController extends ChangeNotifier {
     _isLoading = true;
     notifyListeners();
     try {
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      UserModel? currentUser;
+      if (uid != null) {
+        currentUser = await _userRepository.getStudentById(uid);
+      }
+      _currentUserRole = currentUser?.role;
+      _currentUserAssignedLevels = currentUser?.assignedLevels ?? [];
+
       final results = await Future.wait([
         _groupRepository.getGroupById(groupId),
         _userRepository.getInstructors(),
@@ -47,8 +59,17 @@ class GroupDetailController extends ChangeNotifier {
       group = (results[0] as GroupModel?) ??
           GroupModel(id: groupId, serialNumber: 0, name: 'Unknown Group', instructorIds: [], students: [], createdAt: DateTime.now());
       _allInstructors = results[1] as List<UserModel>;
-      _allStudents = results[2] as List<UserModel>;
-      _levels = results[3] as List<LevelModel>;
+      
+      final rawStudents = results[2] as List<UserModel>;
+      final rawLevels = results[3] as List<LevelModel>;
+
+      if (_currentUserRole == UserRole.instructor) {
+        _allStudents = rawStudents.where((s) => _currentUserAssignedLevels.contains(s.levelId)).toList();
+        _levels = rawLevels.where((l) => _currentUserAssignedLevels.contains(l.id)).toList();
+      } else {
+        _allStudents = rawStudents;
+        _levels = rawLevels;
+      }
     } catch (e) {
       debugPrint('GroupDetailController._init error: $e');
     } finally {
@@ -91,6 +112,11 @@ class GroupDetailController extends ChangeNotifier {
     for (final entry in group.studentLevels.entries) {
       final studentId = entry.key;
       final levelId = entry.value;
+
+      if (_currentUserRole == UserRole.instructor && !_currentUserAssignedLevels.contains(levelId)) {
+        continue;
+      }
+
       final user = _allStudents.where((s) => s.id == studentId).firstOrNull;
       if (user == null) continue;
 
@@ -121,8 +147,16 @@ class GroupDetailController extends ChangeNotifier {
   }
 
   List<UserModel> get availableStudents {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
     final available = _allStudents.where((s) => !group.studentLevels.containsKey(s.id)).toList();
-    if (_availableStudentsSearch.isEmpty) return available;
+    
+    if (_availableStudentsSearch.isEmpty) {
+      if (_currentUserRole == UserRole.instructor && uid != null) {
+        return available.where((s) => s.createdBy == uid).toList();
+      }
+      return available;
+    }
+    
     final term = _availableStudentsSearch.toLowerCase();
     return available.where((s) =>
       s.name.toLowerCase().contains(term) ||
@@ -166,6 +200,14 @@ class GroupDetailController extends ChangeNotifier {
 
   Future<void> _initQuietly() async {
     try {
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      UserModel? currentUser;
+      if (uid != null) {
+        currentUser = await _userRepository.getStudentById(uid);
+      }
+      _currentUserRole = currentUser?.role;
+      _currentUserAssignedLevels = currentUser?.assignedLevels ?? [];
+
       final results = await Future.wait([
         _groupRepository.getGroupById(groupId),
         _userRepository.getInstructors(),
@@ -175,8 +217,17 @@ class GroupDetailController extends ChangeNotifier {
       group = (results[0] as GroupModel?) ??
           GroupModel(id: groupId, serialNumber: 0, name: 'Unknown Group', instructorIds: [], students: [], createdAt: DateTime.now());
       _allInstructors = results[1] as List<UserModel>;
-      _allStudents = results[2] as List<UserModel>;
-      _levels = results[3] as List<LevelModel>;
+      
+      final rawStudents = results[2] as List<UserModel>;
+      final rawLevels = results[3] as List<LevelModel>;
+
+      if (_currentUserRole == UserRole.instructor) {
+        _allStudents = rawStudents.where((s) => _currentUserAssignedLevels.contains(s.levelId)).toList();
+        _levels = rawLevels.where((l) => _currentUserAssignedLevels.contains(l.id)).toList();
+      } else {
+        _allStudents = rawStudents;
+        _levels = rawLevels;
+      }
       notifyListeners();
     } catch (e) {
       debugPrint('GroupDetailController._initQuietly error: $e');
@@ -207,6 +258,9 @@ class GroupDetailController extends ChangeNotifier {
   }
 
   Future<void> addStudent(String studentId, String levelId) async {
+    if (_currentUserRole == UserRole.instructor && !_currentUserAssignedLevels.contains(levelId)) {
+      throw Exception('Unauthorized: You can only assign students to your assigned levels.');
+    }
     try {
       final student = _allStudents.where((s) => s.id == studentId).firstOrNull;
       await _groupRepository.addStudentToGroup(
@@ -225,6 +279,9 @@ class GroupDetailController extends ChangeNotifier {
   }
 
   Future<void> bulkAddStudents(String levelId) async {
+    if (_currentUserRole == UserRole.instructor && !_currentUserAssignedLevels.contains(levelId)) {
+      throw Exception('Unauthorized: You can only assign students to your assigned levels.');
+    }
     if (_bulkSelectedStudentIds.isEmpty) return;
     final idsToAdd = List<String>.from(_bulkSelectedStudentIds);
     try {
@@ -254,6 +311,9 @@ class GroupDetailController extends ChangeNotifier {
     required String username,
     required String pinCode,
   }) async {
+    if (_currentUserRole == UserRole.instructor && !_currentUserAssignedLevels.contains(levelId)) {
+      throw Exception('Unauthorized: You can only create students for your assigned levels.');
+    }
     try {
       final actualUsername = username.trim();
       final actualPinCode = pinCode.trim();
@@ -300,6 +360,9 @@ class GroupDetailController extends ChangeNotifier {
     final created = <UserModel>[];
     try {
       for (final e in entries) {
+        if (_currentUserRole == UserRole.instructor && !_currentUserAssignedLevels.contains(e.levelId)) {
+          throw Exception('Unauthorized: You can only create students for your assigned levels.');
+        }
         final pinCode = (100000 + Random().nextInt(900000)).toString();
         final u = e.username.toLowerCase().trim();
 
@@ -354,7 +417,12 @@ class GroupDetailController extends ChangeNotifier {
       await _userRepository.deleteStudent(studentId);
       await _groupRepository.removeStudentFromGroup(group.id, studentId);
       group = await _groupRepository.getGroupById(group.id) ?? group;
-      _allStudents = await _userRepository.getStudents();
+      final rawStudents = await _userRepository.getStudents();
+      if (_currentUserRole == UserRole.instructor) {
+        _allStudents = rawStudents.where((s) => _currentUserAssignedLevels.contains(s.levelId)).toList();
+      } else {
+        _allStudents = rawStudents;
+      }
       notifyListeners();
       _audit.log(action: 'Archived student from group', category: 'users', targetPersonName: student?.name, targetStudentNumber: student?.studentNumber, details: group.name);
     } catch (e) {

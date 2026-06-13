@@ -606,5 +606,140 @@
       "count": { "type": "String" },
       "level": { "type": "String" }
     }
+  },
+  "fromAdminTemplate": "From Admin Template",
+  "fromAdminTemplateDesc": "Assign a fixed admin curriculum item to your group",
+  "adminTemplates": "Admin Templates",
+  "noTemplatesAvailable": "No templates available.",
+  "centralTemplate": "Central · Template",
+  "assignTemplateTitle": "Assign \"{title}\"",
+  "@assignTemplateTitle": {
+    "placeholders": {
+      "title": { "type": "String" }
+    }
+  },
+  "assignmentAssignedToGroup": "\"{title}\" assigned to {group}",
+  "@assignmentAssignedToGroup": {
+    "placeholders": {
+      "title": { "type": "String" },
+      "group": { "type": "String" }
+    }
+  },
+  "assignmentAssignedToGroupLevel": "\"{title}\" assigned to {group} ({level})",
+  "@assignmentAssignedToGroupLevel": {
+    "placeholders": {
+      "title": { "type": "String" },
+      "group": { "type": "String" },
+      "level": { "type": "String" }
+    }
+  },
+  "assignmentAlreadyAssignedGroupLevel": "\"{title}\" is already assigned to {group} for {level}!",
+  "@assignmentAlreadyAssignedGroupLevel": {
+    "placeholders": {
+      "title": { "type": "String" },
+      "group": { "type": "String" },
+      "level": { "type": "String" }
+    }
+  },
+  "totalCount": "{count} total",
+  "@totalCount": {
+    "placeholders": {
+      "count": { "type": "String" }
+    }
+  },
+  "editGroupName": "Edit Group Name",
+  "groupName": "Group Name",
+  "deleteGroupConfirmDesc": "Are you sure you want to delete this group?\nStudents count: {studentCount}\nInstructors count: {instructorCount}",
+  "@deleteGroupConfirmDesc": {
+    "placeholders": {
+      "studentCount": { "type": "String" },
+      "instructorCount": { "type": "String" }
+    }
+  },
+  "deleteGroupWarning": "The group can be restored by an admin from the Archive.",
+  "editName": "Edit Name",
+  "archive": "Archive",
+  "addAnotherStudentLabel": "+ Add Another Student",
+  "requiredFieldError": "Required",
+  "usernameFormatError": "Lowercase, no spaces",
+  "insertImageUrlTooltip": "Insert Image URL",
+  "insertImageTitle": "Insert Image",
+  "insertButton": "Insert",
+  "assign": "Assign",
+  "usernameAlreadyTaken": "Username already taken",
+  "failedToCreateStudent": "Failed to create student: {error}",
+  "@failedToCreateStudent": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "pinCopiedToClipboard": "PIN copied to clipboard",
+  "iHaveSavedPin": "I have saved the PIN",
+  "resetPinConfirm": "Reset PIN?",
+  "resetPinConfirmDesc": "Are you sure you want to reset the PIN for {name}? This will generate a new 6-digit random PIN.",
+  "@resetPinConfirmDesc": {
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+  "failedToResetPin": "Failed to reset PIN: {error}",
+  "@failedToResetPin": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "failedToDeleteStudent": "Failed to delete {name}: {error}",
+  "@failedToDeleteStudent": {
+    "placeholders": {
+      "name": { "type": "String" },
+      "error": { "type": "String" }
+    }
+  },
+  "groupRenamed": "Group renamed to \"{name}\"",
+  "@groupRenamed": {
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+  "failedToRenameGroup": "Failed to rename group: {error}",
+  "@failedToRenameGroup": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "groupMovedToArchive": "\"{name}\" moved to archive",
+  "@groupMovedToArchive": {
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+  "failedToArchiveGroup": "Failed to archive group: {error}",
+  "@failedToArchiveGroup": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "failedToCreateGroup": "Failed to create group: {error}",
+  "@failedToCreateGroup": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "assignMaterialTitle": "Assign Material \"{title}\"",
+  "@assignMaterialTitle": {
+    "placeholders": {
+      "title": { "type": "String" }
+    }
+  },
+  "currentAssignments": "Assigned Groups",
+  "noGroupAssignmentsYet": "Not assigned to any groups yet.",
+  "alreadyAssignedToGroupLevel": "Material is already assigned to this group and level!",
+  "levelLowerError": "Cannot assign material to a lower group level!",
+  "materialAssignedSuccess": "Material assigned successfully!",
+  "materialLevelLabel": "Material Level: {level}",
+  "@materialLevelLabel": {
+    "placeholders": {
+      "level": { "type": "String" }
+    }
   }
 }

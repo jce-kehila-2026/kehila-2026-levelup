@@ -144,9 +144,21 @@ class _CurriculumScreenState extends State<CurriculumScreen> {
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: AppColors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
-            onPressed: () {
-              _controller.editLevel(level.id, nameCtrl.text.trim());
-              Navigator.pop(ctx);
+            onPressed: () async {
+              try {
+                await _controller.editLevel(level.id, nameCtrl.text.trim());
+                if (ctx.mounted) Navigator.pop(ctx);
+              } catch (e) {
+                if (ctx.mounted) {
+                  ScaffoldMessenger.of(ctx).showSnackBar(
+                    SnackBar(
+                      content: Text(e.toString().replaceAll('Exception: ', '')),
+                      backgroundColor: AppColors.error,
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                }
+              }
             },
             child: Text(AppLocalizations.of(context)!.save, style: const TextStyle(fontWeight: FontWeight.bold)),
           ),
@@ -188,11 +200,23 @@ class _CurriculumScreenState extends State<CurriculumScreen> {
               foregroundColor: AppColors.white,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
-            onPressed: () {
+            onPressed: () async {
               final name = nameCtrl.text.trim();
               if (name.isEmpty) return;
-              _controller.addLevel(name);
-              Navigator.pop(ctx);
+              try {
+                await _controller.addLevel(name);
+                if (ctx.mounted) Navigator.pop(ctx);
+              } catch (e) {
+                if (ctx.mounted) {
+                  ScaffoldMessenger.of(ctx).showSnackBar(
+                    SnackBar(
+                      content: Text(e.toString().replaceAll('Exception: ', '')),
+                      backgroundColor: AppColors.error,
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                }
+              }
             },
             child: Text(AppLocalizations.of(ctx)!.add,
                 style: const TextStyle(fontWeight: FontWeight.bold)),

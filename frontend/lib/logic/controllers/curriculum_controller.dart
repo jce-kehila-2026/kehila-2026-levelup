@@ -94,6 +94,7 @@ class CurriculumController extends ChangeNotifier {
           if (matchTitle || matchTag) {
             results.add(CurriculumSearchResult(
               item: item,
+              levelId: level.id,
               levelName: level.name,
               weekName: week.name,
             ));
@@ -252,7 +253,7 @@ class CurriculumController extends ChangeNotifier {
     try {
       final id = 'ca_${DateTime.now().millisecondsSinceEpoch}';
       await _repository.addAssignment(levelId, weekId, title, content: content, id: id);
-      await _assignmentRepository.addCentralAssignment(id, title, content: content);
+      await _assignmentRepository.addCentralAssignment(id, title, content: content, levelId: levelId);
       _levels = await _repository.getLevels();
       notifyListeners();
       final levelName = _levels.where((l) => l.id == levelId).firstOrNull?.name ?? levelId;
