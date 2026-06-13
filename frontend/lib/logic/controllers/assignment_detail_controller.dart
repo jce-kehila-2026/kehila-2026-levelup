@@ -11,6 +11,7 @@ import '../controllers/auth_controller.dart';
 import '../../di/service_locator.dart';
 import '../../data/models/notification_model.dart';
 import '../../data/repositories/notification_repository.dart';
+import '../helpers/audit_log_helper.dart';
 
 class AssignmentDetailController extends ChangeNotifier {
   final String assignmentId;
@@ -19,6 +20,7 @@ class AssignmentDetailController extends ChangeNotifier {
   final SubmissionRepository _submissionRepository;
   final UserRepository _userRepository;
   final CurriculumRepository _curriculumRepository;
+  final AuditLogHelper _audit;
   
   late AssignmentModel assignment;
   List<SubmissionModel> _submissions = [];
@@ -35,7 +37,9 @@ class AssignmentDetailController extends ChangeNotifier {
     this._submissionRepository,
     this._userRepository,
     this._curriculumRepository,
+    this._audit,
   ) {
+    _audit.resolveIdentity();
     _init();
   }
 
@@ -120,23 +124,35 @@ class AssignmentDetailController extends ChangeNotifier {
     _submissions = await _submissionRepository.getSubmissionsByAssignment(assignmentId);
     notifyListeners();
 
+    // Find the student name for the log
+    final sub = _submissions.where((s) => s.id == submissionId).firstOrNull;
+    final studentN = sub != null ? studentName(sub.studentId) : null;
+    final student = sub != null ? _students.where((s) => s.id == sub.studentId).firstOrNull : null;
+    _audit.log(
+      action: 'Graded submission',
+      category: 'grading',
+      targetPersonName: studentN,
+      targetStudentNumber: student?.studentNumber,
+      details: '"${assignment.title}" — ${status.name}',
+    );
+
     try {
-      final submission = _submissions.firstWhere((s) => s.id == submissionId, orElse: () => throw Exception('Submission not found'));
-      final studentId = submission.studentId;
+      if (sub != null) {
+        final studentId = sub.studentId;
+        final localizedStatus = status == GradeStatus.correct ? 'Correct' : 'Incorrect';
+        
+        final notif = AppNotification(
+          id: '',
+          title: 'Assignment Graded',
+          body: 'Your answer for "${assignment.title}" was graded: $localizedStatus.',
+          type: 'grade',
+          relatedId: assignmentId,
+          createdAt: DateTime.now(),
+          recipientUid: studentId,
+        );
 
-      final localizedStatus = status == GradeStatus.correct ? 'Correct' : 'Incorrect';
-      
-      final notif = AppNotification(
-        id: '',
-        title: 'Assignment Graded',
-        body: 'Your answer for "${assignment.title}" was graded: $localizedStatus.',
-        type: 'grade',
-        relatedId: assignmentId,
-        createdAt: DateTime.now(),
-        recipientUid: studentId,
-      );
-
-      await getIt<NotificationRepository>().addNotification(notif);
+        await getIt<NotificationRepository>().addNotification(notif);
+      }
     } catch (e) {
       debugPrint('AssignmentDetailController.gradeSubmission notification error: $e');
     }

@@ -80,10 +80,27 @@ service cloud.firestore {
     }
 
     // ── audit_logs ─────────────────────────────────────────────────────────
+    //
+    // READ:
+    //   Admin  → full access to all logs (the Logs screen).
+    //   Instructor → only their own logs (performedBy == their UID).
+    //   Students → no access.
+    //
+    // CREATE:
+    //   Any signed-in staff member may write a log, BUT the 'performedBy'
+    //   field MUST equal the caller's UID — no one can forge another person's
+    //   log entry.
+    //
+    // UPDATE / DELETE:
+    //   Permanently blocked — logs are append-only and immutable.
 
     match /audit_logs/{logId} {
-      allow read:           if isStaff();
-      allow create:         if isStaff();
+      allow read: if isAdmin() ||
+                    (isInstructor() && resource.data.performedBy == request.auth.uid);
+
+      allow create: if isStaff() &&
+                      request.resource.data.performedBy == request.auth.uid;
+
       allow update, delete: if false;
     }
 

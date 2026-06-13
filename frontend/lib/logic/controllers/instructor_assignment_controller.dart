@@ -6,16 +6,19 @@ import '../../data/repositories/assignment_repository.dart';
 import '../../di/service_locator.dart';
 import '../../data/models/notification_model.dart';
 import '../../data/repositories/notification_repository.dart';
+import '../helpers/audit_log_helper.dart';
 
 class InstructorAssignmentController extends ChangeNotifier {
   final AssignmentRepository _repository;
+  final AuditLogHelper _audit;
 
   bool _isLoading = false;
   bool get isLoading => _isLoading;
 
   List<AssignmentModel> _allAssignments = [];
 
-  InstructorAssignmentController(this._repository) {
+  InstructorAssignmentController(this._repository, this._audit) {
+    _audit.resolveIdentity();
     _init();
   }
 
@@ -149,6 +152,13 @@ class InstructorAssignmentController extends ChangeNotifier {
         groupId: groupId,
         levelId: levelId,
       );
+
+      // Audit Log
+      _audit.log(
+        action: type == 'central' ? 'Assigned central template' : 'Created custom assignment',
+        category: 'assignments',
+        details: '"$title" | Group: ${groupName ?? '-'} | Level: ${levelId ?? '-'}',
+      );
     } catch (e) {
       debugPrint('InstructorAssignmentController.addAssignment error/notify: $e');
     } finally {
@@ -158,12 +168,14 @@ class InstructorAssignmentController extends ChangeNotifier {
   }
 
   Future<void> deleteAssignment(String id) async {
+    final assignment = _allAssignments.where((a) => a.id == id).firstOrNull;
     _isLoading = true;
     notifyListeners();
     await _repository.deleteAssignment(id);
     _allAssignments = await _repository.getInstructorAssignments();
     _isLoading = false;
     notifyListeners();
+    _audit.log(action: 'Deleted assignment', category: 'assignments', details: '"${assignment?.title ?? id}"');
   }
 
   Future<void> updateDeadline(String id, DateTime newDeadline) async {
@@ -180,6 +192,13 @@ class InstructorAssignmentController extends ChangeNotifier {
         relatedId: id,
         groupId: assignment.groupId,
         levelId: assignment.levelId,
+      );
+
+      // Audit Log
+      _audit.log(
+        action: 'Updated assignment deadline',
+        category: 'assignments',
+        details: '"${assignment.title}" → ${newDeadline.toLocal().toString().split('.').first}',
       );
     } catch (e) {
       debugPrint('InstructorAssignmentController.updateDeadline notification error: $e');
@@ -208,8 +227,15 @@ class InstructorAssignmentController extends ChangeNotifier {
         groupId: groupId ?? assignment.groupId,
         levelId: levelId ?? assignment.levelId,
       );
+
+      // Audit Log
+      _audit.log(
+        action: 'Updated assignment content',
+        category: 'assignments',
+        details: '"$title"',
+      );
     } catch (e) {
-      debugPrint('InstructorAssignmentController.updateContent notification error: $e');
+      debugPrint('InstructorAssignmentController.updateContent notification/audit error: $e');
     } finally {
       _allAssignments = await _repository.getInstructorAssignments();
       _isLoading = false;

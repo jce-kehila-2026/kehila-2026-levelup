@@ -11,16 +11,19 @@ import '../../data/repositories/user_repository.dart';
 import '../../di/service_locator.dart';
 import '../../data/models/notification_model.dart';
 import '../../data/repositories/notification_repository.dart';
+import '../helpers/audit_log_helper.dart';
 
 class CurriculumController extends ChangeNotifier {
   final CurriculumRepository _repository;
   final AssignmentRepository _assignmentRepository;
   final UserRepository _userRepository;
+  final AuditLogHelper _audit;
 
   bool _isLoading = false;
   bool get isLoading => _isLoading;
 
-  CurriculumController(this._repository, this._assignmentRepository, this._userRepository) {
+  CurriculumController(this._repository, this._assignmentRepository, this._userRepository, this._audit) {
+    _audit.resolveIdentity();
     _init();
   }
 
@@ -133,23 +136,17 @@ class CurriculumController extends ChangeNotifier {
     if (newName.isEmpty) return;
     final oldName = _levels.firstWhere((l) => l.id == levelId).name;
     for (final level in _levels) {
-      if (level.id == levelId) {
-        level.name = newName;
-        break;
-      }
+      if (level.id == levelId) { level.name = newName; break; }
     }
     notifyListeners();
-
     try {
       await _repository.editLevel(levelId, newName);
       _levels = await _repository.getLevels();
       notifyListeners();
+      _audit.log(action: 'Renamed curriculum level', category: 'curriculum', details: '"$oldName" → "$newName"');
     } catch (e) {
       for (final level in _levels) {
-        if (level.id == levelId) {
-          level.name = oldName;
-          break;
-        }
+        if (level.id == levelId) { level.name = oldName; break; }
       }
       notifyListeners();
       rethrow;
@@ -162,6 +159,7 @@ class CurriculumController extends ChangeNotifier {
       await _repository.addLevel(name);
       _levels = await _repository.getLevels();
       notifyListeners();
+      _audit.log(action: 'Created curriculum level', category: 'curriculum', details: name);
     } catch (e) {
       rethrow;
     }
@@ -172,11 +170,11 @@ class CurriculumController extends ChangeNotifier {
     if (idx == -1) return;
     final removed = _levels.removeAt(idx);
     notifyListeners();
-
     try {
       await _repository.deleteLevel(levelId);
       _levels = await _repository.getLevels();
       notifyListeners();
+      _audit.log(action: 'Deleted curriculum level', category: 'curriculum', details: removed.name);
     } catch (e) {
       _levels.insert(idx, removed);
       _levels.sort((a, b) => a.name.compareTo(b.name));
@@ -191,6 +189,8 @@ class CurriculumController extends ChangeNotifier {
       await _repository.addWeek(levelId, name);
       _levels = await _repository.getLevels();
       notifyListeners();
+      final levelName = _levels.where((l) => l.id == levelId).firstOrNull?.name ?? levelId;
+      _audit.log(action: 'Added week to level', category: 'curriculum', details: '$name in $levelName');
     } catch (e) {
       rethrow;
     }
@@ -202,10 +202,12 @@ class CurriculumController extends ChangeNotifier {
       await _repository.addMaterial(levelId, weekId, title, content: content);
       _levels = await _repository.getLevels();
       notifyListeners();
-
       // Trigger notifications for students assigned to this level
       final level = _levels.firstWhere((l) => l.id == levelId, orElse: () => LevelModel(id: levelId, name: 'Level'));
       final levelName = level.name;
+
+      // Write Audit Log
+      _audit.log(action: 'Added material', category: 'curriculum', details: '"$title" in $levelName');
 
       final snap = await FirebaseFirestore.instance
           .collection('users')
@@ -253,6 +255,8 @@ class CurriculumController extends ChangeNotifier {
       await _assignmentRepository.addCentralAssignment(id, title, content: content);
       _levels = await _repository.getLevels();
       notifyListeners();
+      final levelName = _levels.where((l) => l.id == levelId).firstOrNull?.name ?? levelId;
+      _audit.log(action: 'Added curriculum assignment', category: 'curriculum', details: '"$title" in $levelName');
     } catch (e) {
       rethrow;
     }
@@ -303,6 +307,7 @@ class CurriculumController extends ChangeNotifier {
       await _repository.updateItem(levelId, weekId, itemId, title, content);
       _levels = await _repository.getLevels();
       notifyListeners();
+      _audit.log(action: 'Updated curriculum item', category: 'curriculum', details: '"$title"');
     } catch (e) {
       rethrow;
     }

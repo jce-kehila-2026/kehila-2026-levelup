@@ -15,6 +15,9 @@ import '../data/repositories/notification_repository.dart';
 import '../data/repositories/student_profile_repository.dart';
 import '../data/repositories/submission_repository.dart';
 
+// Helpers
+import '../logic/helpers/audit_log_helper.dart';
+
 // Controllers — Auth
 import '../logic/controllers/auth_controller.dart';
 
@@ -58,6 +61,7 @@ void setupServiceLocator() {
   getIt.registerLazySingleton<NotificationRepository>(() => NotificationRepository());
   getIt.registerLazySingleton<StudentProfileRepository>(() => StudentProfileRepository());
   getIt.registerLazySingleton<SubmissionRepository>(() => SubmissionRepository());
+  getIt.registerLazySingleton<AuditLogHelper>(() => AuditLogHelper(getIt<AuditLogRepository>()));
 
   // ──────────────────────────────────────
   // Logic Tier — Controllers: Auth
@@ -78,13 +82,13 @@ void setupServiceLocator() {
     ),
   );
   getIt.registerLazySingleton<CurriculumController>(
-    () => CurriculumController(getIt<CurriculumRepository>(), getIt<AssignmentRepository>(), getIt<UserRepository>()),
+    () => CurriculumController(getIt<CurriculumRepository>(), getIt<AssignmentRepository>(), getIt<UserRepository>(), getIt<AuditLogHelper>()),
   );
   getIt.registerLazySingleton<UserController>(
-    () => UserController(getIt<UserRepository>(), getIt<GroupRepository>(), getIt<CurriculumRepository>()),
+    () => UserController(getIt<UserRepository>(), getIt<GroupRepository>(), getIt<CurriculumRepository>(), getIt<AuditLogHelper>()),
   );
   getIt.registerLazySingleton<GroupController>(
-    () => GroupController(getIt<GroupRepository>()),
+    () => GroupController(getIt<GroupRepository>(), getIt<AuditLogHelper>()),
   );
   getIt.registerLazySingleton<AuditLogController>(
     () => AuditLogController(getIt<AuditLogRepository>()),
@@ -97,7 +101,7 @@ void setupServiceLocator() {
     () => InstructorDashboardController(getIt<AssignmentRepository>(), getIt<GroupRepository>(), getIt<UserRepository>()),
   );
   getIt.registerLazySingleton<InstructorAssignmentController>(
-    () => InstructorAssignmentController(getIt<AssignmentRepository>()),
+    () => InstructorAssignmentController(getIt<AssignmentRepository>(), getIt<AuditLogHelper>()),
   );
   getIt.registerLazySingleton<InstructorGroupController>(
     () => InstructorGroupController(getIt<GroupRepository>(), getIt<UserRepository>()),
@@ -133,10 +137,11 @@ void setupServiceLocator() {
       getIt<SubmissionRepository>(),
       getIt<UserRepository>(),
       getIt<CurriculumRepository>(),
+      getIt<AuditLogHelper>(),
     ),
   );
   getIt.registerFactoryParam<GroupDetailController, String, void>(
-    (id, _) => GroupDetailController(id, getIt<GroupRepository>(), getIt<UserRepository>(), getIt<CurriculumRepository>()),
+    (id, _) => GroupDetailController(id, getIt<GroupRepository>(), getIt<UserRepository>(), getIt<CurriculumRepository>(), getIt<AuditLogHelper>()),
   );
   getIt.registerFactoryParam<LessonDetailController, String, void>(
     (id, _) => LessonDetailController(id, getIt<CurriculumRepository>()),
