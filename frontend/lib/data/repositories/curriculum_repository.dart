@@ -15,44 +15,35 @@ class CurriculumRepository {
 
   // ── Reads ──────────────────────────────────────────────────────────────────
 
-  /// Returns all levels from Firestore sorted by document ID (l1 < l2 < l3).
+  int _compareLevels(LevelModel a, LevelModel b) {
+    final reg = RegExp(r'\d+');
+    final matchA = reg.firstMatch(a.name);
+    final matchB = reg.firstMatch(b.name);
+    if (matchA != null && matchB != null) {
+      final numA = int.parse(matchA.group(0)!);
+      final numB = int.parse(matchB.group(0)!);
+      if (numA != numB) {
+        return numA.compareTo(numB);
+      }
+    }
+    return a.name.toLowerCase().compareTo(b.name.toLowerCase());
+  }
+
+  /// Returns all levels from Firestore sorted by name (natural numeric order).
   /// Weeks within each level are sorted by name; items within each week by title.
-  /// Seeds 3 default levels if the collection is empty.
   Future<List<LevelModel>> getLevels() async {
     if (_cache.isNotEmpty) return List<LevelModel>.from(_cache);
 
     var snap = await _db.collection('curriculum').get();
-    if (snap.docs.isEmpty) {
-      await initializeIfEmpty();
-      snap = await _db.collection('curriculum').get();
-    }
     _cache = snap.docs
         .map((doc) => _applySorting(LevelModel.fromMap(doc.data(), doc.id)))
         .toList()
-      ..sort((a, b) => a.name.compareTo(b.name));
+      ..sort(_compareLevels);
     return List<LevelModel>.from(_cache);
   }
 
-  /// Creates l1/l2/l3 default levels if the curriculum collection is empty.
-  /// Safe to call repeatedly — it only runs when the collection has no docs.
-  Future<void> initializeIfEmpty() async {
-    final snap = await _db.collection('curriculum').get();
-    if (snap.docs.isNotEmpty) return;
-
-    final batch = _db.batch();
-    final defaults = [
-      ('l1', 'Level 1'),
-      ('l2', 'Level 2'),
-      ('l3', 'Level 3'),
-    ];
-    for (final (id, name) in defaults) {
-      batch.set(_db.collection('curriculum').doc(id), {
-        'name': name,
-        'weeks': <dynamic>[],
-      });
-    }
-    await batch.commit();
-  }
+  /// Deprecated default initializer. No longer used as curriculum starts empty.
+  Future<void> initializeIfEmpty() async {}
 
   /// Finds a single [CurriculumItem] by its [id] across all levels.
   Future<CurriculumItem?> getLessonById(String id) async {
@@ -70,15 +61,32 @@ class CurriculumRepository {
   // ── Level Operations ────────────────────────────────────────────────────────
 
   Future<void> editLevel(String levelId, String newName) async {
-    await _db.collection('curriculum').doc(levelId).update({'name': newName});
+    final trimmedName = newName.trim();
+    if (trimmedName.isEmpty) return;
+    final snap = await _db.collection('curriculum').get();
+    for (final doc in snap.docs) {
+      if (doc.id == levelId) continue;
+      final existingName = (doc.data()['name'] as String?)?.trim();
+      if (existingName != null && existingName.toLowerCase() == trimmedName.toLowerCase()) {
+        throw Exception('Level "$trimmedName" already exists.');
+      }
+    }
+    await _db.collection('curriculum').doc(levelId).update({'name': trimmedName});
     _cache = [];
   }
 
-  /// Creates a new level document with a sequential ID (e.g. l4, l5...)
+  /// Creates a new level document with a sequential ID (e.g. l1, l2...)
   Future<void> addLevel(String name) async {
+    final trimmedName = name.trim();
+    if (trimmedName.isEmpty) return;
     final snap = await _db.collection('curriculum').get();
-    int maxSeq = 3; // defaults to 3 as l1, l2, l3 are standard
+    int maxSeq = 0;
     for (final doc in snap.docs) {
+      final existingName = (doc.data()['name'] as String?)?.trim();
+      if (existingName != null && existingName.toLowerCase() == trimmedName.toLowerCase()) {
+        throw Exception('Level "$trimmedName" already exists.');
+      }
+      
       final id = doc.id;
       if (id.startsWith('l')) {
         final numPart = id.substring(1);
@@ -91,7 +99,7 @@ class CurriculumRepository {
     final id = 'l${maxSeq + 1}';
 
     await _db.collection('curriculum').doc(id).set({
-      'name': name,
+      'name': trimmedName,
       'weeks': <dynamic>[],
     });
     _cache = []; // invalidate cache so next getLevels() fetches fresh data

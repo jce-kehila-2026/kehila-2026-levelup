@@ -252,7 +252,10 @@ class _LoginScreenState extends State<LoginScreen> {
                           const SizedBox(height: 8),
                           TextField(
                             controller: _pinController,
-                            decoration: InputDecoration(hintText: l10n.pinHint),
+                            decoration: InputDecoration(
+                              hintText: l10n.pinHint,
+                              counterText: '',
+                            ),
                             keyboardType: TextInputType.number,
                             maxLength: 6,
                             obscureText: true,

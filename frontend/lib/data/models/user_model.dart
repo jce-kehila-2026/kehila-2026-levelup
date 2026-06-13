@@ -24,6 +24,7 @@ class UserModel {
   final bool isArchived;
   final DateTime? createdAt;
   final String? groupId;
+  final String? createdBy;
 
   UserModel({
     required this.id,
@@ -45,6 +46,7 @@ class UserModel {
     this.isArchived = false,
     this.createdAt,
     this.groupId,
+    this.createdBy,
   }) : _userNumberStr = userNumberStr ?? userNumber?.toString() ?? '0',
        displayName = displayName ?? name ?? '';
 
@@ -91,6 +93,7 @@ class UserModel {
       isArchived: map['isArchived'] as bool? ?? false,
       createdAt: _parseTimestamp(map['createdAt']),
       groupId: map['groupId'] as String?,
+      createdBy: map['createdBy'] as String?,
     );
   }
 
@@ -112,6 +115,7 @@ class UserModel {
       'isArchived': isArchived,
       'createdAt': createdAt?.toIso8601String(),
       'groupId': groupId,
+      'createdBy': createdBy,
     };
   }
 }

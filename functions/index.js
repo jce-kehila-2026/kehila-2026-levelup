@@ -85,6 +85,7 @@ exports.createUser = onCall({
     userDoc.pinCode = data.pinCode;
     userDoc.levelId = data.levelId || null;
     userDoc.studentNumber = data.studentNumber || null;
+    userDoc.createdBy = callerUid;
   } else {
     userDoc.email = email;
     userDoc.phoneNumber = data.phoneNumber || null;

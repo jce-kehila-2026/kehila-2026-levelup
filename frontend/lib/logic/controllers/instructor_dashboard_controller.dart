@@ -25,14 +25,21 @@ class InstructorDashboardController extends ChangeNotifier {
   int _myGroupsCount = 0;
   int _studentsCount = 0;
   String _instructorName = '';
+  List<String> _assignedLevels = [];
 
   List<GroupModel> _myGroups = [];
   List<UserModel> _allStudents = [];
+  List<UserModel> _rawStudents = [];
 
   StreamSubscription<DocumentSnapshot>? _userSub;
   StreamSubscription<QuerySnapshot>? _groupsSub;
   StreamSubscription<QuerySnapshot>? _usersSub;
   StreamSubscription<QuerySnapshot>? _assignmentsSub;
+
+  void _filterStudentsAndRecalc() {
+    _allStudents = _rawStudents.where((s) => _assignedLevels.contains(s.levelId)).toList();
+    _recalcStudentsCount();
+  }
 
   InstructorDashboardController(this._assignmentRepo, this._groupRepository, this._userRepository) {
     _init();
@@ -62,17 +69,18 @@ class InstructorDashboardController extends ChangeNotifier {
     ]);
     _activeAssignments = results[0] as List<AssignmentModel>;
     if (uid != null) {
-      // Fetch user document for instructor name
+      // Fetch user document for instructor name and assigned levels
       final userDoc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
       if (userDoc.exists) {
         _instructorName = (userDoc.data()?['name'] as String?) ?? '';
+        _assignedLevels = List<String>.from(userDoc.data()?['assignedLevels'] ?? []);
       }
 
       final allGroups = results[1] as List<GroupModel>;
       _myGroups = allGroups.where((g) => g.instructorIds.contains(uid)).toList();
       _myGroupsCount = _myGroups.length;
-      _allStudents = results[2] as List<UserModel>;
-      _recalcStudentsCount();
+      _rawStudents = results[2] as List<UserModel>;
+      _filterStudentsAndRecalc();
     }
   }
 
@@ -100,6 +108,8 @@ class InstructorDashboardController extends ChangeNotifier {
         .listen((snap) {
       if (snap.exists) {
         _instructorName = (snap.data()?['name'] as String?) ?? '';
+        _assignedLevels = List<String>.from(snap.data()?['assignedLevels'] ?? []);
+        _filterStudentsAndRecalc();
         notifyListeners();
       }
     });
@@ -126,11 +136,11 @@ class InstructorDashboardController extends ChangeNotifier {
         .where('role', isEqualTo: 'student')
         .snapshots()
         .listen((snap) {
-      _allStudents = snap.docs
+      _rawStudents = snap.docs
           .map((d) => UserModel.fromMap(d.data(), d.id))
           .where((s) => s.isArchived == false)
           .toList();
-      _recalcStudentsCount();
+      _filterStudentsAndRecalc();
       notifyListeners();
     });
 

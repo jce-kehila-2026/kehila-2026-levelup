@@ -20,11 +20,12 @@ class StudentDashboardController extends ChangeNotifier {
   List<CurriculumItem> _allLessons = [];
 
   StreamSubscription<DocumentSnapshot>? _userDocSub;
-  StreamSubscription<DocumentSnapshot>? _curriculumSub;
+  StreamSubscription<dynamic>? _curriculumSub;
   StreamSubscription<DocumentSnapshot>? _groupSub;
 
-  String? _subscribedLevelId;
   String? _subscribedGroupId;
+  String? _subscribedAssignedMaterialsGroupId;
+  String? _subscribedAssignedMaterialsLevelId;
 
   StudentDashboardController() {
     _load();
@@ -106,13 +107,14 @@ class StudentDashboardController extends ChangeNotifier {
         final levelDoc =
             await db.collection('curriculum').doc(levelId).get();
         if (levelDoc.exists) {
-          final data = levelDoc.data()!;
-          _levelLabel = data['name'] as String? ?? levelId;
-          _allLessons = _parseLessons(data);
+          _levelLabel = levelDoc.data()?['name'] as String? ?? levelId;
         } else {
           _levelLabel = levelId;
         }
-        _subscribeToCurriculum(levelId);
+      }
+
+      if (groupId != null && groupId.isNotEmpty && levelId != null && levelId.isNotEmpty) {
+        _subscribeToAssignedMaterials(groupId, levelId);
       }
     } catch (e) {
       debugPrint('StudentDashboardController._fetchAll error: $e');
@@ -153,41 +155,33 @@ class StudentDashboardController extends ChangeNotifier {
     });
   }
 
-  void _subscribeToCurriculum(String levelId) {
-    if (_subscribedLevelId == levelId) return;
-    _subscribedLevelId = levelId;
+  void _subscribeToAssignedMaterials(String groupId, String levelId) {
+    if (_subscribedAssignedMaterialsGroupId == groupId && _subscribedAssignedMaterialsLevelId == levelId) return;
+    _subscribedAssignedMaterialsGroupId = groupId;
+    _subscribedAssignedMaterialsLevelId = levelId;
     _curriculumSub?.cancel();
     _curriculumSub = FirebaseFirestore.instance
-        .collection('curriculum')
-        .doc(levelId)
+        .collection('assigned_materials')
+        .where('groupId', isEqualTo: groupId)
+        .where('levelId', isEqualTo: levelId)
         .snapshots()
-        .skip(1) // skip duplicate of the initial get() above
         .listen((snap) {
-      if (!snap.exists || snap.data() == null) return;
-      final data = snap.data()!;
-      _levelLabel = data['name'] as String? ?? levelId;
-      _allLessons = _parseLessons(data);
+      _allLessons = snap.docs.map((doc) {
+        final data = doc.data();
+        return CurriculumItem(
+          id: data['materialId'] as String,
+          type: CurriculumItemType.material,
+          title: data['materialTitle'] as String? ?? 'Lesson',
+          searchTags: const [],
+          visible: true,
+        );
+      }).toList();
       notifyListeners();
     });
   }
 
   // ── Helpers ────────────────────────────────────────────────────────────────
 
-  List<CurriculumItem> _parseLessons(Map<String, dynamic> levelData) {
-    final rawWeeks = levelData['weeks'] as List<dynamic>? ?? [];
-    final items = <CurriculumItem>[];
-    for (final rawWeek in rawWeeks) {
-      final weekMap = rawWeek as Map<String, dynamic>;
-      final rawItems = weekMap['items'] as List<dynamic>? ?? [];
-      for (final rawItem in rawItems) {
-        final item = CurriculumItem.fromMap(rawItem as Map<String, dynamic>);
-        if (item.visible && item.type == CurriculumItemType.material) {
-          items.add(item);
-        }
-      }
-    }
-    return items;
-  }
 
   // ── Dispose ────────────────────────────────────────────────────────────────
 

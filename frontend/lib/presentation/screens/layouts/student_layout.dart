@@ -3,6 +3,9 @@ import 'package:frontend/l10n/app_localizations.dart';
 import 'package:go_router/go_router.dart';
 import '../../../theme/app_theme.dart';
 import '../../widgets/locale_toggle_button.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import '../../../di/service_locator.dart';
+import '../../../logic/controllers/auth_controller.dart';
 
 import '../student/student_dashboard.dart';
 import '../student/assignments_screen.dart';
@@ -30,6 +33,26 @@ class _StudentLayoutState extends State<StudentLayout> {
     const StudentProfileScreen(),
   ];
 
+  Widget _buildLogoutButton(BuildContext context) {
+    return Container(
+      width: 38,
+      height: 38,
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: IconButton(
+        icon: const Icon(Icons.logout, size: 15, color: AppColors.mutedForeground),
+        onPressed: () async {
+          getIt<AuthController>().reset();
+          await FirebaseAuth.instance.signOut();
+          if (context.mounted) context.go('/login');
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final tabParam = GoRouterState.of(context).uri.queryParameters['tab'];
@@ -50,6 +73,8 @@ class _StudentLayoutState extends State<StudentLayout> {
         ),
         actions: [
           const LocaleToggleButton(),
+          const SizedBox(width: 10),
+          _buildLogoutButton(context),
           const SizedBox(width: 8),
         ],
       ),

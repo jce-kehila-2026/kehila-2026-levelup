@@ -178,8 +178,9 @@ class _InstructorAssignmentEditorScreenState extends State<InstructorAssignmentE
   }
 
   Widget _buildInsertImageButton() {
+    final l10n = AppLocalizations.of(context)!;
     return IconButton(
-      tooltip: 'Insert Image URL',
+      tooltip: l10n.insertImageUrlTooltip,
       icon: const Icon(Icons.image_outlined, size: 20, color: AppColors.primary),
       onPressed: () async {
         final urlCtrl = TextEditingController();
@@ -187,7 +188,7 @@ class _InstructorAssignmentEditorScreenState extends State<InstructorAssignmentE
           context: context,
           builder: (ctx) => AlertDialog(
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            title: const Text('Insert Image', style: TextStyle(fontWeight: FontWeight.bold)),
+            title: Text(l10n.insertImageTitle, style: const TextStyle(fontWeight: FontWeight.bold)),
             content: TextField(
               controller: urlCtrl,
               autofocus: true,
@@ -198,11 +199,11 @@ class _InstructorAssignmentEditorScreenState extends State<InstructorAssignmentE
               ),
             ),
             actions: [
-              TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+              TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(l10n.cancelButton)),
               ElevatedButton(
                 style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: AppColors.white),
                 onPressed: () => Navigator.pop(ctx, true),
-                child: const Text('Insert'),
+                child: Text(l10n.insertButton),
               ),
             ],
           ),

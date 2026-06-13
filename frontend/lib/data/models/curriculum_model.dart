@@ -132,11 +132,13 @@ class LevelModel {
 /// Wraps a CurriculumItem with its parent Level and Week names for search results.
 class CurriculumSearchResult {
   final CurriculumItem item;
+  final String levelId;
   final String levelName;
   final String weekName;
 
   const CurriculumSearchResult({
     required this.item,
+    required this.levelId,
     required this.levelName,
     required this.weekName,
   });
