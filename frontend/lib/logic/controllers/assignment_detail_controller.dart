@@ -12,6 +12,7 @@ import '../../data/repositories/submission_repository.dart';
 import '../../data/repositories/user_repository.dart';
 import '../../data/repositories/curriculum_repository.dart';
 import '../controllers/auth_controller.dart';
+import '../helpers/audit_log_helper.dart';
 
 class AssignmentDetailController extends ChangeNotifier {
   final String assignmentId;
@@ -20,6 +21,7 @@ class AssignmentDetailController extends ChangeNotifier {
   final SubmissionRepository _submissionRepository;
   final UserRepository _userRepository;
   final CurriculumRepository _curriculumRepository;
+  final AuditLogHelper _audit;
   
   late AssignmentModel assignment;
   List<SubmissionModel> _submissions = [];
@@ -36,7 +38,9 @@ class AssignmentDetailController extends ChangeNotifier {
     this._submissionRepository,
     this._userRepository,
     this._curriculumRepository,
+    this._audit,
   ) {
+    _audit.resolveIdentity();
     _init();
   }
 
@@ -120,5 +124,16 @@ class AssignmentDetailController extends ChangeNotifier {
     await _submissionRepository.gradeSubmission(submissionId, status, feedback);
     _submissions = await _submissionRepository.getSubmissionsByAssignment(assignmentId);
     notifyListeners();
+    // Find the student name for the log
+    final sub = _submissions.where((s) => s.id == submissionId).firstOrNull;
+    final studentN = sub != null ? studentName(sub.studentId) : null;
+    final student = sub != null ? _students.where((s) => s.id == sub.studentId).firstOrNull : null;
+    _audit.log(
+      action: 'Graded submission',
+      category: 'grading',
+      targetPersonName: studentN,
+      targetStudentNumber: student?.studentNumber,
+      details: '"${assignment.title}" — ${status.name}',
+    );
   }
 }

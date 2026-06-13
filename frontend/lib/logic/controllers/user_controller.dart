@@ -11,11 +11,13 @@ import '../../data/models/group_model.dart';
 import '../../data/repositories/curriculum_repository.dart';
 import '../../data/repositories/user_repository.dart';
 import '../../data/repositories/group_repository.dart';
+import '../helpers/audit_log_helper.dart';
 
 class UserController extends ChangeNotifier {
   final UserRepository _repository;
   final GroupRepository _groupRepository;
   final CurriculumRepository _curriculumRepository;
+  final AuditLogHelper _audit;
   final FirebaseFunctions _functions =
       FirebaseFunctions.instanceFor(region: 'us-central1');
 
@@ -30,7 +32,8 @@ class UserController extends ChangeNotifier {
 
   List<LevelModel> get levels => List.unmodifiable(_levels);
 
-  UserController(this._repository, this._groupRepository, this._curriculumRepository) {
+  UserController(this._repository, this._groupRepository, this._curriculumRepository, this._audit) {
+    _audit.resolveIdentity();
     _init();
   }
 
@@ -107,12 +110,11 @@ class UserController extends ChangeNotifier {
     try {
       final generatedUsername = _generateUsername(email);
       await _repository.addInstructor(name, email, phoneNumber, homeAddress, assignedLevels, username: generatedUsername);
-      // Fetch only the newly created instructor to avoid full reload
       final fresh = await _repository.getInstructors();
       _instructors = fresh;
       notifyListeners();
+      _audit.log(action: 'Added instructor', category: 'users', details: email, targetPersonName: name);
     } catch (e) {
-      // Roll back placeholder
       _instructors = _instructors.where((i) => i.id != placeholder.id).toList();
       notifyListeners();
       rethrow;
@@ -143,6 +145,7 @@ class UserController extends ChangeNotifier {
 
     try {
       await _repository.updateInstructorLevels(instructorId, levels);
+      _audit.log(action: 'Updated instructor levels', category: 'users', targetPersonName: old.name, details: levels.join(', '));
     } catch (e) {
       _instructors = _instructors.map((i) => i.id == instructorId ? old : i).toList();
       notifyListeners();
@@ -165,6 +168,7 @@ class UserController extends ChangeNotifier {
 
     try {
       await _repository.updateInstructorProfile(instructorId, name, email, phoneNumber, homeAddress);
+      _audit.log(action: 'Updated instructor profile', category: 'users', targetPersonName: name, details: email);
     } catch (e) {
       _instructors = _instructors.map((i) => i.id == instructorId ? old : i).toList();
       notifyListeners();
@@ -180,9 +184,9 @@ class UserController extends ChangeNotifier {
 
     try {
       await _repository.deleteInstructor(instructorId);
-      // Refresh archive list in background
       _archivedUsers = await _repository.getArchivedUsers();
       notifyListeners();
+      _audit.log(action: 'Archived instructor', category: 'users', targetPersonName: removed.name, details: removed.email);
     } catch (e) {
       _instructors = [..._instructors, removed];
       notifyListeners();
@@ -200,6 +204,7 @@ class UserController extends ChangeNotifier {
       await _repository.deleteStudent(studentId);
       _archivedUsers = await _repository.getArchivedUsers();
       notifyListeners();
+      _audit.log(action: 'Archived student', category: 'users', targetPersonName: removed.name, targetStudentNumber: removed.studentNumber);
     } catch (e) {
       _students = [..._students, removed];
       notifyListeners();
@@ -221,7 +226,6 @@ class UserController extends ChangeNotifier {
   }) async {
     final u = username.toLowerCase().trim();
 
-    // Optimistic placeholder
     final placeholder = UserModel(
       id: '__optimistic__${DateTime.now().millisecondsSinceEpoch}',
       userNumber: 0,
@@ -254,9 +258,9 @@ class UserController extends ChangeNotifier {
         pinCode: pinCode,
         lastActive: null,
       );
-      // Replace placeholder with real model
       _students = _students.map((s) => s.id == placeholder.id ? created : s).toList();
       notifyListeners();
+      _audit.log(action: 'Added student', category: 'users', targetPersonName: name, targetStudentNumber: '#${result.userNumber}', details: 'Username: $u | Level: $levelId');
       return created;
     } catch (e) {
       _students = _students.where((s) => s.id != placeholder.id).toList();
@@ -314,6 +318,15 @@ class UserController extends ChangeNotifier {
         // Replace this placeholder with the real model
         _students = _students.map((st) => st.id == placeholders[i].id ? model : st).toList();
         notifyListeners();
+        
+        // Write audit log for the added student
+        _audit.log(
+          action: 'Added student',
+          category: 'users',
+          targetPersonName: s['name']!,
+          targetStudentNumber: '#${result.userNumber}',
+          details: 'Username: $u | Level: ${s['levelId']!}',
+        );
       }
       return created;
     } catch (e) {
@@ -343,9 +356,9 @@ class UserController extends ChangeNotifier {
     try {
       final callable = _functions.httpsCallable('resetStudentPin');
       await callable.call({'studentId': studentId, 'newPin': newPin});
+      _audit.log(action: 'Reset student PIN', category: 'users', targetPersonName: old.name, targetStudentNumber: old.studentNumber);
       return newPin;
     } catch (e) {
-      // Roll back
       _students = _students.map((s) => s.id == studentId ? old : s).toList();
       notifyListeners();
       rethrow;
@@ -373,7 +386,6 @@ class UserController extends ChangeNotifier {
   Future<void> restoreUser(String uid) async {
     final removed = _archivedUsers.firstWhere((u) => u.id == uid, orElse: () => throw Exception('Not found'));
     _archivedUsers = _archivedUsers.where((u) => u.id != uid).toList();
-    // Restore to correct active list
     if (removed.role == UserRole.instructor) {
       _instructors = [..._instructors, removed];
     } else {
@@ -383,8 +395,8 @@ class UserController extends ChangeNotifier {
 
     try {
       await _repository.restoreUser(uid);
+      _audit.log(action: 'Restored user', category: 'users', targetPersonName: removed.name, details: removed.role.name);
     } catch (e) {
-      // Roll back
       _archivedUsers = [..._archivedUsers, removed];
       if (removed.role == UserRole.instructor) {
         _instructors = _instructors.where((i) => i.id != uid).toList();
@@ -404,6 +416,7 @@ class UserController extends ChangeNotifier {
 
     try {
       await _repository.permanentlyDeleteUser(uid);
+      _audit.log(action: 'Permanently deleted user', category: 'users', targetPersonName: removed.name, details: removed.role.name);
     } catch (e) {
       _archivedUsers = [..._archivedUsers, removed];
       notifyListeners();
@@ -417,6 +430,7 @@ class UserController extends ChangeNotifier {
     try {
       await _groupRepository.restoreGroup(groupId);
       _archivedGroups = await _groupRepository.getArchivedGroups();
+      _audit.log(action: 'Restored group', category: 'groups', details: groupId);
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -430,6 +444,7 @@ class UserController extends ChangeNotifier {
 
     try {
       await _groupRepository.permanentlyDeleteGroup(groupId);
+      _audit.log(action: 'Permanently deleted group', category: 'groups', targetPersonName: removed.name, details: groupId);
     } catch (e) {
       _archivedGroups = [..._archivedGroups, removed];
       notifyListeners();

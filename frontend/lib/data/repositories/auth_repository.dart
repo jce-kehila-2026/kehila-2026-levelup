@@ -26,6 +26,10 @@ class AuthRepository {
       final role = await _roleForUid(uid);
 
       if (role == 'admin' || role == 'instructor') {
+        // Update lastActive on login
+        _db.collection('users').doc(uid).update({
+          'lastActive': FieldValue.serverTimestamp(),
+        }).catchError((_) {});
         return role;
       }
       await _auth.signOut();
@@ -49,6 +53,10 @@ class AuthRepository {
       final role = await _roleForUid(uid);
 
       if (role == 'student') {
+        // Update lastActive on login
+        _db.collection('users').doc(uid).update({
+          'lastActive': FieldValue.serverTimestamp(),
+        }).catchError((_) {});
         return 'student';
       }
       await _auth.signOut();

@@ -5,9 +5,11 @@ library;
 import 'package:flutter/foundation.dart';
 import '../../data/models/group_model.dart';
 import '../../data/repositories/group_repository.dart';
+import '../helpers/audit_log_helper.dart';
 
 class GroupController extends ChangeNotifier {
   final GroupRepository _repository;
+  final AuditLogHelper _audit;
 
   bool _isLoading = false;
   bool get isLoading => _isLoading;
@@ -15,7 +17,8 @@ class GroupController extends ChangeNotifier {
   List<GroupModel> _allGroups = [];
   List<GroupModel> _archivedGroups = [];
 
-  GroupController(this._repository) {
+  GroupController(this._repository, this._audit) {
+    _audit.resolveIdentity();
     _init();
   }
 
@@ -84,7 +87,6 @@ class GroupController extends ChangeNotifier {
 
   /// Creates a group. Optimistic: adds to list immediately, then syncs from Firestore.
   Future<void> createGroup(String name) async {
-    // Optimistic placeholder so the list grows instantly
     final placeholder = GroupModel(
       id: '__optimistic__${DateTime.now().millisecondsSinceEpoch}',
       serialNumber: (_allGroups.isEmpty ? 0 : _allGroups.last.serialNumber) + 1,
@@ -99,15 +101,14 @@ class GroupController extends ChangeNotifier {
 
     try {
       final created = await _repository.createGroup(name);
-      // Replace placeholder with the real group from Firestore
       _allGroups = _allGroups
           .where((g) => g.id != placeholder.id)
           .toList()
         ..add(created);
       _allGroups.sort((a, b) => a.createdAt.compareTo(b.createdAt));
       notifyListeners();
+      _audit.log(action: 'Created group', category: 'groups', details: name);
     } catch (e) {
-      // Roll back on failure
       _allGroups = _allGroups.where((g) => g.id != placeholder.id).toList();
       notifyListeners();
       rethrow;
@@ -117,14 +118,13 @@ class GroupController extends ChangeNotifier {
   /// Renames a group. Optimistic: updates name locally right away.
   Future<void> updateGroup(String id, String newName) async {
     final old = _allGroups.firstWhere((g) => g.id == id, orElse: () => throw Exception('Not found'));
-    // Optimistic update
     _allGroups = _allGroups.map((g) => g.id == id ? _renamed(g, newName) : g).toList();
     notifyListeners();
 
     try {
       await _repository.updateGroup(id, newName);
+      _audit.log(action: 'Renamed group', category: 'groups', details: '"${old.name}" → "$newName"');
     } catch (e) {
-      // Roll back
       _allGroups = _allGroups.map((g) => g.id == id ? old : g).toList();
       notifyListeners();
       rethrow;
@@ -134,18 +134,16 @@ class GroupController extends ChangeNotifier {
   /// Soft-deletes a group. Optimistic: removes from active list instantly.
   Future<void> deleteGroup(String id) async {
     final removed = _allGroups.firstWhere((g) => g.id == id, orElse: () => throw Exception('Not found'));
-    // Optimistic remove
     _allGroups = _allGroups.where((g) => g.id != id).toList();
     notifyListeners();
 
     try {
       await _repository.deleteGroup(id);
-      // Also prepend to archived list so the archive tab is up to date
       final archived = _archived(removed);
       _archivedGroups = [archived, ..._archivedGroups];
       notifyListeners();
+      _audit.log(action: 'Archived group', category: 'groups', details: removed.name);
     } catch (e) {
-      // Roll back
       _allGroups = [..._allGroups, removed]
         ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
       notifyListeners();
@@ -156,7 +154,6 @@ class GroupController extends ChangeNotifier {
   /// Restores an archived group. Optimistic: moves between lists instantly.
   Future<void> restoreGroup(String id) async {
     final removed = _archivedGroups.firstWhere((g) => g.id == id, orElse: () => throw Exception('Not found'));
-    // Optimistic move
     _archivedGroups = _archivedGroups.where((g) => g.id != id).toList();
     final restored = _unarchived(removed);
     _allGroups = [..._allGroups, restored]
@@ -165,8 +162,8 @@ class GroupController extends ChangeNotifier {
 
     try {
       await _repository.restoreGroup(id);
+      _audit.log(action: 'Restored group', category: 'groups', details: removed.name);
     } catch (e) {
-      // Roll back
       _allGroups = _allGroups.where((g) => g.id != id).toList();
       _archivedGroups = [..._archivedGroups, removed];
       notifyListeners();
@@ -182,8 +179,8 @@ class GroupController extends ChangeNotifier {
 
     try {
       await _repository.permanentlyDeleteGroup(id);
+      _audit.log(action: 'Permanently deleted group', category: 'groups', details: removed.name);
     } catch (e) {
-      // Roll back
       _archivedGroups = [..._archivedGroups, removed];
       notifyListeners();
       rethrow;
