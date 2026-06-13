@@ -254,12 +254,15 @@ class InstructorAssignmentController extends ChangeNotifier {
   }) async {
     final List<String> studentUids = [];
     if (groupId != null && groupId.isNotEmpty) {
-      final snap = await FirebaseFirestore.instance
+      var query = FirebaseFirestore.instance
           .collection('users')
           .where('role', isEqualTo: 'student')
           .where('groupId', isEqualTo: groupId)
-          .where('isArchived', isEqualTo: false)
-          .get();
+          .where('isArchived', isEqualTo: false);
+      if (levelId != null && levelId.isNotEmpty) {
+        query = query.where('levelId', isEqualTo: levelId);
+      }
+      final snap = await query.get();
       studentUids.addAll(snap.docs.map((d) => d.id));
     } else if (levelId != null && levelId.isNotEmpty) {
       final snap = await FirebaseFirestore.instance

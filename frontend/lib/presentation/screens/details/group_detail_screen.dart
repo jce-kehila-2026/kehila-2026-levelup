@@ -636,7 +636,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                     shrinkWrap: true,
                     physics: const ClampingScrollPhysics(),
                     itemCount: users.length,
-                    separatorBuilder: (_, __) => const Divider(height: 20),
+                    separatorBuilder: (_, index) => const Divider(height: 20),
                     itemBuilder: (context, idx) {
                       final u = users[idx];
                       return Column(

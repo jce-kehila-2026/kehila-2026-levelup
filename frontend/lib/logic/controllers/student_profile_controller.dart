@@ -2,30 +2,62 @@
 /// Path: lib/logic/controllers/student_profile_controller.dart
 library;
 
+import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../data/models/student_profile_model.dart';
 import '../../data/repositories/student_profile_repository.dart';
 
 class StudentProfileController extends ChangeNotifier {
   final StudentProfileRepository _repository;
+  StreamSubscription<User?>? _authSub;
 
   bool _isLoading = false;
   bool get isLoading => _isLoading;
 
-  late StudentProfile _profile;
+  StudentProfile? _profile;
 
   StudentProfileController(this._repository) {
-    _init();
+    _authSub = FirebaseAuth.instance.authStateChanges().listen((user) {
+      if (user != null) {
+        _init();
+      } else {
+        _profile = null;
+        notifyListeners();
+      }
+    });
   }
 
   Future<void> _init() async {
     _isLoading = true;
     notifyListeners();
-    _profile = await _repository.getProfile();
-    _isLoading = false;
-    notifyListeners();
+    try {
+      _profile = await _repository.getProfile();
+    } catch (e) {
+      debugPrint('StudentProfileController._init error: $e');
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
   }
 
   // ── Getters ────────────────────────────
-  StudentProfile get profile => _profile;
+  StudentProfile get profile => _profile ?? StudentProfile(
+        id: '',
+        name: '',
+        username: '',
+        studentId: '',
+        level: '',
+        group: '',
+        instructorName: '',
+        submissions: 0,
+        graded: 0,
+        correct: 0,
+      );
+
+  @override
+  void dispose() {
+    _authSub?.cancel();
+    super.dispose();
+  }
 }

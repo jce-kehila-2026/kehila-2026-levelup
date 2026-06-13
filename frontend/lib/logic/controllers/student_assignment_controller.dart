@@ -2,6 +2,7 @@
 /// Path: lib/logic/controllers/student_assignment_controller.dart
 library;
 
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../data/models/assignment_model.dart';
@@ -24,8 +25,12 @@ class StudentAssignmentController extends ChangeNotifier {
   String _tab = 'pending'; // 'pending' or 'submitted'
   String _search = '';
 
+  StreamSubscription<User?>? _authSub;
+
   StudentAssignmentController() {
-    loadAssignments();
+    _authSub = FirebaseAuth.instance.authStateChanges().listen((user) {
+      loadAssignments();
+    });
   }
 
   // ── Getters ────────────────────────────
@@ -97,5 +102,11 @@ class StudentAssignmentController extends ChangeNotifier {
   void setSearch(String value) {
     _search = value;
     notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _authSub?.cancel();
+    super.dispose();
   }
 }

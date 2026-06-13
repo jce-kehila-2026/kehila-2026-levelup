@@ -2,12 +2,17 @@
 /// Path: lib/logic/controllers/student_notification_controller.dart
 library;
 
+import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../data/models/notification_model.dart';
 import '../../data/repositories/notification_repository.dart';
 
 class StudentNotificationController extends ChangeNotifier {
   final NotificationRepository _repository;
+  StreamSubscription<User?>? _authSub;
+  StreamSubscription<QuerySnapshot>? _subscription;
 
   bool _isLoading = false;
   bool get isLoading => _isLoading;
@@ -15,33 +20,52 @@ class StudentNotificationController extends ChangeNotifier {
   List<AppNotification> _notifications = [];
 
   StudentNotificationController(this._repository) {
-    _init();
+    _authSub = FirebaseAuth.instance.authStateChanges().listen((user) {
+      if (user != null) {
+        _subscribeToNotifications(user.uid);
+      } else {
+        _unsubscribe();
+      }
+    });
   }
 
-  Future<void> _init() async {
+  void _subscribeToNotifications(String uid) {
     _isLoading = true;
     notifyListeners();
-    try {
-      _notifications = await _repository.getNotifications();
-    } catch (e) {
-      debugPrint('StudentNotificationController._init error: $e');
-    } finally {
+
+    _subscription?.cancel();
+    _subscription = FirebaseFirestore.instance
+        .collection('notifications')
+        .where('recipientUid', isEqualTo: uid)
+        .orderBy('createdAt', descending: true)
+        .limit(100)
+        .snapshots()
+        .listen((snap) {
+      _notifications = snap.docs
+          .map((d) => AppNotification.fromMap(d.data(), d.id))
+          .toList();
       _isLoading = false;
       notifyListeners();
-    }
+    }, onError: (e) {
+      debugPrint('StudentNotificationController stream error: $e');
+      _isLoading = false;
+      notifyListeners();
+    });
   }
 
-  /// Refetches notifications from Firestore.
+  void _unsubscribe() {
+    _subscription?.cancel();
+    _subscription = null;
+    _notifications = [];
+    _isLoading = false;
+    notifyListeners();
+  }
+
+  /// Refetches notifications (no-op now since it's real-time stream).
   Future<void> refresh() async {
-    _isLoading = true;
-    notifyListeners();
-    try {
-      _notifications = await _repository.getNotifications();
-    } catch (e) {
-      debugPrint('StudentNotificationController.refresh error: $e');
-    } finally {
-      _isLoading = false;
-      notifyListeners();
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid != null) {
+      _subscribeToNotifications(uid);
     }
   }
 
@@ -61,5 +85,12 @@ class StudentNotificationController extends ChangeNotifier {
     } catch (e) {
       debugPrint('StudentNotificationController.markAsRead error: $e');
     }
+  }
+
+  @override
+  void dispose() {
+    _authSub?.cancel();
+    _subscription?.cancel();
+    super.dispose();
   }
 }

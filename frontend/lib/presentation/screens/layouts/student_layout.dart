@@ -6,6 +6,7 @@ import '../../widgets/locale_toggle_button.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../../di/service_locator.dart';
 import '../../../logic/controllers/auth_controller.dart';
+import '../../../logic/controllers/student_notification_controller.dart';
 
 import '../student/student_dashboard.dart';
 import '../student/assignments_screen.dart';
@@ -100,8 +101,28 @@ class _StudentLayoutState extends State<StudentLayout> {
             BottomNavigationBarItem(icon: const Icon(Icons.menu_book_outlined), activeIcon: const Icon(Icons.menu_book), label: AppLocalizations.of(context)!.navLearn),
             BottomNavigationBarItem(icon: const Icon(Icons.check_circle_outline), activeIcon: const Icon(Icons.check_circle), label: AppLocalizations.of(context)!.navTasks),
             BottomNavigationBarItem(
-              icon: const Badge(child: Icon(Icons.notifications_none)),
-              activeIcon: const Badge(child: Icon(Icons.notifications)),
+              icon: ListenableBuilder(
+                listenable: getIt<StudentNotificationController>(),
+                builder: (context, _) {
+                  final count = getIt<StudentNotificationController>().unreadCount;
+                  return Badge(
+                    label: count > 0 ? Text('$count') : null,
+                    isLabelVisible: count > 0,
+                    child: const Icon(Icons.notifications_none),
+                  );
+                },
+              ),
+              activeIcon: ListenableBuilder(
+                listenable: getIt<StudentNotificationController>(),
+                builder: (context, _) {
+                  final count = getIt<StudentNotificationController>().unreadCount;
+                  return Badge(
+                    label: count > 0 ? Text('$count') : null,
+                    isLabelVisible: count > 0,
+                    child: const Icon(Icons.notifications),
+                  );
+                },
+              ),
               label: AppLocalizations.of(context)!.navAlerts,
             ),
             BottomNavigationBarItem(icon: const Icon(Icons.person_outline), activeIcon: const Icon(Icons.person), label: AppLocalizations.of(context)!.navProfile),

@@ -336,6 +336,7 @@ class _InstructorCurriculumScreenState extends State<InstructorCurriculumScreen>
             ElevatedButton(
               onPressed: (selectedGroup == null || selectedLevel == null) ? null : () async {
                 final messenger = ScaffoldMessenger.of(context);
+                final l10n = AppLocalizations.of(context)!;
                 final groupName = selectedGroup!.name;
                 final levelName = selectedLevel!.name;
                 Navigator.pop(ctx);
@@ -351,7 +352,7 @@ class _InstructorCurriculumScreenState extends State<InstructorCurriculumScreen>
                   if (mounted) {
                     messenger.showSnackBar(
                       SnackBar(
-                        content: Text(AppLocalizations.of(context)!.assignmentAssignedToGroupLevel(item.title, groupName, levelName)),
+                        content: Text(l10n.assignmentAssignedToGroupLevel(item.title, groupName, levelName)),
                         behavior: SnackBarBehavior.floating,
                       ),
                     );
@@ -360,7 +361,7 @@ class _InstructorCurriculumScreenState extends State<InstructorCurriculumScreen>
                   if (mounted) {
                     messenger.showSnackBar(
                       SnackBar(
-                        content: Text(AppLocalizations.of(context)!.assignmentAlreadyAssignedGroupLevel(item.title, groupName, levelName)),
+                        content: Text(l10n.assignmentAlreadyAssignedGroupLevel(item.title, groupName, levelName)),
                         backgroundColor: AppColors.error,
                         behavior: SnackBarBehavior.floating,
                       ),
@@ -465,7 +466,11 @@ class _InstructorCurriculumScreenState extends State<InstructorCurriculumScreen>
                                     ),
                                     GestureDetector(
                                       onTap: () async {
-                                        await _materialAssignmentRepository.deleteAssignment(assign.id);
+                                        await _controller.unassignMaterial(
+                                          assignmentId: assign.id,
+                                          materialTitle: item.title,
+                                          groupName: assign.groupName,
+                                        );
                                         final updated = await _materialAssignmentRepository.getAssignmentsForMaterial(item.id);
                                         setDialogState(() {
                                           existingAssignments = updated;
@@ -501,7 +506,7 @@ class _InstructorCurriculumScreenState extends State<InstructorCurriculumScreen>
 
                   // Level Dropdown (Active levels in the group)
                   DropdownButtonFormField<LevelModel>(
-                    value: selectedLevel,
+                    initialValue: selectedLevel,
                     decoration: InputDecoration(
                       labelText: l10n.selectLevelHint,
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
@@ -526,7 +531,7 @@ class _InstructorCurriculumScreenState extends State<InstructorCurriculumScreen>
                   final messenger = ScaffoldMessenger.of(context);
                   Navigator.pop(ctx);
                   try {
-                    await _materialAssignmentRepository.assignMaterial(
+                    await _controller.assignMaterial(
                       materialId: item.id,
                       materialTitle: item.title,
                       groupId: selectedGroup!.id,

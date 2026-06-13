@@ -1,4 +1,5 @@
 import 'dart:js_interop';
+// ignore: depend_on_referenced_packages
 import 'package:web/web.dart' as webapi;
 import 'package:flutter_quill/flutter_quill.dart' as quill;
 
