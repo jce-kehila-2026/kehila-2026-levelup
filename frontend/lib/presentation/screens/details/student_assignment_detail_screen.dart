@@ -447,32 +447,46 @@ class _StudentAssignmentDetailScreenState extends State<StudentAssignmentDetailS
         ? (_selectedChoice ?? '')
         : _textAnswer;
 
-    if (_submission == null) {
-      await _submissionRepo.addSubmission(
-        assignmentId: widget.assignment.id,
-        studentId: uid,
-        textContent: textAnswerToSave,
-        selectedChoice: _selectedChoice,
-      );
-    } else {
-      await _submissionRepo.updateSubmission(
-        submissionId: _submission!.id,
-        textContent: textAnswerToSave,
-        selectedChoice: _selectedChoice,
-      );
-    }
-    
-    await _loadSubmission();
-    
-    if (mounted) {
-      setState(() {
-        _isSaving = false;
-        _isEditing = false;
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppLocalizations.of(context)!.assignmentSaved), behavior: SnackBarBehavior.floating),
-      );
-      Navigator.pop(context);
+    try {
+      if (_submission == null) {
+        await _submissionRepo.addSubmission(
+          assignmentId: widget.assignment.id,
+          studentId: uid,
+          textContent: textAnswerToSave,
+          selectedChoice: _selectedChoice,
+        );
+      } else {
+        await _submissionRepo.updateSubmission(
+          submissionId: _submission!.id,
+          textContent: textAnswerToSave,
+          selectedChoice: _selectedChoice,
+        );
+      }
+      
+      await _loadSubmission();
+      
+      if (mounted) {
+        setState(() {
+          _isSaving = false;
+          _isEditing = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(AppLocalizations.of(context)!.assignmentSaved), behavior: SnackBarBehavior.floating),
+        );
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      debugPrint('StudentAssignmentDetailScreen._submit error: $e');
+      if (mounted) {
+        setState(() => _isSaving = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error saving submission: $e'),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
     }
   }
 }
