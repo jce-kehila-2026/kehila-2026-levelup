@@ -41,6 +41,18 @@ class _LogsScreenState extends State<LogsScreen> {
     }
   }
 
+  String _categoryLabel(String value) {
+    switch (value) {
+      case 'users': return 'Users';
+      case 'groups': return 'Groups';
+      case 'curriculum': return 'Curriculum';
+      case 'assignments': return 'Assignments';
+      case 'grading': return 'Grading';
+      case 'submissions': return 'Submissions';
+      default: return 'All';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
@@ -80,6 +92,13 @@ class _LogsScreenState extends State<LogsScreen> {
                             Text(AppLocalizations.of(context)!.entriesCount((filteredLogs.length).toString()), style: const TextStyle(fontSize: 13, color: AppColors.mutedForeground)),
                           ],
                         ),
+                      ),
+                      // Refresh button
+                      IconButton(
+                        icon: const Icon(Icons.refresh_rounded, size: 20),
+                        onPressed: () => _controller.refresh(),
+                        tooltip: 'Refresh',
+                        color: AppColors.mutedForeground,
                       ),
                     ],
                   ),
@@ -184,7 +203,42 @@ class _LogsScreenState extends State<LogsScreen> {
                     ],
                   ),
                 ),
-                const SizedBox(height: 12),
+                // Category filter chips
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: _controller.categoryFilters.map((f) {
+                        final isSelected = _controller.categoryFilter == f['value'];
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: GestureDetector(
+                            onTap: () => _controller.setCategoryFilter(f['value']!),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 180),
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: isSelected ? AppColors.primary : AppColors.white,
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(color: isSelected ? AppColors.primary : AppColors.border),
+                              ),
+                              child: Text(
+                                _categoryLabel(f['value']!),
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: isSelected ? Colors.white : AppColors.text,
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
 
                 // List
                 Expanded(

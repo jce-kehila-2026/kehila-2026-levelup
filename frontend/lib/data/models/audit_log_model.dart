@@ -45,6 +45,10 @@ class AuditLog {
   /// The student number of the target (e.g., "#1005"), if applicable.
   final String? targetStudentNumber;
 
+  /// Broad category for UI filtering.
+  /// One of: 'users', 'groups', 'curriculum', 'assignments', 'grading', 'submissions', 'auth'
+  final String actionCategory;
+
   AuditLog({
     required this.id,
     required this.action,
@@ -57,6 +61,7 @@ class AuditLog {
     required this.serialNumber,
     this.targetPersonName,
     this.targetStudentNumber,
+    this.actionCategory = 'general',
   });
 
   factory AuditLog.fromMap(Map<String, dynamic> map, String documentId) {
@@ -67,21 +72,32 @@ class AuditLog {
     return AuditLog(
       id: documentId,
       action: map['action'] ?? '',
-      details: map['details'] ?? '',
+      details: map['details'],
       performerName: map['performerName'] ?? 'System User',
       performerRole: map['performerRole'] ?? 'admin',
       performedBy: map['performedBy'] ?? '',
       time: parsedTime,
       preciseTimestamp: parsedTime,
-      serialNumber: map['serialNumber'] ?? '0',
+      serialNumber: map['serialNumber']?.toString() ?? '0',
+      targetPersonName: map['targetPersonName'] as String?,
+      targetStudentNumber: map['targetStudentNumber'] as String?,
+      actionCategory: map['actionCategory'] as String? ?? 'general',
     );
   }
 
   Map<String, dynamic> toMap() {
     return {
       'action': action,
+      'details': details,
+      'performerName': performerName,
+      'performerRole': performerRole,
       'performedBy': performedBy,
-      'time': time.toIso8601String(),
+      'time': Timestamp.fromDate(time),
+      'preciseTimestamp': Timestamp.fromDate(preciseTimestamp),
+      'serialNumber': serialNumber,
+      if (targetPersonName != null) 'targetPersonName': targetPersonName,
+      if (targetStudentNumber != null) 'targetStudentNumber': targetStudentNumber,
+      'actionCategory': actionCategory,
     };
   }
 }

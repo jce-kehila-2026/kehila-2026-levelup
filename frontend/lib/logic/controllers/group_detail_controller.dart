@@ -10,12 +10,14 @@ import '../../data/models/user_model.dart';
 import '../../data/repositories/curriculum_repository.dart';
 import '../../data/repositories/group_repository.dart';
 import '../../data/repositories/user_repository.dart';
+import '../helpers/audit_log_helper.dart';
 
 class GroupDetailController extends ChangeNotifier {
   final String groupId;
   final GroupRepository _groupRepository;
   final UserRepository _userRepository;
   final CurriculumRepository _curriculumRepository;
+  final AuditLogHelper _audit;
 
   late GroupModel group;
   List<UserModel> _allInstructors = [];
@@ -27,7 +29,8 @@ class GroupDetailController extends ChangeNotifier {
 
   List<LevelModel> get levels => List.unmodifiable(_levels);
 
-  GroupDetailController(this.groupId, this._groupRepository, this._userRepository, this._curriculumRepository) {
+  GroupDetailController(this.groupId, this._groupRepository, this._userRepository, this._curriculumRepository, this._audit) {
+    _audit.resolveIdentity();
     _init();
   }
 
@@ -185,15 +188,19 @@ class GroupDetailController extends ChangeNotifier {
       await _groupRepository.addInstructorToGroup(groupId, instructorId);
       _availableInstructorsSearch = '';
       await _initQuietly();
+      final instructor = _allInstructors.where((i) => i.id == instructorId).firstOrNull;
+      _audit.log(action: 'Added instructor to group', category: 'groups', targetPersonName: instructor?.name, details: group.name);
     } catch (e) {
       rethrow;
     }
   }
 
   Future<void> removeInstructor(String instructorId) async {
+    final instructor = _allInstructors.where((i) => i.id == instructorId).firstOrNull;
     try {
       await _groupRepository.removeInstructorFromGroup(groupId, instructorId);
       await _initQuietly();
+      _audit.log(action: 'Removed instructor from group', category: 'groups', targetPersonName: instructor?.name, details: group.name);
     } catch (e) {
       rethrow;
     }
@@ -211,6 +218,7 @@ class GroupDetailController extends ChangeNotifier {
       );
       _availableStudentsSearch = '';
       await _initQuietly();
+      _audit.log(action: 'Added student to group', category: 'groups', targetPersonName: student?.name, targetStudentNumber: student?.studentNumber, details: group.name);
     } catch (e) {
       rethrow;
     }
@@ -233,6 +241,7 @@ class GroupDetailController extends ChangeNotifier {
       _bulkSelectedStudentIds.clear();
       _availableStudentsSearch = '';
       await _initQuietly();
+      _audit.log(action: 'Bulk added ${idsToAdd.length} students to group', category: 'groups', details: group.name);
     } catch (e) {
       rethrow;
     }
@@ -266,7 +275,7 @@ class GroupDetailController extends ChangeNotifier {
 
       await _initQuietly();
 
-      return UserModel(
+      final created = UserModel(
         id: result.uid,
         userNumber: result.userNumber,
         name: fullName,
@@ -277,6 +286,8 @@ class GroupDetailController extends ChangeNotifier {
         pinCode: actualPinCode,
         lastActive: null,
       );
+      _audit.log(action: 'Created and added student to group', category: 'users', targetPersonName: fullName, targetStudentNumber: '#${result.userNumber}', details: 'Group: ${group.name} | Level: $levelId');
+      return created;
     } catch (e) {
       rethrow;
     }
@@ -327,26 +338,25 @@ class GroupDetailController extends ChangeNotifier {
   }
 
   Future<void> removeStudent(String studentId) async {
+    final student = _allStudents.where((s) => s.id == studentId).firstOrNull;
     try {
       await _groupRepository.removeStudentFromGroup(groupId, studentId);
       await _initQuietly();
+      _audit.log(action: 'Removed student from group', category: 'groups', targetPersonName: student?.name, targetStudentNumber: student?.studentNumber, details: group.name);
     } catch (e) {
       rethrow;
     }
   }
 
   Future<void> deleteStudent(String studentId) async {
+    final student = _allStudents.where((s) => s.id == studentId).firstOrNull;
     try {
-      // 1. Archive the student (disables Auth + sets isArchived: true)
       await _userRepository.deleteStudent(studentId);
-
-      // 2. Remove from group (clears groupId on user doc too)
       await _groupRepository.removeStudentFromGroup(group.id, studentId);
-
-      // 3. Targeted refresh — only reload the data that changed
       group = await _groupRepository.getGroupById(group.id) ?? group;
       _allStudents = await _userRepository.getStudents();
       notifyListeners();
+      _audit.log(action: 'Archived student from group', category: 'users', targetPersonName: student?.name, targetStudentNumber: student?.studentNumber, details: group.name);
     } catch (e) {
       rethrow;
     }
@@ -357,15 +367,11 @@ class GroupDetailController extends ChangeNotifier {
   /// Generates a new 6-digit PIN, persists it to Firebase Auth (via Cloud Function),
   /// the Firestore user doc, and the embedded student array in the group document.
   Future<String> resetStudentPin(String studentId) async {
-    final newPin = (100000 + Random().nextInt(900000)).toString(); // 6-digit PIN
+    final newPin = (100000 + Random().nextInt(900000)).toString();
 
-    // 1. Update Firebase Auth password + Firestore user doc pinCode
     await _userRepository.resetStudentPin(studentId, newPin);
-
-    // 2. Update the embedded pin inside the group's students array
     await _groupRepository.updateStudentPinInGroup(groupId, studentId, newPin);
 
-    // 3. Reflect the change in local state so the UI stays consistent
     final index = _allStudents.indexWhere((s) => s.id == studentId);
     if (index != -1) {
       final old = _allStudents[index];
@@ -384,6 +390,7 @@ class GroupDetailController extends ChangeNotifier {
         assignedLevels: old.assignedLevels,
       );
       notifyListeners();
+      _audit.log(action: 'Reset student PIN', category: 'users', targetPersonName: old.name, targetStudentNumber: old.studentNumber, details: group.name);
     }
 
     return newPin;

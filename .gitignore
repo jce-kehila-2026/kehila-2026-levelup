@@ -25,10 +25,11 @@ dist-ssr
 backend/privateKey.json
 .env*
 
-# Firebase credentials
-frontend/lib/firebase_options.dart
-frontend/android/app/google-services.json
-frontend/ios/Runner/GoogleService-Info.plist
+# Firebase credentials — these are public project identifiers, not secrets.
+# They are intentionally tracked so the app builds after clone/pull.
+# frontend/lib/firebase_options.dart
+# frontend/android/app/google-services.json
+# frontend/ios/Runner/GoogleService-Info.plist
 
 # Firebase local
 .firebase/

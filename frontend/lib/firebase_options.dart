@@ -25,15 +25,9 @@ class DefaultFirebaseOptions {
       case TargetPlatform.iOS:
         return ios;
       case TargetPlatform.macOS:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions have not been configured for macos - '
-          'you can reconfigure this by running the FlutterFire CLI again.',
-        );
+        return macos;
       case TargetPlatform.windows:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions have not been configured for windows - '
-          'you can reconfigure this by running the FlutterFire CLI again.',
-        );
+        return windows;
       case TargetPlatform.linux:
         throw UnsupportedError(
           'DefaultFirebaseOptions have not been configured for linux - '
@@ -72,4 +66,24 @@ class DefaultFirebaseOptions {
     iosClientId: '646568336245-5r66pfbn5i7seet265clvtqivvkb3rj5.apps.googleusercontent.com',
     iosBundleId: 'com.example.frontend',
   );
+
+  static const FirebaseOptions macos = FirebaseOptions(
+    apiKey: 'AIzaSyDHCn8tgXcxkipfVpK_2TKWUywU7Q-KhFw',
+    appId: '1:646568336245:ios:17c1f6b684c4d7ddb2d13c',
+    messagingSenderId: '646568336245',
+    projectId: 'levelup-26',
+    storageBucket: 'levelup-26.firebasestorage.app',
+    iosClientId: '646568336245-5r66pfbn5i7seet265clvtqivvkb3rj5.apps.googleusercontent.com',
+    iosBundleId: 'com.example.frontend',
+  );
+
+  static const FirebaseOptions windows = FirebaseOptions(
+    apiKey: 'AIzaSyCsLs2kDApF0RoK6uYwt8ch36sbpsWFd1A',
+    appId: '1:646568336245:web:2bf605f6d732c592b2d13c',
+    messagingSenderId: '646568336245',
+    projectId: 'levelup-26',
+    authDomain: 'levelup-26.firebaseapp.com',
+    storageBucket: 'levelup-26.firebasestorage.app',
+  );
+
 }
