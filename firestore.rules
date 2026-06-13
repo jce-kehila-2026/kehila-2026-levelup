@@ -56,7 +56,8 @@ service cloud.firestore {
 
     match /assignments/{assignmentId} {
       allow read:           if isStaff() || isStudent();
-      allow create, update: if isStaff();
+      allow create:         if isStaff();
+      allow update:         if isStaff() || (isStudent() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['pendingCount']));
       allow delete:         if isAdmin() || (isInstructor() && resource.data.instructorId == request.auth.uid);
     }
 
@@ -66,15 +67,22 @@ service cloud.firestore {
       allow read:   if isStaff() ||
                       (isStudent() && resource.data.studentId == request.auth.uid);
       allow create: if isStudent() && request.resource.data.studentId == request.auth.uid;
-      allow update: if isStaff();
+      allow update: if isStaff() ||
+                      (isStudent() &&
+                       resource.data.studentId == request.auth.uid &&
+                       request.resource.data.studentId == request.auth.uid &&
+                       resource.data.status == 'pending' &&
+                       request.resource.data.status == 'pending');
       allow delete: if isAdmin();
     }
 
-    // ── notifications ──────────────────────────────────────────────────────
+    // ── notifications ───────────────────────────────────────────────────────
 
     match /notifications/{notifId} {
-      allow read:  if isSignedIn() && resource.data.userId == request.auth.uid;
-      allow write: if isStaff();
+      allow read:   if isSignedIn() && resource.data.recipientUid == request.auth.uid;
+      allow update: if isSignedIn() && resource.data.recipientUid == request.auth.uid;
+      allow create: if isStaff();
+      allow delete: if isAdmin() || (isSignedIn() && resource.data.recipientUid == request.auth.uid);
     }
 
     // ── audit_logs ─────────────────────────────────────────────────────────

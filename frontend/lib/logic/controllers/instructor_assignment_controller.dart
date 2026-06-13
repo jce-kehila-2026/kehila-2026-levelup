@@ -1,8 +1,6 @@
-/// Logic Tier — Controller
-/// Path: lib/logic/controllers/instructor_assignment_controller.dart
-library;
-
 import 'package:flutter/foundation.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../data/models/assignment_model.dart';
 import '../../data/repositories/assignment_repository.dart';
 import '../../di/service_locator.dart';
@@ -121,25 +119,52 @@ class InstructorAssignmentController extends ChangeNotifier {
 
     _isLoading = true;
     notifyListeners();
-    await _repository.addInstructorAssignment(
-      title,
-      deadline: deadline,
-      textContent: textContent,
-      type: type,
-      assignmentType: assignmentType,
-      choices: choices,
-      groupId: groupId,
-      groupName: groupName,
-      levelId: levelId,
-    );
-    _allAssignments = await _repository.getInstructorAssignments();
-    _isLoading = false;
-    notifyListeners();
-    _audit.log(
-      action: type == 'central' ? 'Assigned central template' : 'Created custom assignment',
-      category: 'assignments',
-      details: '"$title" | Group: ${groupName ?? '-'} | Level: ${levelId ?? '-'}',
-    );
+    try {
+      final assignmentId = await _repository.addInstructorAssignment(
+        title,
+        deadline: deadline,
+        textContent: textContent,
+        type: type,
+        assignmentType: assignmentType,
+        choices: choices,
+        groupId: groupId,
+        groupName: groupName,
+        levelId: levelId,
+      );
+      _allAssignments = await _repository.getInstructorAssignments();
+
+      // Resolve instructor name
+      final instructorUid = FirebaseAuth.instance.currentUser?.uid;
+      String instructorName = 'An instructor';
+      if (instructorUid != null) {
+        final doc = await FirebaseFirestore.instance.collection('users').doc(instructorUid).get();
+        if (doc.exists) {
+          instructorName = doc.data()?['displayName'] ?? doc.data()?['name'] ?? 'An instructor';
+        }
+      }
+
+      final dueDays = deadline != null ? deadline.difference(DateTime.now()).inDays : 7;
+      await _notifyStudents(
+        title: 'New Assignment Assigned',
+        body: '$instructorName assigned "$title". Due in $dueDays days.',
+        type: 'assignment',
+        relatedId: assignmentId,
+        groupId: groupId,
+        levelId: levelId,
+      );
+
+      // Audit Log
+      _audit.log(
+        action: type == 'central' ? 'Assigned central template' : 'Created custom assignment',
+        category: 'assignments',
+        details: '"$title" | Group: ${groupName ?? '-'} | Level: ${levelId ?? '-'}',
+      );
+    } catch (e) {
+      debugPrint('InstructorAssignmentController.addAssignment error/notify: $e');
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
   }
 
   Future<void> deleteAssignment(String id) async {
@@ -156,24 +181,32 @@ class InstructorAssignmentController extends ChangeNotifier {
   Future<void> updateDeadline(String id, DateTime newDeadline) async {
     _isLoading = true;
     notifyListeners();
-    await _repository.updateAssignmentDeadline(id, newDeadline);
-    
-    final notifRepo = getIt<NotificationRepository>();
-    final assignment = _allAssignments.firstWhere((a) => a.id == id);
-    await notifRepo.addNotification(AppNotification(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      title: 'Assignment Updated',
-      body: 'The deadline for "${assignment.title}" has been extended.',
-      type: 'assignment',
-      relatedId: id,
-      isRead: false,
-      time: 'Just now',
-    ));
+    try {
+      await _repository.updateAssignmentDeadline(id, newDeadline);
+      final assignment = _allAssignments.firstWhere((a) => a.id == id);
 
-    _allAssignments = await _repository.getInstructorAssignments();
-    _isLoading = false;
-    notifyListeners();
-    _audit.log(action: 'Updated assignment deadline', category: 'assignments', details: '"${assignment.title}" → ${newDeadline.toLocal().toString().split('.').first}');
+      await _notifyStudents(
+        title: 'Assignment Updated',
+        body: 'The deadline for "${assignment.title}" has been extended.',
+        type: 'assignment',
+        relatedId: id,
+        groupId: assignment.groupId,
+        levelId: assignment.levelId,
+      );
+
+      // Audit Log
+      _audit.log(
+        action: 'Updated assignment deadline',
+        category: 'assignments',
+        details: '"${assignment.title}" → ${newDeadline.toLocal().toString().split('.').first}',
+      );
+    } catch (e) {
+      debugPrint('InstructorAssignmentController.updateDeadline notification error: $e');
+    } finally {
+      _allAssignments = await _repository.getInstructorAssignments();
+      _isLoading = false;
+      notifyListeners();
+    }
   }
 
   Future<void> updateContent(String id, String title, String textContent,
@@ -181,24 +214,77 @@ class InstructorAssignmentController extends ChangeNotifier {
       {String? groupId, String? groupName, String? levelId}) async {
     _isLoading = true;
     notifyListeners();
-    await _repository.updateAssignmentContent(id, title, textContent, assignmentType, choices,
-        groupId: groupId, groupName: groupName, levelId: levelId);
-    
-    // Inject Mock Notification
-    final notifRepo = getIt<NotificationRepository>();
-    final assignment = _allAssignments.firstWhere((a) => a.id == id);
-    await notifRepo.addNotification(AppNotification(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      title: 'Assignment Updated',
-      body: 'The instructions for "${assignment.title}" have been updated.',
-      type: 'assignment',
-      relatedId: id,
-      isRead: false,
-      time: 'Just now',
-    ));
+    try {
+      await _repository.updateAssignmentContent(id, title, textContent, assignmentType, choices,
+          groupId: groupId, groupName: groupName, levelId: levelId);
+      final assignment = _allAssignments.firstWhere((a) => a.id == id);
 
-    _allAssignments = await _repository.getInstructorAssignments();
-    _isLoading = false;
-    notifyListeners();
+      await _notifyStudents(
+        title: 'Assignment Updated',
+        body: 'The instructions for "${assignment.title}" have been updated.',
+        type: 'assignment',
+        relatedId: id,
+        groupId: groupId ?? assignment.groupId,
+        levelId: levelId ?? assignment.levelId,
+      );
+
+      // Audit Log
+      _audit.log(
+        action: 'Updated assignment content',
+        category: 'assignments',
+        details: '"$title"',
+      );
+    } catch (e) {
+      debugPrint('InstructorAssignmentController.updateContent notification/audit error: $e');
+    } finally {
+      _allAssignments = await _repository.getInstructorAssignments();
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  /// Helper to send in-app notifications to all active students in a group/level.
+  Future<void> _notifyStudents({
+    required String title,
+    required String body,
+    required String type,
+    required String relatedId,
+    String? groupId,
+    String? levelId,
+  }) async {
+    final List<String> studentUids = [];
+    if (groupId != null && groupId.isNotEmpty) {
+      final snap = await FirebaseFirestore.instance
+          .collection('users')
+          .where('role', isEqualTo: 'student')
+          .where('groupId', isEqualTo: groupId)
+          .where('isArchived', isEqualTo: false)
+          .get();
+      studentUids.addAll(snap.docs.map((d) => d.id));
+    } else if (levelId != null && levelId.isNotEmpty) {
+      final snap = await FirebaseFirestore.instance
+          .collection('users')
+          .where('role', isEqualTo: 'student')
+          .where('levelId', isEqualTo: levelId)
+          .where('isArchived', isEqualTo: false)
+          .get();
+      studentUids.addAll(snap.docs.map((d) => d.id));
+    }
+
+    if (studentUids.isNotEmpty) {
+      final notifRepo = getIt<NotificationRepository>();
+      for (final uid in studentUids) {
+        final notif = AppNotification(
+          id: '',
+          title: title,
+          body: body,
+          type: type,
+          relatedId: relatedId,
+          createdAt: DateTime.now(),
+          recipientUid: uid,
+        );
+        await notifRepo.addNotification(notif);
+      }
+    }
   }
 }

@@ -41,17 +41,39 @@ class AssignmentRepository {
     }
     final groupId = userDoc.data()?['groupId'] as String?;
     final levelId = userDoc.data()?['levelId'] as String?;
-    if (groupId == null || groupId.isEmpty) {
+    if ((groupId == null || groupId.isEmpty) && (levelId == null || levelId.isEmpty)) {
       return [];
     }
-    Query<Map<String, dynamic>> query = _col.where('groupId', isEqualTo: groupId);
-    if (levelId != null && levelId.isNotEmpty) {
-      query = query.where('levelId', isEqualTo: levelId);
+
+    final List<Future<QuerySnapshot<Map<String, dynamic>>>> queries = [];
+    if (groupId != null && groupId.isNotEmpty) {
+      queries.add(_col.where('groupId', isEqualTo: groupId).get());
     }
-    final snapshot = await query.get();
-    return snapshot.docs
-        .map((doc) => AssignmentModel.fromMap(doc.data(), doc.id))
-        .toList();
+    if (levelId != null && levelId.isNotEmpty) {
+      queries.add(_col.where('levelId', isEqualTo: levelId).get());
+    }
+
+    final snapshots = await Future.wait(queries);
+    final Map<String, AssignmentModel> uniqueAssignments = {};
+
+    for (var snapshot in snapshots) {
+      for (var doc in snapshot.docs) {
+        final data = doc.data();
+        final model = AssignmentModel.fromMap(data, doc.id);
+        
+        final matchesGroup = groupId != null && groupId.isNotEmpty && model.groupId == groupId;
+        final matchesLevelWide = levelId != null && levelId.isNotEmpty && 
+            model.levelId == levelId && (model.groupId == null || model.groupId!.isEmpty);
+
+        if (matchesGroup || matchesLevelWide) {
+          uniqueAssignments[model.id] = model;
+        }
+      }
+    }
+
+    final list = uniqueAssignments.values.toList();
+    list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    return list;
   }
 
   /// Fetch a single assignment by its document ID.
@@ -83,7 +105,7 @@ class AssignmentRepository {
   }
 
   /// Create a new custom or central assignment document (auto-generated ID).
-  Future<void> addInstructorAssignment(
+  Future<String> addInstructorAssignment(
     String title, {
     DateTime? deadline,
     String? textContent,
@@ -116,7 +138,8 @@ class AssignmentRepository {
       assignmentType: assignmentType,
       choices: choices,
     );
-    await _col.add(model.toMap());
+    final docRef = await _col.add(model.toMap());
+    return docRef.id;
   }
 
   /// Delete an assignment document.
