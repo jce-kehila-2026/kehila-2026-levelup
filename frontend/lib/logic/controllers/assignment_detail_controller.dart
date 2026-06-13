@@ -1,7 +1,3 @@
-/// Logic Tier — Controller
-/// Path: lib/logic/controllers/assignment_detail_controller.dart
-library;
-
 import 'package:flutter/foundation.dart';
 import '../../data/models/assignment_model.dart';
 import '../../data/models/submission_model.dart';
@@ -12,6 +8,9 @@ import '../../data/repositories/submission_repository.dart';
 import '../../data/repositories/user_repository.dart';
 import '../../data/repositories/curriculum_repository.dart';
 import '../controllers/auth_controller.dart';
+import '../../di/service_locator.dart';
+import '../../data/models/notification_model.dart';
+import '../../data/repositories/notification_repository.dart';
 
 class AssignmentDetailController extends ChangeNotifier {
   final String assignmentId;
@@ -120,5 +119,26 @@ class AssignmentDetailController extends ChangeNotifier {
     await _submissionRepository.gradeSubmission(submissionId, status, feedback);
     _submissions = await _submissionRepository.getSubmissionsByAssignment(assignmentId);
     notifyListeners();
+
+    try {
+      final submission = _submissions.firstWhere((s) => s.id == submissionId, orElse: () => throw Exception('Submission not found'));
+      final studentId = submission.studentId;
+
+      final localizedStatus = status == GradeStatus.correct ? 'Correct' : 'Incorrect';
+      
+      final notif = AppNotification(
+        id: '',
+        title: 'Assignment Graded',
+        body: 'Your answer for "${assignment.title}" was graded: $localizedStatus.',
+        type: 'grade',
+        relatedId: assignmentId,
+        createdAt: DateTime.now(),
+        recipientUid: studentId,
+      );
+
+      await getIt<NotificationRepository>().addNotification(notif);
+    } catch (e) {
+      debugPrint('AssignmentDetailController.gradeSubmission notification error: $e');
+    }
   }
 }

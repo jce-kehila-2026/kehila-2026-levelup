@@ -83,7 +83,7 @@ class AssignmentRepository {
   }
 
   /// Create a new custom or central assignment document (auto-generated ID).
-  Future<void> addInstructorAssignment(
+  Future<String> addInstructorAssignment(
     String title, {
     DateTime? deadline,
     String? textContent,
@@ -116,7 +116,8 @@ class AssignmentRepository {
       assignmentType: assignmentType,
       choices: choices,
     );
-    await _col.add(model.toMap());
+    final docRef = await _col.add(model.toMap());
+    return docRef.id;
   }
 
   /// Delete an assignment document.
