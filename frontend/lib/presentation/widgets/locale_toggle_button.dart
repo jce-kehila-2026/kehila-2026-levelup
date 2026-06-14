@@ -9,31 +9,29 @@ class LocaleToggleButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<LocaleProvider>();
-    final label = provider.isArabic ? 'EN' : 'AR';
+    final flag = provider.isArabic ? '🇬🇧' : '🇸🇦';
 
     return GestureDetector(
       onTap: provider.toggle,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
+        width: 38,
+        height: 38,
+        alignment: Alignment.center,
         decoration: BoxDecoration(
           color: AppColors.primary,
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(10),
           boxShadow: [
             BoxShadow(
-              color: AppColors.primary.withValues(alpha: 0.35),
-              blurRadius: 8,
+              color: AppColors.primary.withValues(alpha: 0.25),
+              blurRadius: 6,
               offset: const Offset(0, 2),
             ),
           ],
         ),
         child: Text(
-          label,
+          flag,
           style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.w800,
-            fontSize: 12,
-            letterSpacing: 1.4,
-            fontFamily: 'Cairo',
+            fontSize: 18,
           ),
         ),
       ),

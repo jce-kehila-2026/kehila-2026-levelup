@@ -114,11 +114,17 @@ class _InstructorLayoutState extends State<InstructorLayout> {
         .get();
     if (!doc.exists || !mounted) return;
 
+    final privateDoc = await FirebaseFirestore.instance
+        .collection('users_private')
+        .doc(firebaseUser.uid)
+        .get();
+    final privateData = privateDoc.data() ?? {};
+
     final data = doc.data()!;
     final name = (data['name'] as String?) ?? '';
-    final email = (data['email'] as String?) ?? firebaseUser.email ?? '';
-    final phoneCtrl = TextEditingController(text: (data['phoneNumber'] as String?) ?? '');
-    final addressCtrl = TextEditingController(text: (data['address'] as String?) ?? '');
+    final email = (privateData['email'] as String?) ?? firebaseUser.email ?? '';
+    final phoneCtrl = TextEditingController(text: (privateData['phoneNumber'] as String?) ?? '');
+    final addressCtrl = TextEditingController(text: (privateData['address'] as String?) ?? '');
 
     String? phoneError;
 
@@ -307,6 +313,7 @@ class _InstructorLayoutState extends State<InstructorLayout> {
               )
           : null,
         leadingWidth: (!_searchOpen && _hasSearch(currentIndex)) ? 54 : null,
+        centerTitle: true,
         title: _searchOpen
           ? TextField(
               controller: _searchTextCtrl,
@@ -333,10 +340,7 @@ class _InstructorLayoutState extends State<InstructorLayout> {
                 suffixIconConstraints: const BoxConstraints(minWidth: 36, minHeight: 36),
               ),
             )
-          : const Padding(
-              padding: EdgeInsetsDirectional.only(start: 4),
-              child: Text('LevelUp', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.text)),
-            ),
+          : const Text('LevelUp', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.text)),
         actions: [
           const LocaleToggleButton(),
           const SizedBox(width: 6),

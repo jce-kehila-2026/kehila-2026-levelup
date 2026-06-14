@@ -43,8 +43,12 @@ class AdminDashboardController extends ChangeNotifier {
 
   // ── Initial load ───────────────────────────────────────────────────────────
 
+  String? _error;
+  String? get error => _error;
+
   Future<void> _init() async {
     _isLoading = true;
+    _error = null;
     notifyListeners();
     try {
       final results = await Future.wait([
@@ -62,8 +66,10 @@ class AdminDashboardController extends ChangeNotifier {
       _levelCount = levels.length;
       _lessonCount = levels.fold(
           0, (acc, l) => acc + l.weeks.fold(0, (ws, w) => ws + w.items.length));
-    } catch (e) {
+    } catch (e, stack) {
+      _error = e.toString();
       debugPrint('AdminDashboardController._init error: $e');
+      debugPrint('Stacktrace: $stack');
     }
     _isLoading = false;
     notifyListeners();

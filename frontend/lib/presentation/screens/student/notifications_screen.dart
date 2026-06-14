@@ -15,8 +15,8 @@ import '../../../di/service_locator.dart';
 import 'package:frontend/l10n/app_localizations.dart';
 
 class StudentNotificationsScreen extends StatelessWidget {
-  final VoidCallback? onNavigateToLearn;
-  const StudentNotificationsScreen({super.key, this.onNavigateToLearn});
+  final VoidCallback? onNavigateToHome;
+  const StudentNotificationsScreen({super.key, this.onNavigateToHome});
 
   @override
   Widget build(BuildContext context) {
@@ -99,8 +99,8 @@ class StudentNotificationsScreen extends StatelessWidget {
                                 if ((item.type == 'assignment' || item.type == 'grade') && item.relatedId != null) {
                                   context.push('/student-assignment/${item.relatedId}');
                                 } else if (item.type == 'lesson' || item.type == 'material') {
-                                  if (onNavigateToLearn != null) {
-                                    onNavigateToLearn!();
+                                  if (onNavigateToHome != null) {
+                                    onNavigateToHome!();
                                   } else {
                                     context.go('/student');
                                   }

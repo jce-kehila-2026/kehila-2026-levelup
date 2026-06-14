@@ -206,7 +206,19 @@ class CurriculumRepository {
     final level = await _fetchLevel(levelId);
     final week = level.weeks.firstWhere((w) => w.id == weekId);
     week.items.removeWhere((i) => i.id == itemId);
-    await _saveLevel(level);
+    
+    final batch = _db.batch();
+    batch.set(_db.collection('curriculum').doc(level.id), level.toMap());
+    
+    final assignedSnaps = await _db.collection('assigned_materials')
+        .where('materialId', isEqualTo: itemId)
+        .get();
+    for (final doc in assignedSnaps.docs) {
+      batch.delete(doc.reference);
+    }
+    
+    await batch.commit();
+    _cache = [];
   }
 
   // ── Private Helpers ─────────────────────────────────────────────────────────

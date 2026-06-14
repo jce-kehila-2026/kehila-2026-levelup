@@ -201,13 +201,11 @@ class GroupRepository {
     String studentId,
     String levelId, {
     String name = '',
-    String pin = '',
   }) async {
     final embed = <String, dynamic>{
       'id': studentId,
       'name': name,
       'level': levelId,
-      'pin': pin,
       'lastActive': null,
     };
 
@@ -217,9 +215,10 @@ class GroupRepository {
       'students': FieldValue.arrayUnion([embed]),
     });
 
-    // Use set+merge so it works even if groupId field doesn't exist yet on new student docs.
+    // Use set+merge so it works even if groupId/levelId fields don't exist yet on new student docs.
     batch.set(_db.collection('users').doc(studentId), {
       'groupId': groupId,
+      'levelId': levelId,
     }, SetOptions(merge: true));
 
     await batch.commit();
@@ -271,15 +270,7 @@ class GroupRepository {
   /// Updates the [pin] field of a student embed inside a group.
   Future<void> updateStudentPinInGroup(
       String groupId, String studentId, String newPin) async {
-    final group = await getGroupById(groupId);
-    if (group == null) return;
-
-    final updatedStudents = group.students.map((s) {
-      if (s.id != studentId) return s.toMap();
-      return {...s.toMap(), 'pin': newPin};
-    }).toList();
-
-    await _groups.doc(groupId).update({'students': updatedStudents});
+    // No-op: student PINs are no longer stored inside group embedded student arrays.
   }
 
   Future<int> _getNextGroupNumber() async {

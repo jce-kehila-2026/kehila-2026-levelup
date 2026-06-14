@@ -35,7 +35,7 @@ class _StudentLayoutState extends State<StudentLayout> {
     ),
     const StudentAssignmentsScreen(),
     StudentNotificationsScreen(
-      onNavigateToLearn: () => context.go('/student?tab=0'),
+      onNavigateToHome: () => context.go('/student?tab=0'),
     ),
     const StudentProfileScreen(),
   ];
@@ -80,7 +80,7 @@ class _StudentLayoutState extends State<StudentLayout> {
     });
   }
 
-  Widget _buildLogoutButton(BuildContext context) {
+  Widget _buildIconButton({required IconData icon, required VoidCallback onPressed}) {
     return Container(
       width: 38,
       height: 38,
@@ -90,12 +90,9 @@ class _StudentLayoutState extends State<StudentLayout> {
         border: Border.all(color: AppColors.border),
       ),
       child: IconButton(
-        icon: const Icon(Icons.logout, size: 15, color: AppColors.mutedForeground),
-        onPressed: () async {
-          getIt<AuthController>().reset();
-          await FirebaseAuth.instance.signOut();
-          if (context.mounted) context.go('/login');
-        },
+        icon: Icon(icon, size: 15, color: AppColors.mutedForeground),
+        onPressed: onPressed,
+        padding: EdgeInsets.zero,
       ),
     );
   }
@@ -139,6 +136,7 @@ class _StudentLayoutState extends State<StudentLayout> {
               )
           : null,
         leadingWidth: (!_searchOpen && _hasSearch(currentIndex)) ? 54 : null,
+        centerTitle: true,
         title: _searchOpen
           ? TextField(
               controller: _searchTextCtrl,
@@ -165,14 +163,18 @@ class _StudentLayoutState extends State<StudentLayout> {
                 suffixIconConstraints: const BoxConstraints(minWidth: 36, minHeight: 36),
               ),
             )
-          : const Padding(
-              padding: EdgeInsetsDirectional.only(start: 4),
-              child: Text('LevelUp', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.text)),
-            ),
+          : const Text('LevelUp', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.text)),
         actions: [
           const LocaleToggleButton(),
-          const SizedBox(width: 10),
-          _buildLogoutButton(context),
+          const SizedBox(width: 6),
+          _buildIconButton(
+            icon: Icons.logout,
+            onPressed: () async {
+              getIt<AuthController>().reset();
+              await FirebaseAuth.instance.signOut();
+              if (context.mounted) context.go('/login');
+            },
+          ),
           const SizedBox(width: 8),
         ],
       ),
@@ -198,7 +200,7 @@ class _StudentLayoutState extends State<StudentLayout> {
           type: BottomNavigationBarType.fixed,
           elevation: 0,
           items: [
-            BottomNavigationBarItem(icon: const GoldenNavIcon(icon: Icons.menu_book, active: false), activeIcon: const GoldenNavIcon(icon: Icons.menu_book), label: AppLocalizations.of(context)!.navLearn),
+            BottomNavigationBarItem(icon: const GoldenNavIcon(icon: Icons.home, active: false), activeIcon: const GoldenNavIcon(icon: Icons.home), label: AppLocalizations.of(context)!.navHome),
             BottomNavigationBarItem(icon: const GoldenNavIcon(icon: Icons.check_circle, active: false), activeIcon: const GoldenNavIcon(icon: Icons.check_circle), label: AppLocalizations.of(context)!.navTasks),
             BottomNavigationBarItem(
               icon: ListenableBuilder(

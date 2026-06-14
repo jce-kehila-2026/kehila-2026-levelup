@@ -35,7 +35,13 @@ class UserRepository {
         .where('role', isEqualTo: 'instructor')
         .where('isArchived', isEqualTo: false)
         .get();
-    return snap.docs.map((d) => UserModel.fromMap(d.data(), d.id)).toList();
+    final list = await Future.wait(snap.docs.map((d) async {
+      final privateDoc = await _db.collection('users_private').doc(d.id).get();
+      final privateData = privateDoc.data() ?? {};
+      final merged = Map<String, dynamic>.from(d.data())..addAll(privateData);
+      return UserModel.fromMap(merged, d.id);
+    }));
+    return list;
   }
 
   Future<List<UserModel>> getStudents() async {
@@ -43,13 +49,22 @@ class UserRepository {
         .where('role', isEqualTo: 'student')
         .where('isArchived', isEqualTo: false)
         .get();
-    return snap.docs.map((d) => UserModel.fromMap(d.data(), d.id)).toList();
+    final list = await Future.wait(snap.docs.map((d) async {
+      final privateDoc = await _db.collection('users_private').doc(d.id).get();
+      final privateData = privateDoc.data() ?? {};
+      final merged = Map<String, dynamic>.from(d.data())..addAll(privateData);
+      return UserModel.fromMap(merged, d.id);
+    }));
+    return list;
   }
 
   Future<UserModel?> getStudentById(String id) async {
     final doc = await _users.doc(id).get();
     if (!doc.exists || doc.data() == null) return null;
-    return UserModel.fromMap(doc.data()!, doc.id);
+    final privateDoc = await _db.collection('users_private').doc(id).get();
+    final privateData = privateDoc.data() ?? {};
+    final merged = Map<String, dynamic>.from(doc.data()!)..addAll(privateData);
+    return UserModel.fromMap(merged, doc.id);
   }
 
   Future<int> getStudentCountByLevel(String levelId) async {
@@ -66,7 +81,13 @@ class UserRepository {
     final snap = await _users
         .where('isArchived', isEqualTo: true)
         .get();
-    return snap.docs.map((d) => UserModel.fromMap(d.data(), d.id)).toList();
+    final list = await Future.wait(snap.docs.map((d) async {
+      final privateDoc = await _db.collection('users_private').doc(d.id).get();
+      final privateData = privateDoc.data() ?? {};
+      final merged = Map<String, dynamic>.from(d.data())..addAll(privateData);
+      return UserModel.fromMap(merged, d.id);
+    }));
+    return list;
   }
 
   // ─────────────────────────────────────────────
@@ -81,7 +102,13 @@ class UserRepository {
         .where('isArchived', isEqualTo: false);
     if (role != null) q = q.where('role', isEqualTo: role);
     final snap = await q.limit(20).get();
-    return snap.docs.map((d) => UserModel.fromMap(d.data(), d.id)).toList();
+    final list = await Future.wait(snap.docs.map((d) async {
+      final privateDoc = await _db.collection('users_private').doc(d.id).get();
+      final privateData = privateDoc.data() ?? {};
+      final merged = Map<String, dynamic>.from(d.data())..addAll(privateData);
+      return UserModel.fromMap(merged, d.id);
+    }));
+    return list;
   }
 
   // ─────────────────────────────────────────────
@@ -150,11 +177,13 @@ class UserRepository {
   ) async {
     await _users.doc(instructorId).update({
       'name': name,
+      'searchKeywords': _buildKeywords(name, extra: ['instructor']),
+    });
+    await _db.collection('users_private').doc(instructorId).set({
       'email': email.trim().toLowerCase(),
       'phoneNumber': phoneNumber,
       'address': address,
-      'searchKeywords': _buildKeywords(name, extra: ['instructor']),
-    });
+    }, SetOptions(merge: true));
   }
 
   Future<void> updateInstructorLevels(
@@ -173,10 +202,17 @@ class UserRepository {
     String? pinCode,
     String? levelId,
   }) async {
-    final updates = <String, dynamic>{};
-    if (pinCode != null) updates['pinCode'] = pinCode;
-    if (levelId != null) updates['levelId'] = levelId;
-    if (updates.isNotEmpty) await _users.doc(studentId).update(updates);
+    final publicUpdates = <String, dynamic>{};
+    final privateUpdates = <String, dynamic>{};
+    if (levelId != null) publicUpdates['levelId'] = levelId;
+    if (pinCode != null) privateUpdates['pinCode'] = pinCode;
+    
+    if (publicUpdates.isNotEmpty) {
+      await _users.doc(studentId).update(publicUpdates);
+    }
+    if (privateUpdates.isNotEmpty) {
+      await _db.collection('users_private').doc(studentId).set(privateUpdates, SetOptions(merge: true));
+    }
   }
 
   Future<void> unassignStudentsFromLevel(String levelId) async {
@@ -232,7 +268,7 @@ class UserRepository {
   }
 
   Future<bool> emailExists(String email) async {
-    final snap = await _users
+    final snap = await _db.collection('users_private')
         .where('email', isEqualTo: email.trim().toLowerCase())
         .limit(1)
         .get();

@@ -80,20 +80,25 @@ exports.createUser = onCall({
     searchKeywords: name.toLowerCase().split(" ").concat([role]),
   };
 
+  const privateDoc = {};
+
   if (role === "student") {
     userDoc.username = data.username.toLowerCase();
-    userDoc.pinCode = data.pinCode;
     userDoc.levelId = data.levelId || null;
     userDoc.studentNumber = data.studentNumber || null;
     userDoc.createdBy = callerUid;
+
+    privateDoc.pinCode = data.pinCode;
   } else {
-    userDoc.email = email;
-    userDoc.phoneNumber = data.phoneNumber || null;
-    userDoc.address = data.address || null;
     userDoc.assignedLevels = data.assignedLevels || [];
+
+    privateDoc.email = email;
+    privateDoc.phoneNumber = data.phoneNumber || null;
+    privateDoc.address = data.address || null;
   }
 
   await admin.firestore().collection("users").doc(uid).set(userDoc);
+  await admin.firestore().collection("users_private").doc(uid).set(privateDoc);
 
   if (role === "instructor") {
     try {
@@ -252,9 +257,9 @@ exports.resetStudentPin = onCall({ cors: true, region: "us-central1" }, async (r
 
   await admin.auth().updateUser(studentId, { password: newPin });
 
-  await admin.firestore().collection("users").doc(studentId).update({
+  await admin.firestore().collection("users_private").doc(studentId).set({
     pinCode: newPin,
-  });
+  }, { merge: true });
 
   return { success: true };
 });
@@ -288,7 +293,18 @@ exports.resendWelcomeEmail = onCall({ cors: true, region: "us-central1" }, async
     throw new HttpsError("not-found", "Instructor not found.");
   }
 
-  const { email, name } = instructorDoc.data();
+  const name = instructorDoc.data().name;
+
+  const privateDoc = await admin.firestore()
+    .collection("users_private")
+    .doc(instructorId)
+    .get();
+
+  if (!privateDoc.exists) {
+    throw new HttpsError("not-found", "Instructor private details not found.");
+  }
+
+  const email = privateDoc.data().email;
   const resetLink = await admin.auth().generatePasswordResetLink(email);
 
   const transporter = nodemailer.createTransport({
@@ -359,6 +375,7 @@ exports.deleteUserPermanently = onCall({
 
   // Delete from Firestore
   await admin.firestore().collection("users").doc(uid).delete();
+  await admin.firestore().collection("users_private").doc(uid).delete();
 
   return { success: true };
 });

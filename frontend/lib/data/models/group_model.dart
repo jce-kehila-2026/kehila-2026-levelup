@@ -9,14 +9,12 @@ class GroupStudentEmbed {
   final String id;
   final String name;
   final String level; // levelId, e.g. 'l1'
-  final String pin;
   final DateTime? lastActive;
 
   const GroupStudentEmbed({
     required this.id,
     required this.name,
     required this.level,
-    required this.pin,
     this.lastActive,
   });
 
@@ -25,7 +23,6 @@ class GroupStudentEmbed {
       id: map['id'] ?? '',
       name: map['name'] ?? '',
       level: map['level'] ?? '',
-      pin: map['pin'] ?? '',
       lastActive: _parseDate(map['lastActive']),
     );
   }
@@ -35,7 +32,6 @@ class GroupStudentEmbed {
       'id': id,
       'name': name,
       'level': level,
-      'pin': pin,
       'lastActive': lastActive?.toIso8601String(),
     };
   }

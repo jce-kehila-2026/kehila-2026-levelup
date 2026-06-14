@@ -1,21 +1,12 @@
-/// Logic Tier — Controller
-/// Path: lib/logic/controllers/student_assignment_controller.dart
-library;
-
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../data/models/assignment_model.dart';
 import '../../data/models/submission_model.dart';
-import '../../data/repositories/assignment_repository.dart';
-import '../../data/repositories/submission_repository.dart';
-import '../../di/service_locator.dart';
 
 class StudentAssignmentController extends ChangeNotifier {
-  final AssignmentRepository _repo = getIt<AssignmentRepository>();
-  final SubmissionRepository _submissionRepo = getIt<SubmissionRepository>();
-
-  bool _isLoading = false;
+  bool _isLoading = true;
   bool get isLoading => _isLoading;
 
   List<AssignmentModel> _allAssignments = [];
@@ -26,10 +17,102 @@ class StudentAssignmentController extends ChangeNotifier {
   String _search = '';
 
   StreamSubscription<User?>? _authSub;
+  StreamSubscription<DocumentSnapshot>? _userDocSub;
+  StreamSubscription<QuerySnapshot>? _assignmentsSub;
+  StreamSubscription<QuerySnapshot>? _submissionsSub;
+
+  String? _subscribedGroupId;
+  String? _subscribedLevelId;
 
   StudentAssignmentController() {
     _authSub = FirebaseAuth.instance.authStateChanges().listen((user) {
-      loadAssignments();
+      if (user != null) {
+        _subscribeToStreams(user.uid);
+      } else {
+        _clear();
+      }
+    });
+  }
+
+  void _clear() {
+    _userDocSub?.cancel();
+    _assignmentsSub?.cancel();
+    _submissionsSub?.cancel();
+    _userDocSub = null;
+    _assignmentsSub = null;
+    _submissionsSub = null;
+    _subscribedGroupId = null;
+    _subscribedLevelId = null;
+    _allAssignments = [];
+    _studentSubmissions = [];
+    _isLoading = false;
+    notifyListeners();
+  }
+
+  void _subscribeToStreams(String uid) {
+    _userDocSub?.cancel();
+    _userDocSub = FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .snapshots()
+        .listen((userSnap) {
+      if (!userSnap.exists) {
+        _clear();
+        return;
+      }
+      
+      final userData = userSnap.data();
+      if (userData == null) return;
+
+      final groupId = userData['groupId'] as String?;
+      final levelId = userData['levelId'] as String?;
+
+      // Handle submissions stream
+      _submissionsSub ??= FirebaseFirestore.instance
+          .collection('submissions')
+          .where('studentId', isEqualTo: uid)
+          .snapshots()
+          .listen((subSnap) {
+        _studentSubmissions = subSnap.docs
+            .map((doc) => SubmissionModel.fromMap(doc.data(), doc.id))
+            .toList();
+        _isLoading = false;
+        notifyListeners();
+      });
+
+      // Handle assignments stream subscription
+      if (_subscribedGroupId != groupId || _subscribedLevelId != levelId) {
+        _subscribedGroupId = groupId;
+        _subscribedLevelId = levelId;
+        _assignmentsSub?.cancel();
+
+        if (groupId != null && groupId.isNotEmpty) {
+          _assignmentsSub = FirebaseFirestore.instance
+              .collection('assignments')
+              .where('groupId', isEqualTo: groupId)
+              .snapshots()
+              .listen((assignSnap) {
+            final list = assignSnap.docs
+                .map((doc) => AssignmentModel.fromMap(doc.data(), doc.id))
+                .toList();
+
+            // Filter assignments based on levelId in memory (just like getStudentAssignments)
+            _allAssignments = list.where((model) {
+              return model.levelId == null ||
+                  model.levelId!.isEmpty ||
+                  model.levelId == levelId;
+            }).toList();
+
+            _allAssignments.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+            _isLoading = false;
+            notifyListeners();
+          });
+        } else {
+          _allAssignments = [];
+          _isLoading = false;
+          notifyListeners();
+        }
+      }
     });
   }
 
@@ -67,30 +150,14 @@ class StudentAssignmentController extends ChangeNotifier {
 
   int get pendingCount => _allAssignments.where((a) => !isSubmitted(a.id)).length;
   int get submittedCount => _allAssignments.where((a) => isSubmitted(a.id)).length;
+  int get pendingReviewCount => _studentSubmissions.where((s) => s.status == GradeStatus.pending).length;
 
   // ── Actions ────────────────────────────
 
   Future<void> loadAssignments() async {
-    _isLoading = true;
-    notifyListeners();
-    try {
-      final uid = FirebaseAuth.instance.currentUser?.uid;
-      if (uid != null) {
-        final results = await Future.wait([
-          _repo.getStudentAssignments(),
-          _submissionRepo.getSubmissionsByStudent(uid),
-        ]);
-        _allAssignments = results[0] as List<AssignmentModel>;
-        _studentSubmissions = results[1] as List<SubmissionModel>;
-      } else {
-        _allAssignments = [];
-        _studentSubmissions = [];
-      }
-    } catch (e) {
-      debugPrint('StudentAssignmentController.loadAssignments error: $e');
-    } finally {
-      _isLoading = false;
-      notifyListeners();
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid != null) {
+      _subscribeToStreams(uid);
     }
   }
 
@@ -107,6 +174,9 @@ class StudentAssignmentController extends ChangeNotifier {
   @override
   void dispose() {
     _authSub?.cancel();
+    _userDocSub?.cancel();
+    _assignmentsSub?.cancel();
+    _submissionsSub?.cancel();
     super.dispose();
   }
 }
