@@ -360,21 +360,6 @@ class _InstructorAssignmentsScreenState extends State<InstructorAssignmentsScree
                   ]),
                 ),
 
-                // Search Bar
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                  child: Container(
-                    decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFc4b8da), width: 1.5)),
-                    padding: const EdgeInsets.symmetric(horizontal: 14),
-                    child: Row(children: [
-                      const Icon(Icons.search, size: 15, color: AppColors.mutedForeground),
-                      const SizedBox(width: 8),
-                      Expanded(child: TextField(onChanged: (val) => _controller.setSearch(val), decoration: InputDecoration(hintText: l10n.searchAssignments, border: InputBorder.none, enabledBorder: InputBorder.none, focusedBorder: InputBorder.none, filled: false, isDense: true, contentPadding: const EdgeInsets.symmetric(vertical: 12)), style: const TextStyle(fontSize: 14))),
-                      if (_controller.search.isNotEmpty) GestureDetector(onTap: () => _controller.setSearch(''), child: const Icon(Icons.close, size: 15, color: AppColors.mutedForeground)),
-                    ]),
-                  ),
-                ),
-
                 // Tab Toggle
                 Container(
                   margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),

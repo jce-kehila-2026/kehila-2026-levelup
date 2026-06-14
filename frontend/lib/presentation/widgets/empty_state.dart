@@ -26,14 +26,10 @@ class EmptyState extends StatelessWidget {
               height: 64,
               margin: const EdgeInsets.only(bottom: 18),
               decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.08), // '14' hex ~ 8%
+                color: AppColors.accent,
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: AppColors.primary.withValues(alpha: 0.16), // '28' hex ~ 16%
-                  width: 1,
-                ),
               ),
-              child: Icon(icon, size: 28, color: AppColors.primary),
+              child: Icon(icon, size: 28, color: Colors.white),
             ),
             Text(
               title,

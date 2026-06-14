@@ -52,7 +52,7 @@ class LessonCard extends StatelessWidget {
               width: 8,
               height: 8,
               decoration: BoxDecoration(
-                color: isVisible ? AppColors.success : AppColors.border,
+                color: isVisible ? AppColors.primary : AppColors.primary.withValues(alpha: 0.20),
                 shape: BoxShape.circle,
               ),
             ),
@@ -103,13 +103,13 @@ class LessonCard extends StatelessWidget {
                     child: Container(
                       padding: const EdgeInsets.all(7),
                       decoration: BoxDecoration(
-                        color: isVisible ? AppColors.success : AppColors.border,
+                        color: isVisible ? AppColors.primary : AppColors.primary.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(9),
                       ),
                       child: Icon(
                         isVisible ? Icons.visibility : Icons.visibility_off,
                         size: 16,
-                        color: isVisible ? Colors.white : AppColors.mutedForeground,
+                        color: isVisible ? Colors.white : AppColors.primary.withValues(alpha: 0.45),
                       ),
                     ),
                   ),

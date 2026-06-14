@@ -3,6 +3,7 @@ import 'package:intl/intl.dart' as intl;
 import '../../theme/app_theme.dart';
 import '../../data/models/audit_log_model.dart';
 import 'package:frontend/l10n/app_localizations.dart';
+import 'golden_icon.dart';
 
 class AuditLogItem extends StatelessWidget {
   final AuditLog log;
@@ -102,17 +103,10 @@ class AuditLogItem extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── Styled Circle Avatar ──
-          Container(
-            width: 40,
-            height: 40,
-            margin: const EdgeInsets.only(top: 2),
-            decoration: BoxDecoration(
-              color: style.color.withValues(alpha: 0.12),
-              shape: BoxShape.circle,
-              border: Border.all(color: style.color.withValues(alpha: 0.3), width: 1.5),
-            ),
-            child: Icon(style.icon, size: 18, color: style.color),
+          // ── Golden Icon Avatar ──
+          Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: GoldenIcon(icon: style.icon, size: 40, iconSize: 18, radius: 12),
           ),
           const SizedBox(width: 14),
 

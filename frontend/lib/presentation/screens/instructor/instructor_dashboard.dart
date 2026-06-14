@@ -24,38 +24,87 @@ class InstructorDashboard extends StatelessWidget {
     required this.onNavigateToGroups,
   });
 
-  Widget _buildStatTile(String label, String value, IconData icon, Color accent, {VoidCallback? onTap}) {
-    return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          margin: const EdgeInsets.symmetric(horizontal: 4),
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: AppColors.white,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.border),
-            boxShadow: [
-              BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8, offset: const Offset(0, 2)),
-            ],
+  Widget _buildConsolidatedCard(
+    String title,
+    IconData headerIcon,
+    List<({String label, String value})> items,
+  ) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.border),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             children: [
               Container(
-                width: 34, height: 34,
-                decoration: BoxDecoration(color: accent.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(9)),
-                child: Icon(icon, size: 16, color: accent),
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: AppColors.accent,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(headerIcon, size: 20, color: Colors.white),
               ),
-              const SizedBox(height: 10),
-              Text(value, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: AppColors.text)),
-              const SizedBox(height: 2),
-              Text(label, style: const TextStyle(fontSize: 11, color: AppColors.mutedForeground), overflow: TextOverflow.ellipsis),
+              const SizedBox(width: 12),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.primaryDark,
+                ),
+              ),
             ],
           ),
-        ),
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              for (int i = 0; i < items.length; i++) ...[
+                if (i > 0)
+                  Container(width: 1, height: 44, color: AppColors.border, margin: const EdgeInsets.symmetric(horizontal: 4)),
+                Expanded(child: _buildStatColumn(items[i].value, items[i].label)),
+              ],
+            ],
+          ),
+        ],
       ),
+    );
+  }
+
+  Widget _buildStatColumn(String value, String label) {
+    return Column(
+      children: [
+        Text(
+          value,
+          style: const TextStyle(
+            fontSize: 28,
+            fontWeight: FontWeight.w700,
+            color: AppColors.text,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 11,
+            color: AppColors.mutedForeground,
+          ),
+          textAlign: TextAlign.center,
+        ),
+      ],
     );
   }
 
@@ -249,24 +298,23 @@ class InstructorDashboard extends StatelessWidget {
                   const SizedBox(height: 12),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Row(children: [
-                      _buildStatTile(AppLocalizations.of(context)!.statMyGroups, stats['myGroups']!, Icons.people, AppColors.primary,
-                        onTap: onNavigateToGroups,
+                    child: Column(children: [
+                      _buildConsolidatedCard(
+                        'My Classes',
+                        Icons.how_to_reg,
+                        [
+                          (label: AppLocalizations.of(context)!.statMyGroups, value: stats['myGroups']!),
+                          (label: AppLocalizations.of(context)!.statStudents, value: stats['students']!),
+                        ],
                       ),
-                      _buildStatTile(AppLocalizations.of(context)!.statStudents, stats['students']!, Icons.person, AppColors.accent,
-                        onTap: () => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppLocalizations.of(context)!.navigatingToStudents), behavior: SnackBarBehavior.floating)),
-                      ),
-                    ]),
-                  ),
-                  const SizedBox(height: 8),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Row(children: [
-                      _buildStatTile(AppLocalizations.of(context)!.dashboardAssignments, stats['assignments']!, Icons.check_box, const Color(0xFF8B5CF6),
-                        onTap: onNavigateToAssignments,
-                      ),
-                      _buildStatTile(AppLocalizations.of(context)!.statPendingReview, stats['pendingReview']!, Icons.schedule, pending > 0 ? AppColors.warning : AppColors.success,
-                        onTap: onNavigateToAssignments,
+                      const SizedBox(height: 12),
+                      _buildConsolidatedCard(
+                        'Workload',
+                        Icons.check_box,
+                        [
+                          (label: AppLocalizations.of(context)!.dashboardAssignments, value: stats['assignments']!),
+                          (label: AppLocalizations.of(context)!.statPendingReview, value: stats['pendingReview']!),
+                        ],
                       ),
                     ]),
                   ),
