@@ -8,6 +8,7 @@ library;
 import 'package:flutter/material.dart';
 import '../../../theme/app_theme.dart';
 import '../../../logic/controllers/student_dashboard_controller.dart';
+import '../../../logic/controllers/student_notification_controller.dart';
 import '../../../di/service_locator.dart';
 import 'package:go_router/go_router.dart';
 import 'package:frontend/l10n/app_localizations.dart';
@@ -270,40 +271,125 @@ class _StudentDashboardState extends State<StudentDashboard> {
                   ),
                   const SizedBox(height: 16),
 
-                  // ── QUICK ACTIONS ──
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: ElevatedButton(
-                            onPressed: widget.onNavigateToAssignments,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.accent,
-                              foregroundColor: AppColors.text,
-                              padding: const EdgeInsets.symmetric(vertical: 13),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                              elevation: 4,
-                              shadowColor: AppColors.accent.withValues(alpha: 0.35),
+                  // ── LATEST NOTIFICATION ──
+                  ListenableBuilder(
+                    listenable: getIt<StudentNotificationController>(),
+                    builder: (context, _) {
+                      final notifController = getIt<StudentNotificationController>();
+                      final latest = notifController.notifications.isNotEmpty
+                          ? notifController.notifications.first
+                          : null;
+                      if (latest == null) return const SizedBox.shrink();
+                      final unreadCount = notifController.unreadCount;
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: GestureDetector(
+                          onTap: widget.onNavigateToNotifications,
+                          child: Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: AppColors.white,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: AppColors.primary.withValues(alpha: 0.30),
+                                width: 1.5,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: AppColors.primary.withValues(alpha: 0.10),
+                                  blurRadius: 14,
+                                  spreadRadius: 1,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
                             ),
                             child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Icon(Icons.edit_note, size: 14),
-                                const SizedBox(width: 6),
-                                Flexible(
-                                  child: Text(
-                                    l10n.navTasks,
-                                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
-                                    overflow: TextOverflow.ellipsis,
+                                Stack(
+                                  clipBehavior: Clip.none,
+                                  children: [
+                                    Container(
+                                      width: 40,
+                                      height: 40,
+                                      decoration: BoxDecoration(
+                                        color: AppColors.primary.withValues(alpha: 0.10),
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: const Icon(Icons.notifications_outlined, size: 20, color: AppColors.primary),
+                                    ),
+                                    if (unreadCount > 0)
+                                      PositionedDirectional(
+                                        top: -5,
+                                        end: -5,
+                                        child: Container(
+                                          padding: const EdgeInsets.all(2),
+                                          decoration: const BoxDecoration(
+                                            color: Colors.red,
+                                            shape: BoxShape.circle,
+                                          ),
+                                          constraints: const BoxConstraints(minWidth: 17, minHeight: 17),
+                                          child: Text(
+                                            '$unreadCount',
+                                            style: const TextStyle(fontSize: 9, color: Colors.white, fontWeight: FontWeight.bold),
+                                            textAlign: TextAlign.center,
+                                          ),
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        latest.title,
+                                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.primaryDark),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        latest.body,
+                                        style: const TextStyle(fontSize: 13, color: AppColors.mutedForeground, height: 1.3),
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      const SizedBox(height: 6),
+                                      Text(
+                                        latest.time,
+                                        style: const TextStyle(fontSize: 11, color: AppColors.mutedForeground),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primary.withValues(alpha: 0.08),
+                                    borderRadius: BorderRadius.circular(20),
+                                    border: Border.all(color: AppColors.primary.withValues(alpha: 0.20)),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        'View All',
+                                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: AppColors.primary),
+                                      ),
+                                      const SizedBox(width: 2),
+                                      const Icon(Icons.arrow_forward, size: 10, color: AppColors.primary),
+                                    ],
                                   ),
                                 ),
                               ],
                             ),
                           ),
                         ),
-                      ],
-                    ),
+                      );
+                    },
                   ),
                   const SizedBox(height: 24),
 
@@ -328,85 +414,113 @@ class _StudentDashboardState extends State<StudentDashboard> {
                   const SizedBox(height: 12),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        color: AppColors.white,
+                    child: Material(
+                      color: Colors.transparent,
+                      borderRadius: BorderRadius.circular(20),
+                      child: InkWell(
+                        onTap: widget.onNavigateToAssignments,
                         borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: AppColors.border),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.04),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Container(
-                                width: 40,
-                                height: 40,
-                                decoration: BoxDecoration(
-                                  color: AppColors.accent.withValues(alpha: 0.15),
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: const Icon(Icons.check_box_outlined, size: 20, color: AppColors.accentDark),
+                        child: Ink(
+                          decoration: BoxDecoration(
+                            color: AppColors.white,
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: AppColors.border),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.08),
+                                blurRadius: 16,
+                                offset: const Offset(0, 4),
                               ),
-                              const SizedBox(width: 12),
-                              const Text(
-                                'Workload',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.primaryDark,
-                                ),
+                              BoxShadow(
+                                color: AppColors.primary.withValues(alpha: 0.06),
+                                blurRadius: 12,
+                                offset: const Offset(0, 2),
                               ),
                             ],
                           ),
-                          const SizedBox(height: 20),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Column(
+                          child: Padding(
+                            padding: const EdgeInsets.all(20),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
                                   children: [
-                                    Text(
-                                      '${_controller.tasksDue}',
-                                      style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w700, color: AppColors.text),
+                                    Container(
+                                      width: 40,
+                                      height: 40,
+                                      decoration: BoxDecoration(
+                                        color: AppColors.accent.withValues(alpha: 0.15),
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: const Icon(Icons.check_box_outlined, size: 20, color: AppColors.accentDark),
                                     ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      l10n.navTasks,
-                                      style: const TextStyle(fontSize: 11, color: AppColors.mutedForeground),
-                                      textAlign: TextAlign.center,
+                                    const SizedBox(width: 12),
+                                    const Text(
+                                      'Workload',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w700,
+                                        color: AppColors.primaryDark,
+                                      ),
+                                    ),
+                                    const Spacer(),
+                                    const Icon(Icons.arrow_forward_ios, size: 13, color: AppColors.mutedForeground),
+                                  ],
+                                ),
+                                const SizedBox(height: 20),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: Column(
+                                        children: [
+                                          Text(
+                                            '${_controller.tasksDue}',
+                                            style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w700, color: AppColors.text),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            l10n.navTasks,
+                                            style: const TextStyle(fontSize: 11, color: AppColors.mutedForeground),
+                                            textAlign: TextAlign.center,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    Container(width: 1, height: 44, color: AppColors.border, margin: const EdgeInsets.symmetric(horizontal: 4)),
+                                    Expanded(
+                                      child: Column(
+                                        children: [
+                                          Text(
+                                            '${_controller.pendingReviewCount}',
+                                            style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w700, color: AppColors.text),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            l10n.statPendingReview,
+                                            style: const TextStyle(fontSize: 11, color: AppColors.mutedForeground),
+                                            textAlign: TextAlign.center,
+                                          ),
+                                        ],
+                                      ),
                                     ),
                                   ],
                                 ),
-                              ),
-                              Container(width: 1, height: 44, color: AppColors.border, margin: const EdgeInsets.symmetric(horizontal: 4)),
-                              Expanded(
-                                child: Column(
-                                  children: [
-                                    Text(
-                                      '${_controller.pendingReviewCount}',
-                                      style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w700, color: AppColors.text),
+                                const SizedBox(height: 12),
+                                Align(
+                                  alignment: AlignmentDirectional.centerEnd,
+                                  child: Text(
+                                    'View Tasks →',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColors.primary,
                                     ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      l10n.statPendingReview,
-                                      style: const TextStyle(fontSize: 11, color: AppColors.mutedForeground),
-                                      textAlign: TextAlign.center,
-                                    ),
-                                  ],
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
-                        ],
+                        ),
                       ),
                     ),
                   ),
