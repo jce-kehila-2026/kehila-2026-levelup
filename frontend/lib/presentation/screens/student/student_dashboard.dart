@@ -7,7 +7,6 @@ library;
 
 import 'package:flutter/material.dart';
 import '../../../theme/app_theme.dart';
-import '../../widgets/lesson_card.dart';
 import '../../../logic/controllers/student_dashboard_controller.dart';
 import '../../../di/service_locator.dart';
 import 'package:go_router/go_router.dart';
@@ -30,6 +29,121 @@ class StudentDashboard extends StatefulWidget {
 class _StudentDashboardState extends State<StudentDashboard> {
   final StudentDashboardController _controller = getIt<StudentDashboardController>();
 
+  Widget _buildHeaderStat(
+    IconData icon,
+    String count,
+    String label,
+    VoidCallback? onTap,
+    Color color,
+  ) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+        decoration: BoxDecoration(
+          color: AppColors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: color.withValues(alpha: 0.18)),
+          boxShadow: [
+            BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 4, offset: const Offset(0, 2)),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 30,
+              height: 30,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(icon, size: 14, color: color),
+            ),
+            const SizedBox(height: 6),
+            Text(count, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.text)),
+            const SizedBox(height: 1),
+            Text(label, style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: AppColors.mutedForeground), textAlign: TextAlign.center),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLessonCard(BuildContext context, dynamic lesson, int index) {
+    final ghostNum = (index + 1).toString().padLeft(2, '0');
+
+    return GestureDetector(
+      onTap: () => context.push('/lesson/${lesson.id}'),
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppColors.secondary,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.border),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Padding(
+              padding: const EdgeInsets.all(14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Number badge
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.10),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      ghostNum,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  // Lesson title — fills remaining space
+                  Expanded(
+                    child: Text(
+                      lesson.title,
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.primaryDark,
+                        height: 1.35,
+                      ),
+                    ),
+                  ),
+                  // Arrow — bottom-right
+                  Align(
+                    alignment: AlignmentDirectional.bottomEnd,
+                    child: Container(
+                      width: 28,
+                      height: 28,
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.10),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(Icons.arrow_forward, size: 13, color: AppColors.primary),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
@@ -39,134 +153,169 @@ class _StudentDashboardState extends State<StudentDashboard> {
           return const Scaffold(body: Center(child: CircularProgressIndicator()));
         }
         final lessons = _controller.lessons;
+        final l10n = AppLocalizations.of(context)!;
 
         return Scaffold(
           backgroundColor: AppColors.background,
           body: SafeArea(
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Header
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 14, 20, 16),
-                  child: Row(
+
+                // ── PREMIUM HEADER ──
+                Container(
+                  color: AppColors.secondary,
+                  child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(
-                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          Text(AppLocalizations.of(context)!.helloGreeting(_controller.studentName), style: const TextStyle(fontSize: 13, color: AppColors.mutedForeground)),
-                          const SizedBox(height: 2),
-                          Text(_controller.levelLabel, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontSize: 22, fontWeight: FontWeight.bold)),
-                        ]),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 14, 20, 16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Greeting row
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        l10n.helloGreeting(_controller.studentName),
+                                        style: const TextStyle(fontSize: 13, color: AppColors.mutedForeground),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        _controller.levelLabel,
+                                        style: Theme.of(context).textTheme.titleLarge?.copyWith(fontSize: 22, fontWeight: FontWeight.bold),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.accent.withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(20),
+                                    border: Border.all(color: AppColors.accent.withValues(alpha: 0.30)),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(Icons.school, size: 11, color: AppColors.accent),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        '${_controller.instructorName} • ${_controller.groupLabel}',
+                                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.text),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 16),
+                            // Stat chips
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: _buildHeaderStat(
+                                    Icons.menu_book,
+                                    _controller.lessonCount.toString(),
+                                    l10n.lessonsSection,
+                                    null,
+                                    AppColors.primary,
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: _buildHeaderStat(
+                                    Icons.check_circle_outline,
+                                    _controller.tasksDue.toString(),
+                                    l10n.navTasks,
+                                    widget.onNavigateToAssignments,
+                                    AppColors.accent,
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: _buildHeaderStat(
+                                    Icons.notifications_outlined,
+                                    _controller.newNotifications.toString(),
+                                    l10n.navAlerts,
+                                    widget.onNavigateToNotifications,
+                                    AppColors.primary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
+                      Container(height: 1, color: AppColors.border),
+                    ],
+                  ),
+                ),
+
+                // ── SECTION HEADER ──
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 14),
+                  child: Row(
+                    children: [
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                        decoration: BoxDecoration(color: AppColors.primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(20), border: Border.all(color: AppColors.primary.withValues(alpha: 0.2))),
-                        child: Row(mainAxisSize: MainAxisSize.min, children: [
-                          const Icon(Icons.school, size: 11, color: AppColors.primary),
-                          const SizedBox(width: 4),
-                          Text('${_controller.instructorName} • ${_controller.groupLabel}', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.primary)),
-                        ]),
+                        width: 3,
+                        height: 18,
+                        decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(2)),
+                      ),
+                      const SizedBox(width: 10),
+                      Text(
+                        l10n.lessonLibrary,
+                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.primaryDark, letterSpacing: 0.6),
                       ),
                     ],
                   ),
                 ),
 
-                // Quick Actions
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20).copyWith(bottom: 14),
-                  child: Row(children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                      decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(14), border: Border.all(color: AppColors.border)),
-                      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                        Text('${_controller.lessonCount}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.text, height: 1.1)),
-                        Text(AppLocalizations.of(context)!.lessonsSection, style: const TextStyle(fontSize: 8, fontWeight: FontWeight.w700, color: AppColors.mutedForeground)),
-                      ]),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: widget.onNavigateToAssignments,
-                        style: ElevatedButton.styleFrom(backgroundColor: AppColors.accent, foregroundColor: AppColors.text, padding: const EdgeInsets.symmetric(vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)), elevation: 4, shadowColor: AppColors.accent.withValues(alpha: 0.35)),
-                        child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                          const Icon(Icons.check_circle_outline, size: 14),
-                          const SizedBox(width: 6),
-                          Text(AppLocalizations.of(context)!.tasksDueCount(_controller.tasksDue.toString()), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
-                        ]),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: widget.onNavigateToNotifications,
-                        style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: AppColors.white, padding: const EdgeInsets.symmetric(vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)), elevation: 4, shadowColor: AppColors.primary.withValues(alpha: 0.25)),
-                        child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                          const Icon(Icons.notifications, size: 14),
-                          const SizedBox(width: 6),
-                          Text(AppLocalizations.of(context)!.newNotifCount(_controller.newNotifications.toString()), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
-                        ]),
-                      ),
-                    ),
-                  ]),
-                ),
-
-                // Section Header
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20).copyWith(bottom: 10),
-                  child: Row(children: [
-                    Container(width: 3, height: 18, decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(2))),
-                    const SizedBox(width: 10),
-                    Expanded(child: Text(AppLocalizations.of(context)!.lessonLibrary, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.primaryDark, letterSpacing: 0.6))),
-                    Text(AppLocalizations.of(context)!.lessonsCountLabel(_controller.lessonCount.toString()), style: const TextStyle(fontSize: 12, color: AppColors.mutedForeground)),
-                  ]),
-                ),
-
-                // Search Bar
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20).copyWith(bottom: 12),
-                  child: Container(
-                    decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFc4b8da), width: 1.5), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 6, offset: const Offset(0, 2))]),
-                    padding: const EdgeInsets.symmetric(horizontal: 14),
-                    child: Row(children: [
-                      const Icon(Icons.search, size: 15, color: AppColors.mutedForeground),
-                      const SizedBox(width: 8),
-                      Expanded(child: TextField(onChanged: (val) => _controller.setSearch(val), decoration: InputDecoration(hintText: AppLocalizations.of(context)!.searchLessonsTopics, border: InputBorder.none, enabledBorder: InputBorder.none, focusedBorder: InputBorder.none, filled: false, isDense: true, contentPadding: const EdgeInsets.symmetric(vertical: 12)), style: const TextStyle(fontSize: 14))),
-                      if (_controller.search.isNotEmpty) GestureDetector(onTap: () => _controller.setSearch(''), child: const Icon(Icons.close, size: 15, color: AppColors.mutedForeground)),
-                    ]),
-                  ),
-                ),
-
-                // List
-                Expanded(
-                  child: lessons.isEmpty
-                      ? Center(
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 40),
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(Icons.menu_book_outlined, size: 48, color: AppColors.mutedForeground.withValues(alpha: 0.4)),
-                                const SizedBox(height: 12),
-                                Text(AppLocalizations.of(context)!.noCurriculum, textAlign: TextAlign.center, style: const TextStyle(fontSize: 14, color: AppColors.mutedForeground)),
-                              ],
+                // ── LESSON LIST ──
+                if (lessons.isEmpty)
+                  Expanded(
+                    child: Center(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 40),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              width: 64,
+                              height: 64,
+                              decoration: BoxDecoration(color: AppColors.accent, borderRadius: BorderRadius.circular(20)),
+                              child: const Icon(Icons.menu_book, size: 28, color: Colors.white),
                             ),
-                          ),
-                        )
-                      : ListView.builder(
-                          padding: const EdgeInsetsDirectional.only(start: 20, end: 20, bottom: 100),
-                          itemCount: lessons.length,
-                          itemBuilder: (context, index) {
-                            final lesson = lessons[index];
-                            return LessonCard(
-                              title: lesson.title,
-                              searchTags: lesson.searchTags,
-                              isVisible: lesson.visible,
-                              showToggle: false,
-                              onPress: () => context.push('/lesson/${lesson.id}'),
-                            );
-                          },
+                            const SizedBox(height: 12),
+                            Text(
+                              l10n.noCurriculum,
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(fontSize: 14, color: AppColors.mutedForeground),
+                            ),
+                          ],
                         ),
-                ),
+                      ),
+                    ),
+                  )
+                else
+                  Expanded(
+                    child: GridView.builder(
+                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        crossAxisSpacing: 12,
+                        mainAxisSpacing: 12,
+                        childAspectRatio: 0.9,
+                      ),
+                      itemCount: lessons.length,
+                      itemBuilder: (context, index) => _buildLessonCard(context, lessons[index], index),
+                    ),
+                  ),
               ],
             ),
           ),

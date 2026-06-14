@@ -7,6 +7,10 @@ import '../../widgets/locale_toggle_button.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../../di/service_locator.dart';
 import '../../../logic/controllers/auth_controller.dart';
+import '../../../logic/controllers/instructor_group_controller.dart';
+import '../../../logic/controllers/curriculum_controller.dart';
+import '../../../logic/controllers/instructor_assignment_controller.dart';
+import '../../../logic/controllers/instructor_log_controller.dart';
 import '../../../data/repositories/user_repository.dart';
 
 import '../instructor/instructor_dashboard.dart';
@@ -14,6 +18,7 @@ import '../instructor/groups_screen.dart';
 import '../instructor/curriculum_screen.dart';
 import '../instructor/assignments_screen.dart';
 import '../instructor/logs_screen.dart';
+import '../../widgets/golden_nav_icon.dart';
 
 
 class InstructorLayout extends StatefulWidget {
@@ -24,6 +29,9 @@ class InstructorLayout extends StatefulWidget {
 }
 
 class _InstructorLayoutState extends State<InstructorLayout> {
+  bool _searchOpen = false;
+  final TextEditingController _searchTextCtrl = TextEditingController();
+
   late final List<Widget> _screens = [
     InstructorDashboard(
       onNavigateToGroups:      () => context.go('/instructor?tab=1'),
@@ -34,6 +42,50 @@ class _InstructorLayoutState extends State<InstructorLayout> {
     const InstructorAssignmentsScreen(),
     const InstructorLogsScreen(),
   ];
+
+  @override
+  void dispose() {
+    _searchTextCtrl.dispose();
+    super.dispose();
+  }
+
+  bool _hasSearch(int index) => const {1, 2, 3, 4}.contains(index);
+
+  void _setSearch(String val) {
+    final tabParam = GoRouterState.of(context).uri.queryParameters['tab'];
+    final currentIndex = (int.tryParse(tabParam ?? '') ?? 0).clamp(0, 4);
+    switch (currentIndex) {
+      case 1:
+        getIt<InstructorGroupController>().setSearch(val);
+      case 2:
+        getIt<CurriculumController>().setSearch(val);
+      case 3:
+        getIt<InstructorAssignmentController>().setSearch(val);
+      case 4:
+        getIt<InstructorLogController>().setSearch(val);
+    }
+  }
+
+  void _closeSearch() {
+    _searchTextCtrl.clear();
+    _setSearch('');
+    if (_searchOpen) setState(() => _searchOpen = false);
+  }
+
+  void _clearText() {
+    _searchTextCtrl.clear();
+    _setSearch('');
+  }
+
+  void _toggleSearch() {
+    setState(() {
+      if (_searchOpen) {
+        _searchTextCtrl.clear();
+        _setSearch('');
+      }
+      _searchOpen = !_searchOpen;
+    });
+  }
 
   Widget _buildIconButton({required IconData icon, required VoidCallback onPressed}) {
     return Container(
@@ -230,10 +282,61 @@ class _InstructorLayoutState extends State<InstructorLayout> {
           preferredSize: const Size.fromHeight(1),
           child: Container(height: 1, color: AppColors.border),
         ),
-        title: const Padding(
-          padding: EdgeInsetsDirectional.only(start: 4),
-          child: Text('Level', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.text)),
-        ),
+        leading: _hasSearch(currentIndex)
+          ? _searchOpen
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back, size: 20, color: AppColors.mutedForeground),
+                onPressed: _closeSearch,
+              )
+            : Center(
+                child: Container(
+                  width: 38,
+                  height: 38,
+                  margin: const EdgeInsetsDirectional.only(start: 8),
+                  decoration: BoxDecoration(
+                    color: AppColors.white,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: AppColors.border),
+                  ),
+                  child: IconButton(
+                    padding: EdgeInsets.zero,
+                    icon: const Icon(Icons.search, size: 15, color: AppColors.mutedForeground),
+                    onPressed: _toggleSearch,
+                  ),
+                ),
+              )
+          : null,
+        leadingWidth: (!_searchOpen && _hasSearch(currentIndex)) ? 54 : null,
+        title: _searchOpen
+          ? TextField(
+              controller: _searchTextCtrl,
+              autofocus: true,
+              onChanged: _setSearch,
+              style: const TextStyle(fontSize: 15, color: AppColors.text),
+              decoration: InputDecoration(
+                hintText: 'Search...',
+                hintStyle: const TextStyle(fontSize: 14, color: AppColors.mutedForeground),
+                border: InputBorder.none,
+                isDense: true,
+                contentPadding: const EdgeInsets.symmetric(vertical: 8),
+                suffixIcon: ValueListenableBuilder<TextEditingValue>(
+                  valueListenable: _searchTextCtrl,
+                  builder: (context, value, _) {
+                    if (value.text.isEmpty) return const SizedBox.shrink();
+                    return IconButton(
+                      padding: EdgeInsets.zero,
+                      icon: const Icon(Icons.clear, size: 18, color: AppColors.mutedForeground),
+                      onPressed: _clearText,
+                    );
+                  },
+                ),
+                suffixIconConstraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+              ),
+            )
+          : const Padding(
+              padding: EdgeInsetsDirectional.only(start: 4),
+              child: Text('LevelUp', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.text)),
+            ),
         actions: [
           const LocaleToggleButton(),
           const SizedBox(width: 6),
@@ -260,7 +363,10 @@ class _InstructorLayoutState extends State<InstructorLayout> {
         ),
         child: BottomNavigationBar(
           currentIndex: currentIndex,
-          onTap: (i) => context.go('/instructor?tab=$i'),
+          onTap: (i) {
+            _closeSearch();
+            context.go('/instructor?tab=$i');
+          },
           backgroundColor: AppColors.white,
           selectedItemColor: AppColors.primary,
           unselectedItemColor: AppColors.mutedForeground,
@@ -269,11 +375,11 @@ class _InstructorLayoutState extends State<InstructorLayout> {
           type: BottomNavigationBarType.fixed,
           elevation: 0,
           items: [
-            BottomNavigationBarItem(icon: const Icon(Icons.home_outlined), activeIcon: const Icon(Icons.home), label: AppLocalizations.of(context)!.navHome),
-            BottomNavigationBarItem(icon: const Icon(Icons.how_to_reg_outlined), activeIcon: const Icon(Icons.how_to_reg), label: AppLocalizations.of(context)!.navGroups),
-            BottomNavigationBarItem(icon: const Icon(Icons.menu_book_outlined), activeIcon: const Icon(Icons.menu_book), label: AppLocalizations.of(context)!.navMaterials),
-            BottomNavigationBarItem(icon: const Icon(Icons.check_box_outlined), activeIcon: const Icon(Icons.check_box), label: AppLocalizations.of(context)!.navTasks),
-            BottomNavigationBarItem(icon: const Icon(Icons.bar_chart_outlined), activeIcon: const Icon(Icons.bar_chart), label: AppLocalizations.of(context)!.navActivity),
+            BottomNavigationBarItem(icon: const GoldenNavIcon(icon: Icons.home, active: false), activeIcon: const GoldenNavIcon(icon: Icons.home), label: AppLocalizations.of(context)!.navHome),
+            BottomNavigationBarItem(icon: const GoldenNavIcon(icon: Icons.how_to_reg, active: false), activeIcon: const GoldenNavIcon(icon: Icons.how_to_reg), label: AppLocalizations.of(context)!.navGroups),
+            BottomNavigationBarItem(icon: const GoldenNavIcon(icon: Icons.menu_book, active: false), activeIcon: const GoldenNavIcon(icon: Icons.menu_book), label: AppLocalizations.of(context)!.navMaterials),
+            BottomNavigationBarItem(icon: const GoldenNavIcon(icon: Icons.check_box, active: false), activeIcon: const GoldenNavIcon(icon: Icons.check_box), label: AppLocalizations.of(context)!.navTasks),
+            BottomNavigationBarItem(icon: const GoldenNavIcon(icon: Icons.bar_chart, active: false), activeIcon: const GoldenNavIcon(icon: Icons.bar_chart), label: AppLocalizations.of(context)!.navActivity),
           ],
         ),
       ),

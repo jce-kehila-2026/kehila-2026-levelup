@@ -54,7 +54,7 @@ class LevelApp extends StatelessWidget {
     final localeProvider = context.watch<LocaleProvider>();
 
     return MaterialApp.router(
-      title: 'Level',
+      title: 'LevelUp',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       locale: localeProvider.locale,

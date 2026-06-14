@@ -8,6 +8,7 @@ library;
 import 'package:flutter/material.dart';
 import '../../../theme/app_theme.dart';
 import '../../widgets/empty_state.dart';
+import '../../widgets/golden_icon.dart';
 import 'package:go_router/go_router.dart';
 import '../../../logic/controllers/student_notification_controller.dart';
 import '../../../di/service_locator.dart';
@@ -119,7 +120,7 @@ class StudentNotificationsScreen extends StatelessWidget {
                                   children: [
                                     if (!item.isRead)
                                       Container(width: 3, height: 38, margin: const EdgeInsetsDirectional.only(end: 12), decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(2))),
-                                    Container(width: 44, height: 44, decoration: BoxDecoration(color: color.withValues(alpha: 0.15), shape: BoxShape.circle), child: Icon(icon, size: 20, color: color)),
+                                    GoldenIcon(icon: icon, size: 44, iconSize: 20, radius: 12),
                                     const SizedBox(width: 12),
                                     Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                                       Text(item.title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.text)),

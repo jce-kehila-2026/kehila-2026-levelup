@@ -86,21 +86,6 @@ class _InstructorLogsScreenState extends State<InstructorLogsScreen> {
                   ]),
                 ),
 
-                // Search Bar
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 14, 20, 10),
-                  child: Container(
-                    decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFc4b8da), width: 1.5)),
-                    padding: const EdgeInsets.symmetric(horizontal: 14),
-                    child: Row(children: [
-                      const Icon(Icons.search, size: 15, color: AppColors.mutedForeground),
-                      const SizedBox(width: 8),
-                      Expanded(child: TextField(onChanged: (val) => _controller.setSearch(val), decoration: InputDecoration(hintText: AppLocalizations.of(context)!.searchByActionName, border: InputBorder.none, enabledBorder: InputBorder.none, focusedBorder: InputBorder.none, filled: false, isDense: true, contentPadding: EdgeInsets.symmetric(vertical: 12)), style: const TextStyle(fontSize: 14))),
-                      if (_controller.search.isNotEmpty) GestureDetector(onTap: () => _controller.setSearch(''), child: const Icon(Icons.close, size: 15, color: AppColors.mutedForeground)),
-                    ]),
-                  ),
-                ),
-
                 // Category filter chips
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),

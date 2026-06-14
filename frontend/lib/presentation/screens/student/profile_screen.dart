@@ -10,6 +10,7 @@ import 'package:go_router/go_router.dart';
 import '../../../theme/app_theme.dart';
 import '../../../logic/controllers/student_profile_controller.dart';
 import '../../../di/service_locator.dart';
+import '../../widgets/golden_icon.dart';
 import 'package:frontend/l10n/app_localizations.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../../logic/controllers/auth_controller.dart';
@@ -37,7 +38,7 @@ class StudentProfileScreen extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 13, horizontal: 16),
       decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: AppColors.border, width: 1))),
       child: Row(children: [
-        Container(width: 32, height: 32, decoration: BoxDecoration(color: AppColors.primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)), child: const Icon(Icons.person, size: 14, color: AppColors.primary)),
+        GoldenIcon(icon: icon, size: 32, iconSize: 14, radius: 8),
         const SizedBox(width: 12),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(label, style: const TextStyle(fontSize: 11, color: AppColors.mutedForeground)),

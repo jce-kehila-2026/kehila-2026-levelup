@@ -376,48 +376,6 @@ class _GroupsScreenState extends State<GroupsScreen> with SingleTickerProviderSt
     );
   }
 
-  // ── Search bar ─────────────────────────────────────────────────────────
-
-  Widget _buildSearchBar({required String hint, required ValueChanged<String> onChanged, required bool hasValue, required VoidCallback onClear}) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-      child: Container(
-        decoration: BoxDecoration(
-          color: AppColors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xFFc4b8da), width: 1.5),
-        ),
-        padding: const EdgeInsets.symmetric(horizontal: 14),
-        child: Row(
-          children: [
-            const Icon(Icons.search, size: 15, color: AppColors.mutedForeground),
-            const SizedBox(width: 8),
-            Expanded(
-              child: TextField(
-                onChanged: onChanged,
-                decoration: InputDecoration(
-                  hintText: hint,
-                  border: InputBorder.none,
-                  enabledBorder: InputBorder.none,
-                  focusedBorder: InputBorder.none,
-                  filled: false,
-                  isDense: true,
-                  contentPadding: const EdgeInsets.symmetric(vertical: 12),
-                ),
-                style: const TextStyle(fontSize: 14),
-              ),
-            ),
-            if (hasValue)
-              GestureDetector(
-                onTap: onClear,
-                child: const Icon(Icons.close, size: 15, color: AppColors.mutedForeground),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-
   // ── Build ──────────────────────────────────────────────────────────────
 
   @override
@@ -521,13 +479,6 @@ class _GroupsScreenState extends State<GroupsScreen> with SingleTickerProviderSt
                       // ── Active Groups ──
                       Column(
                         children: [
-                          _buildSearchBar(
-                            hint: l10n.searchGroups,
-                            onChanged: _controller.setSearch,
-                            hasValue: _controller.search.isNotEmpty,
-                            onClear: () => _controller.setSearch(''),
-                          ),
-                          const SizedBox(height: 6),
                           Expanded(
                             child: groups.isEmpty
                                 ? EmptyState(
@@ -602,13 +553,6 @@ class _GroupsScreenState extends State<GroupsScreen> with SingleTickerProviderSt
                       // ── Archived Groups ──
                       Column(
                         children: [
-                          _buildSearchBar(
-                            hint: 'Search archived groups...',
-                            onChanged: _controller.setArchiveSearch,
-                            hasValue: _controller.archiveSearch.isNotEmpty,
-                            onClear: () => _controller.setArchiveSearch(''),
-                          ),
-                          const SizedBox(height: 6),
                           Expanded(
                             child: archivedGroups.isEmpty
                                 ? const EmptyState(

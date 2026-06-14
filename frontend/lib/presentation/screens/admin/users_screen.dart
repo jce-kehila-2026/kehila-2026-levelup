@@ -27,7 +27,6 @@ class UsersScreen extends StatefulWidget {
 class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStateMixin {
   final UserController _controller = getIt<UserController>();
   late final TabController _tabController;
-  final TextEditingController _searchController = TextEditingController();
   bool _archivedLoaded = false;
   int _archiveCategory = 0; // 0=Instructors, 1=Students
 
@@ -40,7 +39,6 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
 
   void _onTabChanged() {
     if (!_tabController.indexIsChanging) {
-      _searchController.clear();
       _controller.setSearch('');
       if (_tabController.index == 2 && !_archivedLoaded) {
         _archivedLoaded = true;
@@ -54,7 +52,6 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
   void dispose() {
     _tabController.removeListener(_onTabChanged);
     _tabController.dispose();
-    _searchController.dispose();
     super.dispose();
   }
 
@@ -1723,53 +1720,6 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
                     ],
                   ),
                 ),
-
-                // Search bar (hidden on archived tab but maintains size)
-                Visibility(
-                  visible: tabIdx < 2,
-                  maintainSize: true,
-                  maintainAnimation: true,
-                  maintainState: true,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: AppColors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: const Color(0xFFc4b8da), width: 1.5),
-                      ),
-                      padding: const EdgeInsets.symmetric(horizontal: 14),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.search, size: 15, color: AppColors.mutedForeground),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: TextField(
-                              controller: _searchController,
-                              onChanged: (val) => _controller.setSearch(val),
-                              decoration: InputDecoration(
-                                hintText: tabIdx == 0 ? l10n.searchByNameEmail : l10n.searchByNameUsername,
-                                border: InputBorder.none, enabledBorder: InputBorder.none, focusedBorder: InputBorder.none, filled: false,
-                                isDense: true,
-                                contentPadding: const EdgeInsets.symmetric(vertical: 12),
-                              ),
-                              style: const TextStyle(fontSize: 14),
-                            ),
-                          ),
-                          if (_controller.search.isNotEmpty)
-                            GestureDetector(
-                              onTap: () {
-                                _searchController.clear();
-                                _controller.setSearch('');
-                              },
-                              child: const Icon(Icons.close, size: 15, color: AppColors.mutedForeground),
-                            ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 6),
 
                 // Tab content
                 Expanded(

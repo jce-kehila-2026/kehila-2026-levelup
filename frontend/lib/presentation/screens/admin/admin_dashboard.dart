@@ -19,55 +19,87 @@ class AdminDashboard extends StatelessWidget {
     required this.onNavigateToLogs,
   });
 
-  Widget _buildStatTile(String label, String value, IconData icon, Color accent) {
-    return Expanded(
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 4),
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: AppColors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.border),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: 34,
-              height: 34,
-              decoration: BoxDecoration(
-                color: accent.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(9),
-              ),
-              child: Icon(icon, size: 16, color: accent),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              value,
-              style: const TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.w700,
-                color: AppColors.text,
-              ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              label,
-              style: const TextStyle(
-                fontSize: 11,
-                color: AppColors.mutedForeground,
-              ),
-            ),
-          ],
-        ),
+  Widget _buildConsolidatedCard(
+    String title,
+    IconData headerIcon,
+    List<({String label, String value})> items,
+  ) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.border),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: AppColors.accent,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(headerIcon, size: 20, color: Colors.white),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.primaryDark,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              for (int i = 0; i < items.length; i++) ...[
+                if (i > 0)
+                  Container(width: 1, height: 44, color: AppColors.border, margin: const EdgeInsets.symmetric(horizontal: 4)),
+                Expanded(child: _buildStatColumn(items[i].value, items[i].label)),
+              ],
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatColumn(String value, String label) {
+    return Column(
+      children: [
+        Text(
+          value,
+          style: const TextStyle(
+            fontSize: 28,
+            fontWeight: FontWeight.w700,
+            color: AppColors.text,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 11,
+            color: AppColors.mutedForeground,
+          ),
+          textAlign: TextAlign.center,
+        ),
+      ],
     );
   }
 
@@ -196,19 +228,23 @@ class AdminDashboard extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: Column(
                       children: [
-                        Row(
-                          children: [
-                            _buildStatTile(l10n.statStudents, stats['students']!, Icons.people, AppColors.primary),
-                            _buildStatTile(l10n.statInstructors, stats['instructors']!, Icons.work, AppColors.accent),
-                            _buildStatTile(l10n.statLevels, stats['levels']!, Icons.layers, const Color(0xFF8B5CF6)),
+                        _buildConsolidatedCard(
+                          'People & Users',
+                          Icons.people,
+                          [
+                            (label: l10n.statStudents,    value: stats['students']!),
+                            (label: l10n.statInstructors, value: stats['instructors']!),
+                            (label: l10n.statGroups,      value: stats['groups']!),
                           ],
                         ),
-                        const SizedBox(height: 8),
-                        Row(
-                          children: [
-                            _buildStatTile(l10n.statGroups, stats['groups']!, Icons.how_to_reg, AppColors.success),
-                            _buildStatTile(l10n.statLessons, stats['lessons']!, Icons.menu_book, AppColors.info),
-                            _buildStatTile(l10n.statActiveTasks, stats['activeTasks']!, Icons.check_box, AppColors.warning),
+                        const SizedBox(height: 12),
+                        _buildConsolidatedCard(
+                          'Curriculum & Content',
+                          Icons.layers,
+                          [
+                            (label: l10n.statLevels,      value: stats['levels']!),
+                            (label: l10n.statLessons,     value: stats['lessons']!),
+                            (label: l10n.statActiveTasks, value: stats['activeTasks']!),
                           ],
                         ),
                       ],

@@ -72,23 +72,23 @@ class GroupCard extends StatelessWidget {
                   margin: const EdgeInsets.only(top: 2),
                   padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
                   decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.08),
+                    color: AppColors.accent.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
-                      color: AppColors.primary.withValues(alpha: 0.19),
+                      color: AppColors.accent.withValues(alpha: 0.30),
                       width: 1,
                     ),
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.people, size: 11, color: AppColors.primary),
+                      const Icon(Icons.people, size: 11, color: AppColors.accent),
                       const SizedBox(width: 4),
                       Text(
                         '$studentsCount',
                         style: const TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.bold,
-                          color: AppColors.primary,
+                          color: AppColors.text,
                         ),
                       ),
                     ],
@@ -104,7 +104,7 @@ class GroupCard extends StatelessWidget {
             const SizedBox(height: 10),
             Row(
               children: [
-                const Icon(Icons.work_outline, size: 13, color: AppColors.mutedForeground),
+                const Icon(Icons.work_outline, size: 13, color: AppColors.accent),
                 const SizedBox(width: 5),
                 Text(
                   '$instructorsCount Instructor${instructorsCount != 1 ? 's' : ''}',
