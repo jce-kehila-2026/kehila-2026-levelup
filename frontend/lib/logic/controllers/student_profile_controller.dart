@@ -28,13 +28,19 @@ class StudentProfileController extends ChangeNotifier {
     });
   }
 
+  String? _error;
+  String? get error => _error;
+
   Future<void> _init() async {
     _isLoading = true;
+    _error = null;
     notifyListeners();
     try {
       _profile = await _repository.getProfile();
-    } catch (e) {
+    } catch (e, stack) {
+      _error = e.toString();
       debugPrint('StudentProfileController._init error: $e');
+      debugPrint('Stacktrace: $stack');
     } finally {
       _isLoading = false;
       notifyListeners();

@@ -59,6 +59,33 @@ class StudentProfileScreen extends StatelessWidget {
         if (controller.isLoading) {
           return const Scaffold(body: Center(child: CircularProgressIndicator()));
         }
+        if (controller.error != null) {
+          return Scaffold(
+            backgroundColor: AppColors.background,
+            body: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.error_outline, size: 48, color: AppColors.error),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Failed to load profile details.',
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.text),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      controller.error!,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(fontSize: 13, color: AppColors.mutedForeground),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        }
         final profile = controller.profile;
         final raw = profile.name.split(' ').map((e) => e.isNotEmpty ? e[0] : '').join().toUpperCase();
         final initials = raw.length >= 2 ? raw.substring(0, 2) : raw;

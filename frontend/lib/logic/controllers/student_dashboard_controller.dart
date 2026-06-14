@@ -7,6 +7,8 @@ import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../data/models/curriculum_model.dart';
+import '../../data/models/group_model.dart';
+import '../../data/models/assignment_model.dart';
 import '../../di/service_locator.dart';
 import 'student_assignment_controller.dart';
 import 'student_notification_controller.dart';
@@ -20,15 +22,22 @@ class StudentDashboardController extends ChangeNotifier {
   String _levelLabel = '';
   String _groupLabel = '—';
   String _instructorName = '—';
+  int _myGroupsCount = 0;
+  int _classmatesCount = 0;
   List<CurriculumItem> _allLessons = [];
+  List<GroupModel> _myGroups = [];
 
   StreamSubscription<User?>? _authSub;
   late final StudentAssignmentController _assignmentController;
   late final StudentNotificationController _notificationController;
 
   StreamSubscription<DocumentSnapshot>? _userDocSub;
-  StreamSubscription<dynamic>? _curriculumSub;
+  StreamSubscription<DocumentSnapshot>? _curriculumSub;
+  StreamSubscription<QuerySnapshot>? _assignedMaterialsSub;
   StreamSubscription<DocumentSnapshot>? _groupSub;
+
+  Set<String> _assignedMaterialIds = {};
+  LevelModel? _currentLevel;
 
   String? _subscribedGroupId;
   String? _subscribedAssignedMaterialsGroupId;
@@ -54,13 +63,19 @@ class StudentDashboardController extends ChangeNotifier {
     _levelLabel = '';
     _groupLabel = '—';
     _instructorName = '—';
+    _myGroupsCount = 0;
+    _classmatesCount = 0;
     _allLessons = [];
+    _myGroups = [];
     _subscribedGroupId = null;
     _subscribedAssignedMaterialsGroupId = null;
     _subscribedAssignedMaterialsLevelId = null;
     _userDocSub?.cancel();
     _curriculumSub?.cancel();
+    _assignedMaterialsSub?.cancel();
     _groupSub?.cancel();
+    _assignedMaterialIds = {};
+    _currentLevel = null;
     notifyListeners();
   }
 
@@ -82,40 +97,51 @@ class StudentDashboardController extends ChangeNotifier {
 
       final db = FirebaseFirestore.instance;
       String? levelId;
+      String? groupId;
 
-      // 1. User document — display name and levelId
+      // 1. User document — display name, levelId, and groupId
       final userDoc = await db.collection('users').doc(uid).get();
       if (userDoc.exists) {
         final data = userDoc.data()!;
         _studentName = data['name'] as String? ?? '';
         levelId = data['levelId'] as String?;
+        groupId = data['groupId'] as String?;
       }
 
-      // 2. Group — label, instructor name, and levelId fallback.
-      //    Try groupId shortcut first; fall back to a full collection scan.
-      String? groupId;
-      if (userDoc.exists) {
-        groupId = userDoc.data()?['groupId'] as String?;
-      }
+      // 2. Fetch Group document directly (authorized by security rules)
       Map<String, dynamic>? groupData;
+      final List<GroupModel> myGroups = [];
+      int myGroupsCount = 0;
+      int classmatesCount = 0;
 
       if (groupId != null && groupId.isNotEmpty) {
         final doc = await db.collection('groups').doc(groupId).get();
-        if (doc.exists) groupData = doc.data();
-      }
-
-      if (groupData == null) {
-        final snap = await db.collection('groups').get();
-        for (final doc in snap.docs) {
-          final data = doc.data();
-          final students = data['students'] as List<dynamic>? ?? [];
-          if (students.any((s) => (s as Map)['id'] == uid)) {
-            groupData = data;
-            groupId = doc.id;
-            break;
+        if (doc.exists && doc.data() != null) {
+          groupData = doc.data();
+          final groupModel = GroupModel.fromMap(groupData!, doc.id);
+          myGroups.add(groupModel);
+          myGroupsCount = 1;
+          
+          // Find matching student embed inside group to extract level fallback
+          final matchingStudent = groupModel.students.firstWhere(
+            (s) => s.id == uid,
+            orElse: () => const GroupStudentEmbed(id: '', name: '', level: ''),
+          );
+          
+          if (matchingStudent.id.isNotEmpty) {
+            if (levelId == null || levelId.isEmpty) {
+              levelId = matchingStudent.level;
+              debugPrint('StudentDashboardController: Fallback levelId from group student embed: $levelId');
+            }
           }
+          
+          classmatesCount = groupModel.students.length;
         }
       }
+
+      _myGroups = myGroups;
+      _myGroupsCount = myGroupsCount;
+      _classmatesCount = classmatesCount;
 
       if (groupData != null) {
         _groupLabel = groupData['name'] as String? ?? '—';
@@ -126,10 +152,8 @@ class StudentDashboardController extends ChangeNotifier {
               await db.collection('users').doc(instructorIds.first).get();
           _instructorName = instDoc.data()?['name'] as String? ?? '—';
         }
-        if (levelId == null || levelId.isEmpty) {
-          levelId = groupData['globalLevel'] as String?;
-        }
       }
+      debugPrint('StudentDashboardController: Final resolved levelId: $levelId, groupId: $groupId');
 
       if (groupId != null && groupId.isNotEmpty) {
         _subscribeToGroup(groupId);
@@ -192,25 +216,63 @@ class StudentDashboardController extends ChangeNotifier {
     if (_subscribedAssignedMaterialsGroupId == groupId && _subscribedAssignedMaterialsLevelId == levelId) return;
     _subscribedAssignedMaterialsGroupId = groupId;
     _subscribedAssignedMaterialsLevelId = levelId;
+
+    _assignedMaterialsSub?.cancel();
     _curriculumSub?.cancel();
-    _curriculumSub = FirebaseFirestore.instance
+
+    // 1. Subscribe to assigned materials
+    _assignedMaterialsSub = FirebaseFirestore.instance
         .collection('assigned_materials')
         .where('groupId', isEqualTo: groupId)
         .where('levelId', isEqualTo: levelId)
         .snapshots()
         .listen((snap) {
-      _allLessons = snap.docs.map((doc) {
-        final data = doc.data();
-        return CurriculumItem(
-          id: data['materialId'] as String,
-          type: CurriculumItemType.material,
-          title: data['materialTitle'] as String? ?? 'Lesson',
-          searchTags: const [],
-          visible: true,
-        );
-      }).toList();
-      notifyListeners();
+      _assignedMaterialIds = snap.docs.map((doc) => doc.data()['materialId'] as String).toSet();
+      _updateLessons();
+    }, onError: (e) {
+      debugPrint('StudentDashboardController: assigned_materials stream error: $e');
     });
+
+    // 2. Subscribe to curriculum level document
+    _curriculumSub = FirebaseFirestore.instance
+        .collection('curriculum')
+        .doc(levelId)
+        .snapshots()
+        .listen((snap) {
+      if (snap.exists && snap.data() != null) {
+        _currentLevel = LevelModel.fromMap(snap.data()!, snap.id);
+        _levelLabel = _currentLevel!.name;
+      } else {
+        _currentLevel = null;
+        _levelLabel = levelId;
+      }
+      _updateLessons();
+    }, onError: (e) {
+      debugPrint('StudentDashboardController: curriculum level stream error: $e');
+    });
+  }
+
+  void _updateLessons() {
+    if (_currentLevel == null) {
+      _allLessons = [];
+      notifyListeners();
+      return;
+    }
+
+    final List<CurriculumItem> lessons = [];
+    for (final week in _currentLevel!.weeks) {
+      for (final item in week.items) {
+        // Show item if it's a material, not starting with ca_, visible, and assigned
+        if (item.type == CurriculumItemType.material &&
+            !item.id.startsWith('ca_') &&
+            item.visible &&
+            _assignedMaterialIds.contains(item.id)) {
+          lessons.add(item);
+        }
+      }
+    }
+    _allLessons = lessons;
+    notifyListeners();
   }
 
   // ── Helpers ────────────────────────────────────────────────────────────────
@@ -225,6 +287,7 @@ class StudentDashboardController extends ChangeNotifier {
     _authSub?.cancel();
     _userDocSub?.cancel();
     _curriculumSub?.cancel();
+    _assignedMaterialsSub?.cancel();
     _groupSub?.cancel();
     super.dispose();
   }
@@ -239,6 +302,11 @@ class StudentDashboardController extends ChangeNotifier {
   int get lessonCount => _allLessons.length;
   int get tasksDue => _assignmentController.pendingCount;
   int get newNotifications => _notificationController.unreadCount;
+  int get myGroupsCount => _myGroupsCount;
+  int get classmatesCount => _classmatesCount;
+  int get pendingReviewCount => _assignmentController.pendingReviewCount;
+  List<AssignmentModel> get activeAssignments => _assignmentController.pendingAssignments;
+  List<GroupModel> get myGroups => _myGroups;
 
   List<CurriculumItem> get lessons {
     if (_search.isEmpty) return _allLessons;

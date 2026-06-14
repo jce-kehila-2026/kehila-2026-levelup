@@ -268,7 +268,6 @@ class GroupDetailController extends ChangeNotifier {
         studentId,
         levelId,
         name: student?.name ?? '',
-        pin: student?.pinCode ?? '',
       );
       _availableStudentsSearch = '';
       await _initQuietly();
@@ -292,7 +291,6 @@ class GroupDetailController extends ChangeNotifier {
           studentId,
           levelId,
           name: student?.name ?? '',
-          pin: student?.pinCode ?? '',
         );
       }
       _bulkSelectedStudentIds.clear();
@@ -330,7 +328,6 @@ class GroupDetailController extends ChangeNotifier {
         result.uid,
         levelId,
         name: fullName,
-        pin: actualPinCode,
       );
 
       await _initQuietly();
@@ -378,7 +375,6 @@ class GroupDetailController extends ChangeNotifier {
           result.uid,
           e.levelId,
           name: e.name,
-          pin: pinCode,
         );
 
         created.add(UserModel(
@@ -438,7 +434,6 @@ class GroupDetailController extends ChangeNotifier {
     final newPin = (100000 + Random().nextInt(900000)).toString();
 
     await _userRepository.resetStudentPin(studentId, newPin);
-    await _groupRepository.updateStudentPinInGroup(groupId, studentId, newPin);
 
     final index = _allStudents.indexWhere((s) => s.id == studentId);
     if (index != -1) {

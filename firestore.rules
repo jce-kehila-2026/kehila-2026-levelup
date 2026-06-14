@@ -17,7 +17,6 @@ service cloud.firestore {
     function isStaff()      { return isAdmin() || isInstructor(); }
 
     // ── users ──────────────────────────────────────────────────────────────
-    // Readable by ANY signed-in user — required so role() works in all rules.
 
     match /users/{userId} {
       allow read:   if isSignedIn();
@@ -25,6 +24,17 @@ service cloud.firestore {
       allow update: if isAdmin() || 
                     (isInstructor() && resource.data.role == 'student') ||
                     (request.auth.uid == userId && request.resource.data.role == resource.data.role);
+      allow delete: if isAdmin();
+    }
+
+    // ── users_private ──────────────────────────────────────────────────────
+
+    match /users_private/{userId} {
+      allow read:   if isSignedIn() && (request.auth.uid == userId || isStaff());
+      allow create: if isAdmin();
+      allow update: if isAdmin() || 
+                    (isInstructor() && get(/databases/$(database)/documents/users/$(userId)).data.role == 'student') ||
+                    (request.auth.uid == userId);
       allow delete: if isAdmin();
     }
 

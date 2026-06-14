@@ -31,6 +31,9 @@ class StudentProfileRepository {
     if (!doc.exists) return null;
     final data = doc.data()!;
 
+    final privateDoc = await _db.collection('users_private').doc(id).get();
+    final privateData = privateDoc.data() ?? {};
+
     // ── Resolve group name + instructor names from the groups collection ──
     String groupName = '—';
     String instructorNames = '—';
@@ -72,7 +75,7 @@ class StudentProfileRepository {
       graded: (data['graded'] ?? 0).toInt(),
       correct: (data['correct'] ?? 0).toInt(),
       studentNumber: data['studentNumber'],
-      pinCode: data['pinCode'],
+      pinCode: privateData['pinCode'],
       lastActive: data['lastActive'] != null
           ? (data['lastActive'] is Timestamp
               ? (data['lastActive'] as Timestamp).toDate()
