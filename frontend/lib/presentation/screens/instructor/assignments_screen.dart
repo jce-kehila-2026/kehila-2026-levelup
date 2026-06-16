@@ -335,6 +335,7 @@ class _InstructorAssignmentsScreenState extends State<InstructorAssignmentsScree
         return Scaffold(
           backgroundColor: AppColors.background,
           floatingActionButton: FloatingActionButton(
+            heroTag: 'fab_instructor_assignments',
             onPressed: _showCreateAssignmentFlow,
             backgroundColor: AppColors.accent,
             elevation: 6,

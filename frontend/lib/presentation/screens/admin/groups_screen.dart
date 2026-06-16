@@ -396,6 +396,7 @@ class _GroupsScreenState extends State<GroupsScreen> with SingleTickerProviderSt
           backgroundColor: AppColors.background,
           floatingActionButton: !isArchiveTab
               ? FloatingActionButton(
+                  heroTag: 'fab_admin_groups',
                   onPressed: _showAddGroupDialog,
                   backgroundColor: AppColors.primary,
                   elevation: 6,

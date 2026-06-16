@@ -1,9 +1,3 @@
-/// Presentation Tier — Screen
-/// Path: lib/presentation/screens/instructor/curriculum_screen.dart
-///
-/// ✅ Read-only browse of admin-approved curriculum content
-/// ✅ Reuses CurriculumController, LessonCard, and AssignmentCard
-/// ✅ Includes "Assign to Level" mechanism via bottom sheet
 library;
 
 import 'package:flutter/material.dart';
