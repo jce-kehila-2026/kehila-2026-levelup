@@ -134,6 +134,15 @@ class CurriculumController extends ChangeNotifier {
   Future<int> getStudentCountForLevel(String levelId) =>
       _userRepository.getStudentCountByLevel(levelId);
 
+  Future<int> getActiveGroupsCountForLevel(String levelId) async {
+    final snap = await FirebaseFirestore.instance
+        .collection('groups')
+        .where('isArchived', isEqualTo: false)
+        .where('levelIds', arrayContains: levelId)
+        .get();
+    return snap.docs.length;
+  }
+
   Future<void> editLevel(String levelId, String newName) async {
     if (newName.isEmpty) return;
     final oldName = _levels.firstWhere((l) => l.id == levelId).name;

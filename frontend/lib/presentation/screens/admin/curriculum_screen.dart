@@ -297,10 +297,15 @@ class _CurriculumScreenState extends State<CurriculumScreen> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (ctx) => FutureBuilder<int>(
-        future: _controller.getStudentCountForLevel(level.id),
+      builder: (ctx) => FutureBuilder<List<int>>(
+        future: Future.wait([
+          _controller.getStudentCountForLevel(level.id),
+          _controller.getActiveGroupsCountForLevel(level.id),
+        ]),
         builder: (context, snapshot) {
-          final count = snapshot.data;
+          final data = snapshot.data;
+          final studentCount = data != null ? data[0] : 0;
+          final groupCount = data != null ? data[1] : 0;
           final isLoading = snapshot.connectionState == ConnectionState.waiting;
           return AlertDialog(
             backgroundColor: AppColors.background,
@@ -323,7 +328,7 @@ class _CurriculumScreenState extends State<CurriculumScreen> {
                         style: const TextStyle(color: AppColors.text, fontWeight: FontWeight.w500),
                       ),
                       const SizedBox(height: 12),
-                      if (count != null && count > 0) ...[
+                      if (studentCount > 0) ...[
                         Container(
                           padding: const EdgeInsets.all(10),
                           decoration: BoxDecoration(
@@ -336,8 +341,30 @@ class _CurriculumScreenState extends State<CurriculumScreen> {
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
-                                  'Warning: $count student(s) are assigned to this level. Deleting it may cause inconsistencies.',
+                                  'Warning: $studentCount student(s) are assigned to this level. Deleting it may cause inconsistencies.',
                                   style: const TextStyle(color: AppColors.error, fontSize: 13, fontWeight: FontWeight.w500),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                      ],
+                      if (groupCount > 0) ...[
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: AppColors.warning.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.warning_amber_rounded, color: AppColors.warning, size: 20),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'Warning: $groupCount active group(s) are using this level. Deleting it may affect level access.',
+                                  style: const TextStyle(color: AppColors.warning, fontSize: 13, fontWeight: FontWeight.w500),
                                 ),
                               ),
                             ],

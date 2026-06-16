@@ -90,7 +90,7 @@ void setupServiceLocator() {
     () => UserController(getIt<UserRepository>(), getIt<GroupRepository>(), getIt<CurriculumRepository>(), getIt<AuditLogHelper>()),
   );
   getIt.registerLazySingleton<GroupController>(
-    () => GroupController(getIt<GroupRepository>(), getIt<AuditLogHelper>()),
+    () => GroupController(getIt<GroupRepository>(), getIt<UserRepository>(), getIt<AuditLogHelper>()),
   );
   getIt.registerLazySingleton<AuditLogController>(
     () => AuditLogController(getIt<AuditLogRepository>()),

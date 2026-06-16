@@ -168,6 +168,8 @@ class _InstructorGroupsScreenState extends State<InstructorGroupsScreen> {
 
   void _showAddGroupDialog() {
     final nameController = TextEditingController();
+    final selectedLevelIds = <String>{};
+
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -175,52 +177,95 @@ class _InstructorGroupsScreenState extends State<InstructorGroupsScreen> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Row(
           children: [
-            Icon(Icons.group_add, color: AppColors.primary, size: 22),
-            SizedBox(width: 10),
-            Text(AppLocalizations.of(context)!.newGroup, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+            const Icon(Icons.group_add, color: AppColors.primary, size: 22),
+            const SizedBox(width: 10),
+            Text(AppLocalizations.of(context)!.newGroup, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
           ],
         ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(AppLocalizations.of(context)!.createNewGroupDesc, style: TextStyle(fontSize: 13, color: AppColors.mutedForeground)),
-            const SizedBox(height: 16),
-            TextField(
-              controller: nameController,
-              decoration: InputDecoration(
-                hintText: AppLocalizations.of(context)!.groupNameHint,
-                prefixIcon: const Icon(Icons.label_outline, size: 18),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.input, width: 1.5)),
-                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.primary, width: 1.5)),
-              ),
-              autofocus: true,
-            ),
-          ],
+        content: StatefulBuilder(
+          builder: (context, setDialogState) {
+            final levels = _controller.instructorAssignedLevelIds;
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(AppLocalizations.of(context)!.createNewGroupDesc, style: const TextStyle(fontSize: 13, color: AppColors.mutedForeground)),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: nameController,
+                  decoration: InputDecoration(
+                    hintText: AppLocalizations.of(context)!.groupNameHint,
+                    prefixIcon: const Icon(Icons.label_outline, size: 18),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.input, width: 1.5)),
+                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.primary, width: 1.5)),
+                  ),
+                  autofocus: true,
+                ),
+                const SizedBox(height: 16),
+                const Text('Select Levels', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.text)),
+                const SizedBox(height: 8),
+                if (levels.isEmpty)
+                  const Text('No assigned levels found.', style: TextStyle(fontSize: 12, color: AppColors.error))
+                else
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: levels.map((lvlId) {
+                      final isSelected = selectedLevelIds.contains(lvlId);
+                      final levelLabel = AppLocalizations.of(context)!.levelLabel(lvlId.replaceAll('l', ''));
+                      return FilterChip(
+                        selected: isSelected,
+                        label: Text(levelLabel),
+                        selectedColor: AppColors.primary.withValues(alpha: 0.2),
+                        checkmarkColor: AppColors.primary,
+                        onSelected: (selected) {
+                          setDialogState(() {
+                            if (selected) {
+                              selectedLevelIds.add(lvlId);
+                            } else {
+                              selectedLevelIds.remove(lvlId);
+                            }
+                          });
+                        },
+                      );
+                    }).toList(),
+                  ),
+              ],
+            );
+          },
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: Text(AppLocalizations.of(context)!.cancelButton, style: TextStyle(color: AppColors.mutedForeground)),
+            child: Text(AppLocalizations.of(context)!.cancelButton, style: const TextStyle(color: AppColors.mutedForeground)),
           ),
           ElevatedButton(
             onPressed: () async {
               final name = nameController.text.trim();
+              if (name.isEmpty) return;
+              if (selectedLevelIds.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('At least one level must be selected.'),
+                    backgroundColor: AppColors.error,
+                  ),
+                );
+                return;
+              }
               Navigator.pop(ctx);
-              if (name.isNotEmpty) {
-                try {
-                  await _controller.addGroup(name);
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text(AppLocalizations.of(context)!.groupCreated(name)), behavior: SnackBarBehavior.floating),
-                    );
-                  }
-                } catch (e) {
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text(AppLocalizations.of(context)!.failedToCreateGroup(e.toString())), backgroundColor: AppColors.error, behavior: SnackBarBehavior.floating),
-                    );
-                  }
+              try {
+                await _controller.addGroup(name, selectedLevelIds.toList());
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text(AppLocalizations.of(context)!.groupCreated(name)), behavior: SnackBarBehavior.floating),
+                  );
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text(AppLocalizations.of(context)!.failedToCreateGroup(e.toString())), backgroundColor: AppColors.error, behavior: SnackBarBehavior.floating),
+                  );
                 }
               }
             },
@@ -230,7 +275,7 @@ class _InstructorGroupsScreenState extends State<InstructorGroupsScreen> {
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
             ),
-            child: Text(AppLocalizations.of(context)!.createButton, style: TextStyle(fontWeight: FontWeight.bold)),
+            child: Text(AppLocalizations.of(context)!.createButton, style: const TextStyle(fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -308,42 +353,18 @@ class _InstructorGroupsScreenState extends State<InstructorGroupsScreen> {
                     itemCount: groups.length,
                     itemBuilder: (context, index) {
                       final group = groups[index];
-                      final activeLevels = group.activeLevels;
-                      final levelLabel = activeLevels.isEmpty
+                      final levelLabel = group.levelIds.isEmpty
                           ? AppLocalizations.of(context)!.noLevelsAssigned
-                          : activeLevels.map((l) => AppLocalizations.of(context)!.levelLabel(l.replaceAll('l', ''))).join(' \u00b7 ');
+                          : group.levelIds.map((l) => AppLocalizations.of(context)!.levelLabel(l.replaceAll('l', ''))).join(' \u00b7 ');
                       return GroupCard(
                         groupName: group.name,
                         instructorsCount: group.instructorIds.length,
                         levelName: levelLabel,
                         studentsCount: group.studentIds.length,
-                        onPress: () => context.push('/group/${group.id}'),
-                        trailing: PopupMenuButton<String>(
-                          icon: const Icon(Icons.more_vert, size: 18, color: AppColors.mutedForeground),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          onSelected: (val) {
-                            if (val == 'edit') _showEditGroupDialog(group);
-                            if (val == 'delete') _showDeleteGroupDialog(group);
-                          },
-                          itemBuilder: (_) => [
-                            PopupMenuItem(
-                              value: 'edit',
-                              child: Row(children: [
-                                const Icon(Icons.edit_outlined, size: 16, color: AppColors.primary),
-                                const SizedBox(width: 8),
-                                Text(AppLocalizations.of(context)!.editName),
-                              ]),
-                            ),
-                            PopupMenuItem(
-                              value: 'delete',
-                              child: Row(children: [
-                                const Icon(Icons.archive_outlined, size: 16, color: AppColors.error),
-                                const SizedBox(width: 8),
-                                Text(AppLocalizations.of(context)!.archive, style: const TextStyle(color: AppColors.error)),
-                              ]),
-                            ),
-                          ],
-                        ),
+                        onPress: () async {
+                          await context.push('/group/${group.id}');
+                          _controller.refresh();
+                        },
                       );
                     },
                   ),
