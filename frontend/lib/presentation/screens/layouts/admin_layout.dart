@@ -107,10 +107,13 @@ class _AdminLayoutState extends State<AdminLayout> {
 
 
 
+  static const bool _enableResponsiveDesktopLayout = true;
+
   @override
   Widget build(BuildContext context) {
     final tabParam = GoRouterState.of(context).uri.queryParameters['tab'];
     final currentIndex = (int.tryParse(tabParam ?? '') ?? 0).clamp(0, 4);
+    final bool isWide = _enableResponsiveDesktopLayout && MediaQuery.of(context).size.width > 850;
 
     return Scaffold(
       appBar: AppBar(
@@ -188,36 +191,94 @@ class _AdminLayoutState extends State<AdminLayout> {
           const SizedBox(width: 8),
         ],
       ),
-      body: IndexedStack(
-        index: currentIndex,
-        children: _screens,
-      ),
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          border: Border(top: BorderSide(color: AppColors.border, width: 1)),
-        ),
-        child: BottomNavigationBar(
-          currentIndex: currentIndex,
-          onTap: (i) {
-            _closeSearch();
-            context.go('/admin?tab=$i');
-          },
-          backgroundColor: AppColors.white,
-          selectedItemColor: AppColors.primary,
-          unselectedItemColor: AppColors.mutedForeground,
-          selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 11),
-          unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 11),
-          type: BottomNavigationBarType.fixed,
-          elevation: 0,
-          items: [
-            BottomNavigationBarItem(icon: const GoldenNavIcon(icon: Icons.home, active: false), activeIcon: const GoldenNavIcon(icon: Icons.home), label: AppLocalizations.of(context)!.navHome),
-            BottomNavigationBarItem(icon: const GoldenNavIcon(icon: Icons.menu_book, active: false), activeIcon: const GoldenNavIcon(icon: Icons.menu_book), label: AppLocalizations.of(context)!.navCurriculum),
-            BottomNavigationBarItem(icon: const GoldenNavIcon(icon: Icons.people, active: false), activeIcon: const GoldenNavIcon(icon: Icons.people), label: AppLocalizations.of(context)!.navUsers),
-            BottomNavigationBarItem(icon: const GoldenNavIcon(icon: Icons.how_to_reg, active: false), activeIcon: const GoldenNavIcon(icon: Icons.how_to_reg), label: AppLocalizations.of(context)!.navGroups),
-            BottomNavigationBarItem(icon: const GoldenNavIcon(icon: Icons.list_alt, active: false), activeIcon: const GoldenNavIcon(icon: Icons.list_alt), label: AppLocalizations.of(context)!.navLogs),
-          ],
-        ),
-      ),
+      body: isWide
+          ? Row(
+              children: [
+                NavigationRail(
+                  selectedIndex: currentIndex,
+                  onDestinationSelected: (i) {
+                    _closeSearch();
+                    context.go('/admin?tab=$i');
+                  },
+                  backgroundColor: AppColors.white,
+                  selectedLabelTextStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 11, color: AppColors.primary),
+                  unselectedLabelTextStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 11, color: AppColors.mutedForeground),
+                  indicatorColor: AppColors.secondary,
+                  labelType: NavigationRailLabelType.all,
+                  destinations: [
+                    NavigationRailDestination(
+                      icon: const GoldenNavIcon(icon: Icons.home, active: false),
+                      selectedIcon: const GoldenNavIcon(icon: Icons.home),
+                      label: Text(AppLocalizations.of(context)!.navHome),
+                    ),
+                    NavigationRailDestination(
+                      icon: const GoldenNavIcon(icon: Icons.menu_book, active: false),
+                      selectedIcon: const GoldenNavIcon(icon: Icons.menu_book),
+                      label: Text(AppLocalizations.of(context)!.navCurriculum),
+                    ),
+                    NavigationRailDestination(
+                      icon: const GoldenNavIcon(icon: Icons.people, active: false),
+                      selectedIcon: const GoldenNavIcon(icon: Icons.people),
+                      label: Text(AppLocalizations.of(context)!.navUsers),
+                    ),
+                    NavigationRailDestination(
+                      icon: const GoldenNavIcon(icon: Icons.how_to_reg, active: false),
+                      selectedIcon: const GoldenNavIcon(icon: Icons.how_to_reg),
+                      label: Text(AppLocalizations.of(context)!.navGroups),
+                    ),
+                    NavigationRailDestination(
+                      icon: const GoldenNavIcon(icon: Icons.list_alt, active: false),
+                      selectedIcon: const GoldenNavIcon(icon: Icons.list_alt),
+                      label: Text(AppLocalizations.of(context)!.navLogs),
+                    ),
+                  ],
+                ),
+                Container(width: 1, color: AppColors.border),
+                Expanded(
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 1100),
+                      child: IndexedStack(
+                        index: currentIndex,
+                        children: _screens,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            )
+          : IndexedStack(
+              index: currentIndex,
+              children: _screens,
+            ),
+      bottomNavigationBar: isWide
+          ? null
+          : Container(
+              decoration: BoxDecoration(
+                border: Border(top: BorderSide(color: AppColors.border, width: 1)),
+              ),
+              child: BottomNavigationBar(
+                currentIndex: currentIndex,
+                onTap: (i) {
+                  _closeSearch();
+                  context.go('/admin?tab=$i');
+                },
+                backgroundColor: AppColors.white,
+                selectedItemColor: AppColors.primary,
+                unselectedItemColor: AppColors.mutedForeground,
+                selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 11),
+                unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 11),
+                type: BottomNavigationBarType.fixed,
+                elevation: 0,
+                items: [
+                  BottomNavigationBarItem(icon: const GoldenNavIcon(icon: Icons.home, active: false), activeIcon: const GoldenNavIcon(icon: Icons.home), label: AppLocalizations.of(context)!.navHome),
+                  BottomNavigationBarItem(icon: const GoldenNavIcon(icon: Icons.menu_book, active: false), activeIcon: const GoldenNavIcon(icon: Icons.menu_book), label: AppLocalizations.of(context)!.navCurriculum),
+                  BottomNavigationBarItem(icon: const GoldenNavIcon(icon: Icons.people, active: false), activeIcon: const GoldenNavIcon(icon: Icons.people), label: AppLocalizations.of(context)!.navUsers),
+                  BottomNavigationBarItem(icon: const GoldenNavIcon(icon: Icons.how_to_reg, active: false), activeIcon: const GoldenNavIcon(icon: Icons.how_to_reg), label: AppLocalizations.of(context)!.navGroups),
+                  BottomNavigationBarItem(icon: const GoldenNavIcon(icon: Icons.list_alt, active: false), activeIcon: const GoldenNavIcon(icon: Icons.list_alt), label: AppLocalizations.of(context)!.navLogs),
+                ],
+              ),
+            ),
     );
   }
 }
