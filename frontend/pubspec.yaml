@@ -32,6 +32,9 @@ dependencies:
   flutter_localizations:
     sdk: flutter
   cloud_functions: 6.3.2
+  file_picker: ^11.0.2
+  syncfusion_flutter_pdfviewer: ^33.2.12
+  url_launcher: ^6.2.6
 
 dev_dependencies:
   flutter_test:

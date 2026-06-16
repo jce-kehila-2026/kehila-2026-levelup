@@ -1,6 +1,7 @@
 // ignore_for_file: experimental_member_use
 import 'dart:async';
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart' as quill;
 import 'package:frontend/l10n/app_localizations.dart';
@@ -9,8 +10,17 @@ import '../../../theme/app_theme.dart';
 import '../../../data/models/curriculum_model.dart';
 import '../../../logic/controllers/curriculum_controller.dart';
 import '../../../di/service_locator.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:google_fonts/google_fonts.dart';
+import '../secure_pdf_viewer_screen.dart';
+
+// ── Embed builders ────────────────────────────────────────────────────────────
 
 class _ImageEmbedBuilder extends quill.EmbedBuilder {
+  final quill.QuillController controller;
+  _ImageEmbedBuilder({required this.controller});
+
   @override
   String get key => quill.BlockEmbed.imageType;
 
@@ -24,22 +34,221 @@ class _ImageEmbedBuilder extends quill.EmbedBuilder {
         ? Image.memory(
             base64Decode(src.split(',').last),
             fit: BoxFit.contain,
+            width: double.infinity,
             errorBuilder: (_, _, _) => const Icon(Icons.broken_image),
           )
         : Image.network(
             src,
             fit: BoxFit.contain,
+            width: double.infinity,
             errorBuilder: (_, _, _) => const Icon(Icons.broken_image),
           );
-    return SizedBox(
-      width: double.infinity,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        child: ClipRRect(borderRadius: BorderRadius.circular(8), child: img),
+
+    return MouseRegion(
+      cursor: SystemMouseCursors.basic,
+      opaque: true,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () {},
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxHeight: 300),
+                  child: img,
+                ),
+              ),
+              Container(
+                decoration: const BoxDecoration(
+                  color: AppColors.background,
+                  borderRadius: BorderRadius.only(
+                    bottomLeft: Radius.circular(8),
+                    bottomRight: Radius.circular(8),
+                  ),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                child: Row(
+                  children: [
+                    const Icon(Icons.image_outlined, size: 14, color: AppColors.mutedForeground),
+                    const SizedBox(width: 6),
+                    const Expanded(
+                      child: Text('Image', style: TextStyle(fontSize: 12, color: AppColors.mutedForeground)),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.delete_outline, size: 16, color: AppColors.error),
+                      onPressed: () {
+                        final offset = embedContext.node.documentOffset;
+                        controller.document.delete(offset, 1);
+                      },
+                      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                      padding: EdgeInsets.zero,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
 }
+
+class PdfBlockEmbed extends quill.CustomBlockEmbed {
+  static const String pdfType = 'pdf_placeholder';
+  const PdfBlockEmbed(String filename) : super(pdfType, filename);
+}
+
+class _PdfEmbedBuilder extends quill.EmbedBuilder {
+  final quill.QuillController controller;
+  final List<Map<String, String>> attachments;
+  final void Function(String storagePath, String title)? onOpenViewer;
+
+  _PdfEmbedBuilder({
+    required this.controller,
+    this.attachments = const [],
+    this.onOpenViewer,
+  });
+
+  String? _getStoragePath(String filename) {
+    try {
+      return attachments.firstWhere((a) => a['name'] == filename)['path'];
+    } catch (_) {
+      return null;
+    }
+  }
+
+  @override
+  String get key => PdfBlockEmbed.pdfType;
+
+  @override
+  bool get expanded => true;
+
+  Widget _buildPageThumb() {
+    return Container(
+      width: 90,
+      height: 120,
+      margin: const EdgeInsets.only(right: 8),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: AppColors.border),
+      ),
+      padding: const EdgeInsets.all(10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: List.generate(
+          7,
+          (_) => Padding(
+            padding: const EdgeInsets.only(bottom: 6),
+            child: Container(
+              height: 2,
+              decoration: BoxDecoration(
+                color: AppColors.border,
+                borderRadius: BorderRadius.circular(1),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context, quill.EmbedContext embedContext) {
+    final filename = embedContext.node.value.data as String;
+    return MouseRegion(
+      cursor: SystemMouseCursors.basic,
+      opaque: true,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () {},
+        child: Container(
+          width: double.infinity,
+          margin: const EdgeInsets.symmetric(vertical: 8),
+          decoration: BoxDecoration(
+            color: AppColors.background,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: AppColors.border),
+          ),
+          clipBehavior: Clip.hardEdge,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header row
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                child: Row(
+                  children: [
+                    const Icon(Icons.picture_as_pdf_outlined, color: AppColors.primary, size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        filename,
+                        style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: AppColors.text),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.delete_outline, size: 18, color: AppColors.error),
+                      onPressed: () {
+                        final offset = embedContext.node.documentOffset;
+                        controller.document.delete(offset, 1);
+                      },
+                      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                      padding: EdgeInsets.zero,
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(height: 1, color: AppColors.border),
+              // Page thumbnails
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                child: Row(
+                  children: List.generate(3, (_) => _buildPageThumb()),
+                ),
+              ),
+              // Open viewer (only if storage path available)
+              if (_getStoragePath(filename) != null) ...[
+                const Divider(height: 1, color: AppColors.border),
+                InkWell(
+                  onTap: () => onOpenViewer?.call(_getStoragePath(filename)!, filename),
+                  borderRadius: const BorderRadius.only(
+                    bottomLeft: Radius.circular(10),
+                    bottomRight: Radius.circular(10),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.visibility_outlined, color: AppColors.primary, size: 18),
+                        const SizedBox(width: 8),
+                        const Text(
+                          'Open full PDF viewer',
+                          style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w600, fontSize: 13),
+                        ),
+                        const Spacer(),
+                        const Icon(Icons.arrow_forward_ios, color: AppColors.primary, size: 12),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Screen ────────────────────────────────────────────────────────────────────
 
 class MaterialEditorScreen extends StatefulWidget {
   final String levelId;
@@ -67,6 +276,42 @@ class _MaterialEditorScreenState extends State<MaterialEditorScreen> {
   bool _processingImage = false;
   dynamic _pasteListener;
 
+  List<Map<String, String>> _attachments = [];
+  bool _isUploadingFile = false;
+
+  String? _selectedFontFamily;
+  String? _selectedFontSize;
+  final FocusNode _editorFocusNode = FocusNode();
+
+  static final _quillToolbarConfig = quill.QuillSimpleToolbarConfig(
+    multiRowsDisplay: false,
+    showBoldButton: true,
+    showItalicButton: true,
+    showUnderLineButton: true,
+    showHeaderStyle: true,
+    showListBullets: true,
+    showListNumbers: true,
+    showDividers: false,
+    showFontFamily: false,
+    showFontSize: false,
+    showBackgroundColorButton: false,
+    showColorButton: false,
+    showClearFormat: false,
+    showAlignmentButtons: true,
+    showJustifyAlignment: false,
+    showIndent: false,
+    showLink: false,
+    showDirection: false,
+    showSearchButton: false,
+    showSubscript: false,
+    showSuperscript: false,
+    showCodeBlock: false,
+    showInlineCode: false,
+    showQuote: false,
+    showStrikeThrough: false,
+    showSmallButton: false,
+  );
+
   static final _imageUrlRegex = RegExp(
     r'^https?://\S+\.(?:jpg|jpeg|png|gif|webp|svg)(\?[^\s]*)?\s*$',
     caseSensitive: false,
@@ -76,7 +321,8 @@ class _MaterialEditorScreenState extends State<MaterialEditorScreen> {
   void initState() {
     super.initState();
     _titleCtrl = TextEditingController(text: widget.item?.title ?? '');
-    
+    _attachments = List<Map<String, String>>.from(widget.item?.attachments ?? []);
+
     final clipCfg = quill.QuillControllerConfig(
       clipboardConfig: quill.QuillClipboardConfig(
         onImagePaste: (bytes) async =>
@@ -87,8 +333,9 @@ class _MaterialEditorScreenState extends State<MaterialEditorScreen> {
     final raw = widget.item?.content ?? widget.item?.deltaJson;
     if (raw != null && raw.isNotEmpty) {
       try {
+        final ops = _sanitizeOps(jsonDecode(raw) as List);
         _quillCtrl = quill.QuillController(
-          document: quill.Document.fromJson(jsonDecode(raw) as List),
+          document: quill.Document.fromJson(ops),
           selection: const TextSelection.collapsed(offset: 0),
           config: clipCfg,
         );
@@ -99,12 +346,29 @@ class _MaterialEditorScreenState extends State<MaterialEditorScreen> {
       _quillCtrl = quill.QuillController.basic(config: clipCfg);
     }
     _docChangeSub = _quillCtrl.document.changes.listen(_onDocumentChange);
-
     _pasteListener = addImagePasteListener(_quillCtrl);
+  }
+
+  static List<dynamic> _sanitizeOps(List<dynamic> ops) {
+    return ops.map((op) {
+      if (op is Map<String, dynamic>) {
+        final attrs = op['attributes'];
+        if (attrs is Map<String, dynamic> && attrs.containsKey('size')) {
+          final size = attrs['size'];
+          if (size is String && size.endsWith('pt')) {
+            final cleaned = Map<String, dynamic>.from(attrs)
+              ..['size'] = size.replaceAll('pt', '');
+            return {...op, 'attributes': cleaned};
+          }
+        }
+      }
+      return op;
+    }).toList();
   }
 
   @override
   void dispose() {
+    _editorFocusNode.dispose();
     removeImagePasteListener(_pasteListener);
     _docChangeSub?.cancel();
     _titleCtrl.dispose();
@@ -137,47 +401,140 @@ class _MaterialEditorScreenState extends State<MaterialEditorScreen> {
     }
   }
 
-  Widget _buildInsertImageButton() {
-    return IconButton(
-      tooltip: 'Insert Image URL',
-      icon: const Icon(Icons.image_outlined, size: 20, color: AppColors.primary),
-      onPressed: () async {
-        final urlCtrl = TextEditingController();
-        final confirmed = await showDialog<bool>(
-          context: context,
-          builder: (ctx) => AlertDialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            title: const Text('Insert Image', style: TextStyle(fontWeight: FontWeight.bold)),
-            content: TextField(
-              controller: urlCtrl,
-              autofocus: true,
-              decoration: InputDecoration(
-                hintText: 'https://example.com/image.jpg',
-                prefixIcon: const Icon(Icons.link, size: 18),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-              ),
-            ),
-            actions: [
-              TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: AppColors.white),
-                onPressed: () => Navigator.pop(ctx, true),
-                child: const Text('Insert'),
-              ),
-            ],
-          ),
+  Future<void> _uploadImage() async {
+    try {
+      final result = await FilePicker.pickFiles(type: FileType.image, withData: true);
+      if (result == null || result.files.isEmpty) return;
+      final file = result.files.first;
+      final bytes = file.bytes;
+      if (bytes == null) return;
+      final base64String = base64Encode(bytes);
+      final extension = file.extension?.toLowerCase() ?? 'png';
+      final dataUrl = 'data:image/$extension;base64,$base64String';
+
+      final index = _quillCtrl.selection.baseOffset;
+      final safeIndex = index < 0 ? 0 : index;
+      _quillCtrl.document.insert(safeIndex, '\n');
+      _quillCtrl.document.insert(safeIndex + 1, quill.BlockEmbed.image(dataUrl));
+      _quillCtrl.document.insert(safeIndex + 2, '\n');
+      _quillCtrl.updateSelection(
+        TextSelection.collapsed(offset: safeIndex + 3),
+        quill.ChangeSource.local,
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to pick image: $e'), backgroundColor: AppColors.error),
         );
-        if (confirmed == true && urlCtrl.text.trim().isNotEmpty) {
-          final url = urlCtrl.text.trim();
-          final index = _quillCtrl.selection.baseOffset;
-          final safeIndex = index < 0 ? 0 : index;
-          _quillCtrl.document.insert(safeIndex, '\n');
-          _quillCtrl.document.insert(safeIndex + 1, quill.BlockEmbed.image(url));
-          _quillCtrl.document.insert(safeIndex + 2, '\n');
-        }
-      },
+      }
+    }
+  }
+
+  Future<void> _uploadPdf() async {
+    try {
+      final result = await FilePicker.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['pdf'],
+        withData: true,
+      );
+      if (result == null || result.files.isEmpty) return;
+
+      setState(() => _isUploadingFile = true);
+
+      final file = result.files.first;
+      final bytes = file.bytes;
+      if (bytes == null) throw Exception('Could not read file bytes.');
+
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final storagePath = 'materials/pdfs/${widget.levelId}_${widget.weekId}_$timestamp.pdf';
+      await FirebaseStorage.instance.ref().child(storagePath).putData(bytes);
+
+      setState(() {
+        _attachments.add({'path': storagePath, 'name': file.name, 'type': 'pdf'});
+      });
+
+      final index = _quillCtrl.selection.baseOffset;
+      final safeIndex = index < 0 ? 0 : index;
+      _quillCtrl.document.insert(safeIndex, '\n');
+      _quillCtrl.document.insert(safeIndex + 1, PdfBlockEmbed(file.name));
+      _quillCtrl.document.insert(safeIndex + 2, '\n');
+      _quillCtrl.updateSelection(
+        TextSelection.collapsed(offset: safeIndex + 3),
+        quill.ChangeSource.local,
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to upload PDF: $e'), backgroundColor: AppColors.error),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isUploadingFile = false);
+    }
+  }
+
+  void _openPdfViewer(String storagePath, String filename) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => SecurePdfViewerScreen(
+          storagePath: storagePath,
+          title: filename,
+        ),
+      ),
     );
   }
+
+  Future<void> _save() async {
+    final title = _titleCtrl.text.trim();
+    if (title.isEmpty) return;
+
+    final presentFilenames = <String>{};
+    for (final op in _quillCtrl.document.toDelta().operations) {
+      if (op.isInsert && op.data is Map) {
+        final data = op.data as Map;
+        if (data.containsKey('pdf_placeholder')) {
+          presentFilenames.add(data['pdf_placeholder'] as String);
+        }
+      }
+    }
+    final activeAttachments = _attachments
+        .where((a) => presentFilenames.contains(a['name']))
+        .toList();
+
+    final deltaJson = jsonEncode(_quillCtrl.document.toDelta().toJson());
+    try {
+      if (widget.item != null) {
+        await _controller.updateItem(
+          widget.levelId,
+          widget.weekId,
+          widget.itemId!,
+          title,
+          deltaJson,
+          deltaJson: deltaJson,
+          attachments: activeAttachments,
+        );
+      } else {
+        await _controller.addMaterial(
+          widget.levelId,
+          widget.weekId,
+          title,
+          content: deltaJson,
+          deltaJson: deltaJson,
+          attachments: activeAttachments,
+        );
+      }
+      if (mounted) Navigator.pop(context);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to save: $e'), backgroundColor: AppColors.error),
+        );
+      }
+    }
+  }
+
+
 
   @override
   Widget build(BuildContext context) {
@@ -187,123 +544,291 @@ class _MaterialEditorScreenState extends State<MaterialEditorScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: AppColors.background,
+        backgroundColor: AppColors.white,
         elevation: 0,
-        iconTheme: const IconThemeData(color: AppColors.text),
+        scrolledUnderElevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.close, color: AppColors.text),
+          icon: const Icon(Icons.close_rounded, color: AppColors.text),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: Row(
-          children: [
-            Container(
-              width: 36, height: 36,
-              decoration: BoxDecoration(color: AppColors.primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
-              child: Icon(isEdit ? Icons.edit_outlined : Icons.library_books, color: AppColors.primary, size: 18),
-            ),
-            const SizedBox(width: 12),
-            Expanded(child: Text(l10n.addMaterialTitle, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.text))),
-          ],
+        title: Text(
+          isEdit ? 'Edit Material' : l10n.addMaterialTitle,
+          style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: AppColors.text),
+          overflow: TextOverflow.ellipsis,
         ),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Divider(height: 1, color: Colors.grey.shade200),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(l10n.cancel, style: const TextStyle(color: AppColors.mutedForeground, fontWeight: FontWeight.w600)),
+          ),
+          const SizedBox(width: 6),
+          Padding(
+            padding: const EdgeInsets.only(right: 16),
+            child: ElevatedButton(
+              onPressed: _isUploadingFile ? null : _save,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: AppColors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                elevation: 0,
+              ),
+              child: Text(
+                isEdit ? 'Save' : l10n.add,
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+        ],
       ),
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: Column(
-            children: [
-              const SizedBox(height: 16),
-              TextField(
-                controller: _titleCtrl,
-                decoration: InputDecoration(
-                  labelText: l10n.materialTitleLabel,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.input, width: 1.5)),
-                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.primary, width: 1.5)),
-                ),
+        child: Column(
+          children: [
+            // ── Formatting toolbar ────────────────────────────────────────
+            Container(
+              decoration: BoxDecoration(
+                color: AppColors.white,
+                border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
               ),
-              const SizedBox(height: 12),
-              Container(
-                height: 52,
-                decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(10), border: Border.all(color: AppColors.border)),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: quill.QuillSimpleToolbar(
-                        controller: _quillCtrl,
-                        config: const quill.QuillSimpleToolbarConfig(
-                          multiRowsDisplay: false,
-                          showBoldButton: true, showItalicButton: true, showUnderLineButton: true,
-                          showHeaderStyle: true, showListBullets: true, showListNumbers: true,
-                          showDividers: false, showFontFamily: false, showFontSize: false,
-                          showBackgroundColorButton: false, showColorButton: false, showClearFormat: false,
-                          showAlignmentButtons: true, showIndent: false, showLink: false,
-                          showDirection: true,
-                          showSearchButton: false, showSubscript: false, showSuperscript: false,
-                          showCodeBlock: false, showInlineCode: false, showQuote: false,
-                          showStrikeThrough: false, showSmallButton: false,
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 900),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                        child: Row(
+                          children: [
+                            // Font family dropdown
+                            SizedBox(
+                              width: 100,
+                              child: DropdownButton<String>(
+                                value: _selectedFontFamily,
+                                hint: const Text('Font', style: TextStyle(fontSize: 12)),
+                                underline: const SizedBox(),
+                                isExpanded: true,
+                                style: const TextStyle(fontSize: 12, color: AppColors.text),
+                                items: [
+                                  DropdownMenuItem(value: 'IBM Plex Sans Arabic', child: Text('IBM Plex', style: TextStyle(fontSize: 12))),
+                                  DropdownMenuItem(value: 'Roboto', child: Text('Roboto', style: TextStyle(fontSize: 12))),
+                                  DropdownMenuItem(value: 'Lato', child: Text('Lato', style: TextStyle(fontSize: 12))),
+                                  DropdownMenuItem(value: 'Merriweather', child: Text('Merriweather', style: TextStyle(fontSize: 12))),
+                                  DropdownMenuItem(value: 'Playfair Display', child: Text('Playfair', style: TextStyle(fontSize: 12))),
+                                  DropdownMenuItem(value: 'Courier Prime', child: Text('Courier', style: TextStyle(fontSize: 12))),
+                                ],
+                                onChanged: (font) {
+                                  setState(() => _selectedFontFamily = font);
+                                  if (font != null) {
+                                    _quillCtrl.formatSelection(
+                                      quill.Attribute.fromKeyValue(quill.Attribute.font.key, font),
+                                    );
+                                  }
+                                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                                    if (mounted) _editorFocusNode.requestFocus();
+                                  });
+                                },
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            const SizedBox(height: 20, child: VerticalDivider(width: 1, color: AppColors.border)),
+                            const SizedBox(width: 8),
+                            // Font size dropdown
+                            SizedBox(
+                              width: 70,
+                              child: DropdownButton<String>(
+                                value: _selectedFontSize,
+                                hint: const Text('Size', style: TextStyle(fontSize: 12)),
+                                underline: const SizedBox(),
+                                isExpanded: true,
+                                style: const TextStyle(fontSize: 12, color: AppColors.text),
+                                items: ['12', '14', '16', '18', '20', '24', '28', '32', '36']
+                                    .map((s) => DropdownMenuItem(value: s, child: Text(s, style: const TextStyle(fontSize: 12))))
+                                    .toList(),
+                                onChanged: (size) {
+                                  setState(() => _selectedFontSize = size);
+                                  if (size != null) {
+                                    _quillCtrl.formatSelection(
+                                      quill.Attribute.fromKeyValue(quill.Attribute.size.key, size),
+                                    );
+                                  }
+                                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                                    if (mounted) _editorFocusNode.requestFocus();
+                                  });
+                                },
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    ),
-                    _buildInsertImageButton(),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 8),
-              Expanded(
-                child: Container(
-                  decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: AppColors.input, width: 1.5)),
-                  child: quill.QuillEditor.basic(
-                    controller: _quillCtrl,
-                    config: quill.QuillEditorConfig(
-                      embedBuilders: [_ImageEmbedBuilder()],
-                      placeholder: isEdit ? 'Edit material content…' : 'Write material content here…',
-                      padding: const EdgeInsets.all(14),
-                    ),
+                      const Divider(height: 1, color: AppColors.border),
+                      quill.QuillSimpleToolbar(
+                        controller: _quillCtrl,
+                        config: _quillToolbarConfig,
+                      ),
+                    ],
                   ),
                 ),
               ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => Navigator.pop(context),
-                      style: OutlinedButton.styleFrom(
-                        side: const BorderSide(color: AppColors.border),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      ),
-                      child: Text(l10n.cancel, style: const TextStyle(color: AppColors.mutedForeground, fontWeight: FontWeight.w600)),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () {
-                        final title = _titleCtrl.text.trim();
-                        if (title.isEmpty) return;
-                        final deltaJson = jsonEncode(_quillCtrl.document.toDelta().toJson());
-                        if (isEdit) {
-                          _controller.updateItem(widget.levelId, widget.weekId, widget.itemId!, title, deltaJson);
-                        } else {
-                          _controller.addMaterial(widget.levelId, widget.weekId, title, content: deltaJson);
-                        }
-                        Navigator.pop(context);
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: AppColors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      ),
-                      child: Text(isEdit ? 'Save' : l10n.add, style: const TextStyle(fontWeight: FontWeight.bold)),
-                    ),
-                  ),
-                ],
+            ),
+            // ── Attach toolbar ────────────────────────────────────────────
+            Container(
+              height: 48,
+              decoration: BoxDecoration(
+                color: AppColors.white,
+                border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
               ),
-              const SizedBox(height: 20),
-            ],
-          ),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(maxWidth: kIsWeb ? 900 : double.infinity),
+                  child: _isUploadingFile
+                      ? const Center(
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
+                              ),
+                              SizedBox(width: 8),
+                              Text('Uploading...', style: TextStyle(color: AppColors.mutedForeground, fontSize: 12)),
+                            ],
+                          ),
+                        )
+                      : Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            Expanded(
+                              child: TextButton.icon(
+                                icon: const Icon(Icons.image_outlined, size: 16, color: AppColors.primary),
+                                label: const Text('Image', style: TextStyle(color: AppColors.primary, fontSize: 12, fontWeight: FontWeight.w500)),
+                                style: TextButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                ),
+                                onPressed: _uploadImage,
+                              ),
+                            ),
+                            const VerticalDivider(width: 1, color: AppColors.border),
+                            Expanded(
+                              child: TextButton.icon(
+                                icon: const Icon(Icons.picture_as_pdf_outlined, size: 16, color: AppColors.primary),
+                                label: const Text('PDF', style: TextStyle(color: AppColors.primary, fontSize: 12, fontWeight: FontWeight.w500)),
+                                style: TextButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                ),
+                                onPressed: _uploadPdf,
+                              ),
+                            ),
+                          ],
+                        ),
+                ),
+              ),
+            ),
+            // ── Scrollable doc area ───────────────────────────────────────
+            Expanded(
+              child: SingleChildScrollView(
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 900),
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(horizontal: kIsWeb ? 20 : 16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const SizedBox(height: 20),
+                          // Title input
+                          TextField(
+                            controller: _titleCtrl,
+                            maxLines: 2,
+                            minLines: 1,
+                            style: TextStyle(
+                              fontSize: kIsWeb ? 24 : 20,
+                              fontWeight: FontWeight.w500,
+                              color: AppColors.text,
+                            ),
+                            decoration: InputDecoration(
+                              hintText: 'Material title...',
+                              hintStyle: TextStyle(
+                                fontSize: kIsWeb ? 24 : 20,
+                                fontWeight: FontWeight.w300,
+                                color: AppColors.mutedForeground.withValues(alpha: 0.6),
+                              ),
+                              border: InputBorder.none,
+                              enabledBorder: InputBorder.none,
+                              focusedBorder: InputBorder.none,
+                              contentPadding: EdgeInsets.zero,
+                            ),
+                          ),
+                          const Divider(color: AppColors.border, height: 28),
+                          // White doc card
+                          Center(
+                            child: ConstrainedBox(
+                              constraints: const BoxConstraints(maxWidth: 820),
+                              child: Container(
+                                width: double.infinity,
+                                decoration: BoxDecoration(
+                                  color: AppColors.white,
+                                  borderRadius: BorderRadius.circular(kIsWeb ? 12 : 8),
+                                  border: Border.all(color: AppColors.border),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(alpha: 0.06),
+                                      blurRadius: 12,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                padding: EdgeInsets.all(kIsWeb ? 32 : 20),
+                                child: IntrinsicHeight(
+                                  child: ConstrainedBox(
+                                    constraints: const BoxConstraints(minHeight: 400),
+                                    child: quill.QuillEditor.basic(
+                                      focusNode: _editorFocusNode,
+                                      controller: _quillCtrl,
+                                      config: quill.QuillEditorConfig(
+                                        scrollable: false,
+                                        expands: false,
+                                        embedBuilders: [
+                                          _ImageEmbedBuilder(controller: _quillCtrl),
+                                          _PdfEmbedBuilder(
+                                            controller: _quillCtrl,
+                                            attachments: _attachments,
+                                            onOpenViewer: _openPdfViewer,
+                                          ),
+                                        ],
+                                        placeholder: isEdit ? 'Edit material content…' : 'Write material content here…',
+                                        customStyleBuilder: (attribute) {
+                                          if (attribute.key == quill.Attribute.font.key && attribute.value != null) {
+                                            try {
+                                              return GoogleFonts.getFont(attribute.value as String);
+                                            } catch (_) {
+                                              return TextStyle(fontFamily: attribute.value as String);
+                                            }
+                                          }
+                                          return const TextStyle();
+                                        },
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 40),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );

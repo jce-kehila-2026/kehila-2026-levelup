@@ -20,8 +20,6 @@ import '../../widgets/lesson_card.dart';
 import '../../widgets/assignment_card.dart';
 import 'package:frontend/l10n/app_localizations.dart';
 import 'package:go_router/go_router.dart';
-import '../../../data/repositories/material_assignment_repository.dart';
-
 class InstructorCurriculumScreen extends StatefulWidget {
   const InstructorCurriculumScreen({super.key});
 
@@ -34,7 +32,6 @@ class _InstructorCurriculumScreenState extends State<InstructorCurriculumScreen>
   final InstructorAssignmentController _assignmentController = getIt<InstructorAssignmentController>();
   final InstructorGroupController _groupController = getIt<InstructorGroupController>();
   final AuthController _authController = getIt<AuthController>();
-  final MaterialAssignmentRepository _materialAssignmentRepository = getIt<MaterialAssignmentRepository>();
 
   List<String> _assignedLevelIds = [];
 
@@ -112,14 +109,6 @@ class _InstructorCurriculumScreenState extends State<InstructorCurriculumScreen>
                               isVisible: item.visible,
                               showToggle: false,
                               onPress: () => context.push('/lesson/${item.id}'),
-                              trailing: IconButton(
-                                onPressed: () => _showAssignMaterialDialog(item, result.levelId),
-                                icon: const Icon(Icons.assignment_add, size: 20, color: AppColors.primary),
-                                tooltip: AppLocalizations.of(context)!.assignToLevelTooltip,
-                                padding: EdgeInsets.zero,
-                                constraints: const BoxConstraints(minWidth: 34, minHeight: 34),
-                                splashRadius: 18,
-                              ),
                             );
                           } else if (item.type == CurriculumItemType.assignment) {
                             return AssignmentCard(
@@ -218,14 +207,6 @@ class _InstructorCurriculumScreenState extends State<InstructorCurriculumScreen>
                     isVisible: item.visible,
                     showToggle: false,
                     onPress: () => context.push('/lesson/${item.id}'),
-                    trailing: IconButton(
-                      onPressed: () => _showAssignMaterialDialog(item, level.id),
-                      icon: const Icon(Icons.assignment_add, size: 20, color: AppColors.primary),
-                      tooltip: AppLocalizations.of(context)!.assignToLevelTooltip,
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(minWidth: 34, minHeight: 34),
-                      splashRadius: 18,
-                    ),
                   );
                 } else if (item.type == CurriculumItemType.assignment) {
                   return AssignmentCard(
@@ -364,203 +345,4 @@ class _InstructorCurriculumScreenState extends State<InstructorCurriculumScreen>
         ),
       ),
     );
-  }
-
-  void _showAssignMaterialDialog(CurriculumItem item, String materialLevelId) async {
-    List<MaterialAssignmentModel> existingAssignments = [];
-    try {
-      existingAssignments = await _materialAssignmentRepository.getAssignmentsForMaterial(item.id);
-    } catch (e) {
-      debugPrint('Error loading assignments: $e');
-    }
-
-    if (!mounted) return;
-
-    GroupModel? selectedGroup;
-    LevelModel? selectedLevel;
-
-    showDialog(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (context, setDialogState) {
-          final l10n = AppLocalizations.of(context)!;
-
-          final groupLevels = selectedGroup != null
-              ? selectedGroup!.activeLevels.map((lid) {
-                  return _controller.levels.firstWhere((l) => l.id == lid, orElse: () => LevelModel(id: lid, name: lid));
-                }).toList()
-              : <LevelModel>[];
-
-          return AlertDialog(
-            backgroundColor: AppColors.background,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-            title: Text(
-              l10n.assignMaterialTitle(item.title),
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-            ),
-            content: SizedBox(
-              width: double.maxFinite,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Material Level badge
-                  Container(
-                    margin: const EdgeInsets.only(bottom: 12),
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.08),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      l10n.materialLevelLabel(materialLevelId.replaceAll('l', '')),
-                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.primary),
-                    ),
-                  ),
-
-                  // Current Assignments list
-                  Text(
-                    l10n.currentAssignments,
-                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.text),
-                  ),
-                  const SizedBox(height: 6),
-                  Container(
-                    height: 100,
-                    decoration: BoxDecoration(
-                      color: AppColors.white,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: AppColors.border),
-                    ),
-                    child: existingAssignments.isEmpty
-                        ? Center(child: Text(l10n.noGroupAssignmentsYet, style: const TextStyle(fontSize: 12, color: AppColors.mutedForeground)))
-                        : ListView.builder(
-                            padding: const EdgeInsets.all(8),
-                            itemCount: existingAssignments.length,
-                            itemBuilder: (context, idx) {
-                              final assign = existingAssignments[idx];
-                              return Padding(
-                                padding: const EdgeInsets.symmetric(vertical: 4),
-                                child: Row(
-                                  children: [
-                                    Expanded(
-                                      child: Text(
-                                        assign.groupName,
-                                        style: const TextStyle(fontSize: 12, color: AppColors.text),
-                                      ),
-                                    ),
-                                    GestureDetector(
-                                      onTap: () async {
-                                        await _controller.unassignMaterial(
-                                          assignmentId: assign.id,
-                                          materialTitle: item.title,
-                                          groupName: assign.groupName,
-                                        );
-                                        final updated = await _materialAssignmentRepository.getAssignmentsForMaterial(item.id);
-                                        setDialogState(() {
-                                          existingAssignments = updated;
-                                        });
-                                      },
-                                      child: const Icon(Icons.delete_outline, size: 16, color: AppColors.error),
-                                    ),
-                                  ],
-                                ),
-                              );
-                            },
-                          ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Group Dropdown
-                  DropdownButtonFormField<GroupModel>(
-                    decoration: InputDecoration(
-                      labelText: l10n.selectGroupStep,
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                    ),
-                    items: _groupController.myGroups.map((g) => DropdownMenuItem(
-                      value: g,
-                      child: Text(g.name),
-                    )).toList(),
-                    onChanged: (val) => setDialogState(() {
-                      selectedGroup = val;
-                      selectedLevel = null;
-                    }),
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Level Dropdown (Active levels in the group)
-                  DropdownButtonFormField<LevelModel>(
-                    initialValue: selectedLevel,
-                    decoration: InputDecoration(
-                      labelText: l10n.selectLevelHint,
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                    ),
-                    items: groupLevels.map((l) => DropdownMenuItem(
-                      value: l,
-                      child: Text(l.name),
-                    )).toList(),
-                    onChanged: (val) => setDialogState(() => selectedLevel = val),
-                  ),
-                ],
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: Text(l10n.cancelButton, style: const TextStyle(color: AppColors.mutedForeground)),
-              ),
-              ElevatedButton(
-                onPressed: (selectedGroup == null || selectedLevel == null) ? null : () async {
-                  final messenger = ScaffoldMessenger.of(context);
-                  Navigator.pop(ctx);
-                  try {
-                    await _controller.assignMaterial(
-                      materialId: item.id,
-                      materialTitle: item.title,
-                      groupId: selectedGroup!.id,
-                      groupName: selectedGroup!.name,
-                      levelId: selectedLevel!.id,
-                      materialLevelId: materialLevelId,
-                    );
-                    if (mounted) {
-                      messenger.showSnackBar(
-                        SnackBar(
-                          content: Text(l10n.materialAssignedSuccess),
-                          behavior: SnackBarBehavior.floating,
-                        ),
-                      );
-                    }
-                  } catch (e) {
-                    if (mounted) {
-                      final msg = e.toString();
-                      String errorText = msg;
-                      if (msg.contains('level_lower_error')) {
-                        errorText = l10n.levelLowerError;
-                      } else if (msg.contains('already_assigned_error')) {
-                        errorText = l10n.alreadyAssignedToGroupLevel;
-                      }
-                      messenger.showSnackBar(
-                        SnackBar(
-                          content: Text(errorText),
-                          backgroundColor: AppColors.error,
-                          behavior: SnackBarBehavior.floating,
-                        ),
-                      );
-                    }
-                  }
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: AppColors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                ),
-                child: Text(l10n.assign, style: const TextStyle(fontWeight: FontWeight.bold)),
-              ),
-            ],
-          );
-        },
-      ),
-    );
-  }
-}
+  }}

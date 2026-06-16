@@ -378,4 +378,71 @@ exports.deleteUserPermanently = onCall({
   await admin.firestore().collection("users_private").doc(uid).delete();
 
   return { success: true };
-});
+});
+
+exports.convertPptxToPdf = onCall({
+  cors: ["http://localhost:53996", "http://localhost:5000", /^http:\/\/localhost(:\d+)?$/, "https://levelup-26.web.app", "https://levelup-26.firebaseapp.com"],
+  region: "us-central1",
+  memory: "2GiB",
+  timeoutSeconds: 300,
+}, async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "You must be signed in.");
+  }
+
+  const storagePath = request.data.storagePath;
+  if (!storagePath) {
+    throw new HttpsError("invalid-argument", "storagePath is required.");
+  }
+
+  const fs = require("fs");
+  const path = require("path");
+  const os = require("os");
+  const { convertDocument } = require("@matbee/libreoffice-converter");
+
+  const bucket = admin.storage().bucket();
+  const file = bucket.file(storagePath);
+
+  const [exists] = await file.exists();
+  if (!exists) {
+    throw new HttpsError("not-found", "PPTX file not found in Storage.");
+  }
+
+  const tempDir = os.tmpdir();
+  const filename = path.basename(storagePath);
+  const tempPptxPath = path.join(tempDir, filename);
+
+  try {
+    // Download PPTX
+    await file.download({ destination: tempPptxPath });
+
+    // Read bytes
+    const pptxBuffer = fs.readFileSync(tempPptxPath);
+
+    // Convert to PDF
+    const result = await convertDocument(pptxBuffer, { outputFormat: "pdf" });
+    const pdfBuffer = result.data;
+
+    // Upload PDF back to Storage
+    const baseNameWithoutExt = path.basename(storagePath, path.extname(storagePath));
+    const pdfStoragePath = `materials/converted_pdfs/${baseNameWithoutExt}.pdf`;
+
+    const pdfFile = bucket.file(pdfStoragePath);
+    await pdfFile.save(pdfBuffer, {
+      metadata: {
+        contentType: "application/pdf",
+      },
+    });
+
+    // Clean up local temp file
+    fs.unlinkSync(tempPptxPath);
+
+    return { pdfPath: pdfStoragePath };
+  } catch (error) {
+    console.error("PPTX to PDF conversion failed:", error);
+    if (fs.existsSync(tempPptxPath)) {
+      fs.unlinkSync(tempPptxPath);
+    }
+    throw new HttpsError("internal", "Failed to convert PPTX: " + error.message);
+  }
+});

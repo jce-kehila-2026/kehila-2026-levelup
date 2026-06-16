@@ -15,6 +15,7 @@ class CurriculumItem {
   String deadlineText;
   final String? imageUrl;
   String? deltaJson;
+  List<Map<String, String>> attachments;
 
   CurriculumItem({
     this.id = '',
@@ -27,6 +28,7 @@ class CurriculumItem {
     this.deadlineText = 'No deadline',
     this.imageUrl,
     this.deltaJson,
+    this.attachments = const [],
   });
 
   factory CurriculumItem.fromMap(Map<String, dynamic> map) {
@@ -41,6 +43,13 @@ class CurriculumItem {
       deadlineText: map['deadlineText'] ?? 'No deadline',
       imageUrl: map['imageUrl'],
       deltaJson: map['deltaJson'],
+      attachments: map['attachments'] != null
+          ? (map['attachments'] as List<dynamic>)
+              .map((a) => Map<String, String>.from(a as Map))
+              .toList()
+          : (map['attachmentPath'] != null
+              ? [{'path': map['attachmentPath'] as String, 'name': map['attachmentName'] as String? ?? '', 'type': map['attachmentType'] as String? ?? 'pdf'}]
+              : []),
     );
   }
 
@@ -56,6 +65,7 @@ class CurriculumItem {
       'deadlineText': deadlineText,
       'imageUrl': imageUrl,
       'deltaJson': deltaJson,
+      'attachments': attachments.map((a) => a).toList(),
     };
   }
 }

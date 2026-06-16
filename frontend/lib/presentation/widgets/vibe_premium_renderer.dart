@@ -1,8 +1,145 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:flutter_quill/flutter_quill.dart' as quill;
+import 'package:google_fonts/google_fonts.dart';
 import '../../theme/app_theme.dart';
 import 'package:frontend/l10n/app_localizations.dart';
+import '../screens/secure_pdf_viewer_screen.dart';
+
+class _PdfPlaceholderEmbedBuilder extends quill.EmbedBuilder {
+  final List<Map<String, String>> attachments;
+  final void Function(String path, String name)? onOpenViewer;
+
+  _PdfPlaceholderEmbedBuilder({this.attachments = const [], this.onOpenViewer});
+
+  String? _getStoragePath(String filename) {
+    try {
+      return attachments.firstWhere((a) => a['name'] == filename)['path'];
+    } catch (_) {
+      return null;
+    }
+  }
+
+  @override
+  String get key => 'pdf_placeholder';
+
+  @override
+  bool get expanded => true;
+
+  Widget _buildPageThumb() {
+    return Container(
+      width: 80,
+      height: 110,
+      margin: const EdgeInsets.only(right: 8),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: AppColors.border),
+      ),
+      padding: const EdgeInsets.all(10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: List.generate(
+          6,
+          (_) => Padding(
+            padding: const EdgeInsets.only(bottom: 7),
+            child: Container(
+              height: 2,
+              decoration: BoxDecoration(
+                color: AppColors.border,
+                borderRadius: BorderRadius.circular(1),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context, quill.EmbedContext embedContext) {
+    final filename = embedContext.node.value.data as String;
+    return MouseRegion(
+      cursor: SystemMouseCursors.basic,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () {},
+        child: Container(
+          width: double.infinity,
+          margin: const EdgeInsets.symmetric(vertical: 8),
+          decoration: BoxDecoration(
+            color: AppColors.background,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                child: Row(
+                  children: [
+                    const Icon(Icons.picture_as_pdf_outlined, color: AppColors.primary, size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        filename,
+                        style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: AppColors.text),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: AppColors.mutedForeground.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Text(
+                        'view only',
+                        style: TextStyle(fontSize: 11, color: AppColors.mutedForeground, fontWeight: FontWeight.w500),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(height: 1, color: AppColors.border),
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                child: Row(children: List.generate(3, (_) => _buildPageThumb())),
+              ),
+              if (_getStoragePath(filename) != null) ...[
+                const Divider(height: 1, color: AppColors.border),
+                InkWell(
+                  onTap: () => onOpenViewer?.call(_getStoragePath(filename)!, filename),
+                  borderRadius: const BorderRadius.only(
+                    bottomLeft: Radius.circular(10),
+                    bottomRight: Radius.circular(10),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.visibility_outlined, color: AppColors.primary, size: 18),
+                        const SizedBox(width: 8),
+                        const Text(
+                          'Open full PDF viewer',
+                          style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w600, fontSize: 13),
+                        ),
+                        const Spacer(),
+                        const Icon(Icons.arrow_forward_ios, color: AppColors.primary, size: 12),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
 
 class CustomImageEmbedBuilder extends quill.EmbedBuilder {
   @override
@@ -14,58 +151,63 @@ class CustomImageEmbedBuilder extends quill.EmbedBuilder {
   @override
   Widget build(BuildContext context, quill.EmbedContext embedContext) {
     final imageUrl = embedContext.node.value.data as String;
-    
     final bool isAsset = imageUrl.startsWith('assets/');
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 16.0),
-      child: Center(
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(12),
-          child: isAsset
-              ? Image.asset(
-                  imageUrl,
-                  fit: BoxFit.contain,
-                  errorBuilder: (context, error, stackTrace) => const Icon(
-                    Icons.broken_image,
-                    size: 50,
-                    color: Colors.grey,
-                  ),
-                )
-              : Image.network(
-                  imageUrl,
-                  fit: BoxFit.contain,
-                  loadingBuilder: (context, child, loadingProgress) {
-                    if (loadingProgress == null) return child;
-                    return Center(
-                      child: CircularProgressIndicator(
-                        value: loadingProgress.expectedTotalBytes != null
-                            ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
-                            : null,
+    return MouseRegion(
+      cursor: SystemMouseCursors.basic,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () {},
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 16.0),
+          child: Center(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: isAsset
+                  ? Image.asset(
+                      imageUrl,
+                      fit: BoxFit.contain,
+                      errorBuilder: (context, error, stackTrace) => const Icon(
+                        Icons.broken_image,
+                        size: 50,
+                        color: Colors.grey,
                       ),
-                    );
-                  },
-                  errorBuilder: (context, error, stackTrace) => const Icon(
-                    Icons.broken_image,
-                    size: 50,
-                    color: Colors.grey,
-                  ),
-                ),
+                    )
+                  : Image.network(
+                      imageUrl,
+                      fit: BoxFit.contain,
+                      loadingBuilder: (context, child, loadingProgress) {
+                        if (loadingProgress == null) return child;
+                        return Center(
+                          child: CircularProgressIndicator(
+                            value: loadingProgress.expectedTotalBytes != null
+                                ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                                : null,
+                          ),
+                        );
+                      },
+                      errorBuilder: (context, error, stackTrace) => const Icon(
+                        Icons.broken_image,
+                        size: 50,
+                        color: Colors.grey,
+                      ),
+                    ),
+            ),
+          ),
         ),
       ),
     );
   }
 }
 
-/// Premium content renderer that intelligently detects content type
-/// (Quill Delta JSON, PDF link, plain text, image URL) and renders
-/// each with professional typography, spacing, and visual treatment.
 class VibePremiumRenderer extends StatefulWidget {
   final String content;
+  final List<Map<String, String>> attachments;
 
   const VibePremiumRenderer({
     super.key,
     required this.content,
+    this.attachments = const [],
   });
 
   @override
@@ -89,24 +231,34 @@ class _VibePremiumRendererState extends State<VibePremiumRenderer> {
     }
   }
 
-  /// Parses the content string as a Quill Delta JSON document and initialises
-  /// a read-only [QuillController]. Supports two delta formats:
-  ///   - Wrapped:   `{"ops": [...]}` (standard Quill export)
-  ///   - Unwrapped: `[{"insert": ...}, ...]` (bare ops array, our repo format)
-  ///
-  /// If parsing fails or the content is not Delta JSON, the controller is set
-  /// to null and the appropriate fallback renderer is used in [build].
+  static List<dynamic> _sanitizeOps(List<dynamic> ops) {
+    return ops.map((op) {
+      if (op is Map<String, dynamic>) {
+        final attrs = op['attributes'];
+        if (attrs is Map<String, dynamic> && attrs.containsKey('size')) {
+          final size = attrs['size'];
+          if (size is String && size.endsWith('pt')) {
+            final cleaned = Map<String, dynamic>.from(attrs)
+              ..['size'] = size.replaceAll('pt', '');
+            return {...op, 'attributes': cleaned};
+          }
+        }
+      }
+      return op;
+    }).toList();
+  }
+
   void _initController() {
     if (_isQuillDelta(widget.content)) {
       try {
         final decoded = jsonDecode(widget.content);
-        // Normalise: unwrap the ops array if it is wrapped in an object
-        final ops = (decoded is Map && decoded.containsKey('ops')) ? decoded['ops'] : decoded;
+        final rawOps = (decoded is Map && decoded.containsKey('ops')) ? decoded['ops'] : decoded;
+        final ops = _sanitizeOps(rawOps as List);
         final doc = quill.Document.fromJson(ops);
         _quillController = quill.QuillController(
           document: doc,
           selection: const TextSelection.collapsed(offset: 0),
-          readOnly: true, // view-only; students and instructors cannot edit here
+          readOnly: true,
         );
       } catch (_) {
         _quillController = null;
@@ -122,19 +274,9 @@ class _VibePremiumRendererState extends State<VibePremiumRenderer> {
     super.dispose();
   }
 
-  // ── Content-Type Detection ────────────────────────
-  //
-  // Priority order used in build():
-  //   1. Quill Delta JSON  → rich text with RTL/Arabic support
-  //   2. PDF link          → tappable card that opens the secure viewer
-  //   3. Image URL         → inline image card
-  //   4. Fallback          → plain text with SelectableText
-
-  /// Returns true when [s] is valid Quill Delta JSON (wrapped or bare-ops).
   bool _isQuillDelta(String s) {
     if (s.isEmpty) return false;
     final trimmed = s.trim();
-    // Quick structural check before the more expensive JSON parse
     if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) return false;
     try {
       final decoded = jsonDecode(trimmed);
@@ -168,7 +310,7 @@ class _VibePremiumRendererState extends State<VibePremiumRenderer> {
     }
 
     if (_isQuillDelta(widget.content) && _quillController != null) {
-      return _buildDeltaContent();
+      return _buildDeltaContent(context);
     }
 
     if (_isPdfLink(widget.content)) {
@@ -181,8 +323,6 @@ class _VibePremiumRendererState extends State<VibePremiumRenderer> {
 
     return _buildPlainText();
   }
-
-  // ── Builders ──────────────────────────────────────
 
   Widget _buildEmptyState(BuildContext context) {
     return Container(
@@ -297,14 +437,42 @@ class _VibePremiumRendererState extends State<VibePremiumRenderer> {
     );
   }
 
-  Widget _buildDeltaContent() {
+  Widget _buildDeltaContent(BuildContext context) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: quill.QuillEditor.basic(
         controller: _quillController!,
         config: quill.QuillEditorConfig(
-          embedBuilders: [CustomImageEmbedBuilder()],
+          scrollable: false,
+          expands: false,
+          embedBuilders: [
+            CustomImageEmbedBuilder(),
+            _PdfPlaceholderEmbedBuilder(
+              attachments: widget.attachments,
+              onOpenViewer: (path, name) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => SecurePdfViewerScreen(
+                      storagePath: path,
+                      title: name,
+                    ),
+                  ),
+                );
+              },
+            ),
+          ],
+          customStyleBuilder: (attribute) {
+            if (attribute.key == quill.Attribute.font.key && attribute.value != null) {
+              try {
+                return GoogleFonts.getFont(attribute.value as String);
+              } catch (_) {
+                return TextStyle(fontFamily: attribute.value as String);
+              }
+            }
+            return const TextStyle();
+          },
         ),
       ),
     );

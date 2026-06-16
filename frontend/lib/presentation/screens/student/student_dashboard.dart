@@ -9,7 +9,6 @@ import 'package:flutter/material.dart';
 import '../../../theme/app_theme.dart';
 import '../../../logic/controllers/student_dashboard_controller.dart';
 import '../../../di/service_locator.dart';
-import 'package:go_router/go_router.dart';
 import 'package:frontend/l10n/app_localizations.dart';
 
 class StudentDashboard extends StatefulWidget {
@@ -29,78 +28,7 @@ class StudentDashboard extends StatefulWidget {
 class _StudentDashboardState extends State<StudentDashboard> {
   final StudentDashboardController _controller = getIt<StudentDashboardController>();
 
-
-  Widget _buildLessonCard(BuildContext context, dynamic lesson, int index) {
-    final ghostNum = (index + 1).toString().padLeft(2, '0');
-
-    return GestureDetector(
-      onTap: () => context.push('/lesson/${lesson.id}'),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        decoration: BoxDecoration(
-          color: AppColors.secondary,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.border),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
-              blurRadius: 4,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          child: Row(
-            children: [
-              // Number badge
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.10),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  ghostNum,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.primary,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 14),
-              // Lesson title
-              Expanded(
-                child: Text(
-                  lesson.title,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.primaryDark,
-                    height: 1.35,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              // Arrow
-              Container(
-                width: 28,
-                height: 28,
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.10),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(Icons.arrow_forward, size: 13, color: AppColors.primary),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }  @override
+  @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
       listenable: _controller,
@@ -108,7 +36,6 @@ class _StudentDashboardState extends State<StudentDashboard> {
         if (_controller.isLoading) {
           return const Scaffold(body: Center(child: CircularProgressIndicator()));
         }
-        final lessons = _controller.lessons;
         final l10n = AppLocalizations.of(context)!;
 
         return Scaffold(
@@ -410,62 +337,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
                       ),
                     ),
                   ),
-
-                  // ── SECTION HEADER ──
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 14),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 3,
-                          height: 18,
-                          decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(2)),
-                        ),
-                        const SizedBox(width: 10),
-                        Text(
-                          l10n.lessonLibrary,
-                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.primaryDark, letterSpacing: 0.6),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  // ── LESSON LIST ──
-                  if (lessons.isEmpty)
-                    Center(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 40),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Container(
-                              width: 64,
-                              height: 64,
-                              decoration: BoxDecoration(color: AppColors.accent, borderRadius: BorderRadius.circular(20)),
-                              child: const Icon(Icons.menu_book, size: 28, color: Colors.white),
-                            ),
-                            const SizedBox(height: 12),
-                            Text(
-                              l10n.noCurriculum,
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(fontSize: 14, color: AppColors.mutedForeground),
-                            ),
-                          ],
-                        ),
-                      ),
-                    )
-                  else
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: ListView.builder(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        padding: EdgeInsets.zero,
-                        itemCount: lessons.length,
-                        itemBuilder: (context, index) => _buildLessonCard(context, lessons[index], index),
-                      ),
-                    ),
-                  const SizedBox(height: 100),
+                  const SizedBox(height: 40),
                 ],
               ),
             ),

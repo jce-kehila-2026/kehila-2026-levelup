@@ -9,7 +9,7 @@
 ///   - [ListenableBuilder] wraps the body so any controller.notifyListeners()
 ///     call triggers a reactive rebuild without setState.
 ///
-/// Dialog helpers (_showAddLevelDialog, _showAddWeekDialog, etc.) are pure UI:
+///Dialog helpers (_showAddLevelDialog, _showAddWeekDialog, etc.) are pure UI:
 /// they collect user input from AlertDialogs and hand the result to the
 /// controller. They do not mutate any state themselves.
 // ignore_for_file: experimental_member_use
@@ -161,6 +161,73 @@ class _CurriculumScreenState extends State<CurriculumScreen> {
               }
             },
             child: Text(AppLocalizations.of(context)!.save, style: const TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showEditWeekDialog(String levelId, WeekModel week) {
+    final nameCtrl = TextEditingController(text: week.name);
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.background,
+        title: const Text('Edit Week', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.text)),
+        content: TextField(
+          controller: nameCtrl,
+          autofocus: true,
+          decoration: InputDecoration(
+            labelText: 'Week name',
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(AppLocalizations.of(context)!.cancel, style: const TextStyle(color: AppColors.mutedForeground)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: AppColors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+            onPressed: () async {
+              await _controller.editWeek(levelId, week.id, nameCtrl.text.trim());
+              if (ctx.mounted) Navigator.pop(ctx);
+            },
+            child: Text(AppLocalizations.of(context)!.save, style: const TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showDeleteWeekDialog(String levelId, WeekModel week) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.background,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Delete Week', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.text)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Are you sure you want to delete "${week.name}"?', style: const TextStyle(color: AppColors.text, fontWeight: FontWeight.w500)),
+            const SizedBox(height: 12),
+            const Text('All materials and assignments inside this week will be permanently deleted. This action cannot be undone.', style: TextStyle(color: AppColors.mutedForeground, fontSize: 13)),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(AppLocalizations.of(context)!.cancel, style: const TextStyle(color: AppColors.mutedForeground)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error, foregroundColor: AppColors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+            onPressed: () {
+              _controller.deleteWeek(levelId, week.id);
+              Navigator.pop(ctx);
+            },
+            child: const Text('Delete', style: TextStyle(fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -485,6 +552,18 @@ class _CurriculumScreenState extends State<CurriculumScreen> {
                   const SizedBox(width: 8),
                   Expanded(child: Text(week.name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: AppColors.text))),
                   Text(AppLocalizations.of(context)!.itemsCount((week.items.length).toString()), style: const TextStyle(fontSize: 12, color: AppColors.mutedForeground)),
+                  IconButton(
+                    icon: const Icon(Icons.edit_outlined, size: 16, color: AppColors.mutedForeground),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                    onPressed: () => _showEditWeekDialog(levelId, week),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.delete_outline, size: 16, color: AppColors.error),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                    onPressed: () => _showDeleteWeekDialog(levelId, week),
+                  ),
                 ],
               ),
             ),
