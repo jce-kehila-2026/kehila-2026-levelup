@@ -5,10 +5,13 @@ library;
 import 'package:flutter/foundation.dart';
 import '../../data/models/group_model.dart';
 import '../../data/repositories/group_repository.dart';
+import '../../data/models/user_model.dart';
+import '../../data/repositories/user_repository.dart';
 import '../helpers/audit_log_helper.dart';
 
 class GroupController extends ChangeNotifier {
   final GroupRepository _repository;
+  final UserRepository _userRepository;
   final AuditLogHelper _audit;
 
   bool _isLoading = false;
@@ -16,8 +19,9 @@ class GroupController extends ChangeNotifier {
 
   List<GroupModel> _allGroups = [];
   List<GroupModel> _archivedGroups = [];
+  List<UserModel> _allStudents = [];
 
-  GroupController(this._repository, this._audit) {
+  GroupController(this._repository, this._userRepository, this._audit) {
     _audit.resolveIdentity();
     _init();
   }
@@ -26,7 +30,12 @@ class GroupController extends ChangeNotifier {
     _isLoading = true;
     notifyListeners();
     try {
-      _allGroups = await _repository.getGroups();
+      final results = await Future.wait([
+        _repository.getGroups(),
+        _userRepository.getStudents(),
+      ]);
+      _allGroups = results[0] as List<GroupModel>;
+      _allStudents = results[1] as List<UserModel>;
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -51,6 +60,10 @@ class GroupController extends ChangeNotifier {
     return _archivedGroups.where((g) => g.name.toLowerCase().contains(_archiveSearch.toLowerCase())).toList();
   }
 
+  List<UserModel> get unassignedStudents {
+    return _allStudents.where((s) => s.groupId == null || s.groupId!.isEmpty).toList();
+  }
+
   // ── Actions ────────────────────────────
 
   void setSearch(String value) {
@@ -66,7 +79,12 @@ class GroupController extends ChangeNotifier {
   /// Reload active groups — called on screen mount to ensure fresh data.
   Future<void> refresh() async {
     try {
-      _allGroups = await _repository.getGroups();
+      final results = await Future.wait([
+        _repository.getGroups(),
+        _userRepository.getStudents(),
+      ]);
+      _allGroups = results[0] as List<GroupModel>;
+      _allStudents = results[1] as List<UserModel>;
       notifyListeners();
     } catch (e) {
       debugPrint('GroupController.refresh error: $e');
@@ -85,8 +103,13 @@ class GroupController extends ChangeNotifier {
     }
   }
 
+  Future<void> assignStudentToGroup(String studentId, String groupId, String levelId, String studentName) async {
+    await _repository.addStudentToGroup(groupId, studentId, levelId, name: studentName);
+    await refresh();
+  }
+
   /// Creates a group. Optimistic: adds to list immediately, then syncs from Firestore.
-  Future<void> createGroup(String name) async {
+  Future<void> createGroup(String name, List<String> levelIds) async {
     final placeholder = GroupModel(
       id: '__optimistic__${DateTime.now().millisecondsSinceEpoch}',
       serialNumber: (_allGroups.isEmpty ? 0 : _allGroups.last.serialNumber) + 1,
@@ -95,12 +118,13 @@ class GroupController extends ChangeNotifier {
       students: [],
       createdAt: DateTime.now(),
       isArchived: false,
+      levelIds: levelIds,
     );
     _allGroups = [..._allGroups, placeholder];
     notifyListeners();
 
     try {
-      final created = await _repository.createGroup(name);
+      final created = await _repository.createGroup(name, levelIds);
       _allGroups = _allGroups
           .where((g) => g.id != placeholder.id)
           .toList()

@@ -2,6 +2,7 @@
 /// Path: lib/logic/controllers/group_detail_controller.dart
 library;
 
+import 'dart:async';
 import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -24,9 +25,16 @@ class GroupDetailController extends ChangeNotifier {
   List<UserModel> _allInstructors = [];
   List<UserModel> _allStudents = [];
   List<LevelModel> _levels = [];
+  StreamSubscription<GroupModel?>? _groupSub;
 
   UserRole? _currentUserRole;
   List<String> _currentUserAssignedLevels = [];
+  Map<String, String> _groupIdToName = {};
+
+  UserRole? get currentUserRole => _currentUserRole;
+  List<String> get currentUserAssignedLevels => _currentUserAssignedLevels;
+
+  String? getGroupName(String? id) => id != null ? _groupIdToName[id] : null;
 
   bool _isLoading = true;
   bool get isLoading => _isLoading;
@@ -55,6 +63,7 @@ class GroupDetailController extends ChangeNotifier {
         _userRepository.getInstructors(),
         _userRepository.getStudents(),
         _curriculumRepository.getLevels(),
+        _groupRepository.getGroups(),
       ]);
       group = (results[0] as GroupModel?) ??
           GroupModel(id: groupId, serialNumber: 0, name: 'Unknown Group', instructorIds: [], students: [], createdAt: DateTime.now());
@@ -62,6 +71,8 @@ class GroupDetailController extends ChangeNotifier {
       
       final rawStudents = results[2] as List<UserModel>;
       final rawLevels = results[3] as List<LevelModel>;
+      final allGroups = results[4] as List<GroupModel>;
+      _groupIdToName = { for (var g in allGroups) g.id : g.name };
 
       if (_currentUserRole == UserRole.instructor) {
         _allStudents = rawStudents.where((s) => _currentUserAssignedLevels.contains(s.levelId)).toList();
@@ -70,6 +81,14 @@ class GroupDetailController extends ChangeNotifier {
         _allStudents = rawStudents;
         _levels = rawLevels;
       }
+
+      _groupSub?.cancel();
+      _groupSub = _groupRepository.streamGroupById(groupId).listen((updatedGroup) {
+        if (updatedGroup != null) {
+          group = updatedGroup;
+          notifyListeners();
+        }
+      });
     } catch (e) {
       debugPrint('GroupDetailController._init error: $e');
     } finally {
@@ -100,7 +119,12 @@ class GroupDetailController extends ChangeNotifier {
   }
 
   List<UserModel> get availableInstructors {
-    final available = _allInstructors.where((i) => !group.instructorIds.contains(i.id)).toList();
+    final available = _allInstructors.where((i) {
+      if (group.instructorIds.contains(i.id)) return false;
+      // Filter: only show instructors whose assignedLevels has at least one level in common with group's levelIds (Rule 3)
+      final hasCommonLevel = i.assignedLevels.any((l) => group.levelIds.contains(l));
+      return hasCommonLevel;
+    }).toList();
     if (_availableInstructorsSearch.isEmpty) return available;
     final term = _availableInstructorsSearch.toLowerCase();
     return available.where((i) => i.name.toLowerCase().contains(term) || (i.email ?? '').toLowerCase().contains(term)).toList();
@@ -148,17 +172,19 @@ class GroupDetailController extends ChangeNotifier {
 
   List<UserModel> get availableStudents {
     final uid = FirebaseAuth.instance.currentUser?.uid;
-    final available = _allStudents.where((s) => !group.studentLevels.containsKey(s.id)).toList();
-    
-    if (_availableStudentsSearch.isEmpty) {
-      if (_currentUserRole == UserRole.instructor && uid != null) {
-        return available.where((s) => s.createdBy == uid).toList();
-      }
-      return available;
+    var list = _allStudents.where((s) {
+      if (group.studentLevels.containsKey(s.id)) return false;
+      return s.levelId != null && group.levelIds.contains(s.levelId);
+    }).toList();
+
+    if (_currentUserRole == UserRole.instructor && uid != null) {
+      list = list.where((s) => s.createdBy == uid).toList();
     }
     
+    if (_availableStudentsSearch.isEmpty) return list;
+    
     final term = _availableStudentsSearch.toLowerCase();
-    return available.where((s) =>
+    return list.where((s) =>
       s.name.toLowerCase().contains(term) ||
       (s.username ?? '').toLowerCase().contains(term) ||
       (s.studentNumber ?? '').toLowerCase().contains(term)
@@ -213,6 +239,7 @@ class GroupDetailController extends ChangeNotifier {
         _userRepository.getInstructors(),
         _userRepository.getStudents(),
         _curriculumRepository.getLevels(),
+        _groupRepository.getGroups(),
       ]);
       group = (results[0] as GroupModel?) ??
           GroupModel(id: groupId, serialNumber: 0, name: 'Unknown Group', instructorIds: [], students: [], createdAt: DateTime.now());
@@ -220,6 +247,8 @@ class GroupDetailController extends ChangeNotifier {
       
       final rawStudents = results[2] as List<UserModel>;
       final rawLevels = results[3] as List<LevelModel>;
+      final allGroups = results[4] as List<GroupModel>;
+      _groupIdToName = { for (var g in allGroups) g.id : g.name };
 
       if (_currentUserRole == UserRole.instructor) {
         _allStudents = rawStudents.where((s) => _currentUserAssignedLevels.contains(s.levelId)).toList();
@@ -261,17 +290,30 @@ class GroupDetailController extends ChangeNotifier {
     if (_currentUserRole == UserRole.instructor && !_currentUserAssignedLevels.contains(levelId)) {
       throw Exception('Unauthorized: You can only assign students to your assigned levels.');
     }
+    if (!group.levelIds.contains(levelId)) {
+      throw Exception('Validation failed: Student level does not match group levels.');
+    }
+    final student = _allStudents.where((s) => s.id == studentId).firstOrNull;
+    if (student == null) throw Exception('Student not found');
+
+    final currentUid = FirebaseAuth.instance.currentUser?.uid;
+    if (_currentUserRole == UserRole.instructor && currentUid != null) {
+      if (student.createdBy != currentUid) {
+        throw Exception('Unauthorized: Instructors can only add students they created.');
+      }
+    }
+
     try {
-      final student = _allStudents.where((s) => s.id == studentId).firstOrNull;
       await _groupRepository.addStudentToGroup(
         groupId,
         studentId,
         levelId,
-        name: student?.name ?? '',
+        name: student.name,
+        oldGroupId: student.groupId,
       );
       _availableStudentsSearch = '';
       await _initQuietly();
-      _audit.log(action: 'Added student to group', category: 'groups', targetPersonName: student?.name, targetStudentNumber: student?.studentNumber, details: group.name);
+      _audit.log(action: 'Added student to group', category: 'groups', targetPersonName: student.name, targetStudentNumber: student.studentNumber, details: group.name);
     } catch (e) {
       rethrow;
     }
@@ -281,16 +323,27 @@ class GroupDetailController extends ChangeNotifier {
     if (_currentUserRole == UserRole.instructor && !_currentUserAssignedLevels.contains(levelId)) {
       throw Exception('Unauthorized: You can only assign students to your assigned levels.');
     }
+    if (!group.levelIds.contains(levelId)) {
+      throw Exception('Validation failed: Student level does not match group levels.');
+    }
     if (_bulkSelectedStudentIds.isEmpty) return;
     final idsToAdd = List<String>.from(_bulkSelectedStudentIds);
     try {
+      final currentUid = FirebaseAuth.instance.currentUser?.uid;
       for (final studentId in idsToAdd) {
         final student = _allStudents.where((s) => s.id == studentId).firstOrNull;
+        if (student == null) continue;
+        if (_currentUserRole == UserRole.instructor && currentUid != null) {
+          if (student.createdBy != currentUid) {
+            throw Exception('Unauthorized: Instructors can only add students they created.');
+          }
+        }
         await _groupRepository.addStudentToGroup(
           groupId,
           studentId,
           levelId,
-          name: student?.name ?? '',
+          name: student.name,
+          oldGroupId: student.groupId,
         );
       }
       _bulkSelectedStudentIds.clear();
@@ -300,6 +353,60 @@ class GroupDetailController extends ChangeNotifier {
     } catch (e) {
       rethrow;
     }
+  }
+
+  Future<void> addLevelToGroup(String levelId) async {
+    await _groupRepository.addLevelToGroup(groupId, levelId);
+    await _initQuietly();
+    _audit.log(action: 'Added level to group', category: 'groups', details: 'Level $levelId in ${group.name}');
+  }
+
+  Future<void> removeLevelFromGroup(String levelId) async {
+    // Rule 6: check if any student currently in the group has this level
+    final count = group.students.where((s) => s.level == levelId).length;
+    if (count > 0) {
+      throw Exception('Cannot remove level — $count student(s) are still assigned to this level.');
+    }
+    await _groupRepository.removeLevelFromGroup(groupId, levelId);
+    await _initQuietly();
+    _audit.log(action: 'Removed level from group', category: 'groups', details: 'Level $levelId in ${group.name}');
+  }
+
+  Future<void> renameGroup(String newName) async {
+    final oldName = group.name;
+    await _groupRepository.updateGroup(groupId, newName);
+    await _initQuietly();
+    _audit.log(action: 'Renamed group', category: 'groups', details: '"$oldName" → "$newName"');
+  }
+
+  Future<List<GroupModel>> getTransferTargetGroups(String studentLevelId) async {
+    final allGroups = await _groupRepository.getGroups();
+    return allGroups
+        .where((g) => g.id != groupId && g.levelIds.contains(studentLevelId))
+        .toList();
+  }
+
+  Future<void> transferStudent(String studentId, String targetGroupId) async {
+    final student = _allStudents.where((s) => s.id == studentId).firstOrNull;
+    if (student == null) throw Exception('Student not found');
+    final levelId = student.levelId;
+    if (levelId == null) throw Exception('Student has no level assigned');
+
+    await _groupRepository.addStudentToGroup(
+      targetGroupId,
+      studentId,
+      levelId,
+      name: student.name,
+      oldGroupId: groupId,
+    );
+    await _initQuietly();
+    _audit.log(
+      action: 'Transferred student',
+      category: 'groups',
+      targetPersonName: student.name,
+      targetStudentNumber: student.studentNumber,
+      details: 'From group $groupId to $targetGroupId',
+    );
   }
 
   /// Creates a new student, then adds them to this group.
@@ -459,4 +566,9 @@ class GroupDetailController extends ChangeNotifier {
     return newPin;
   }
 
+  @override
+  void dispose() {
+    _groupSub?.cancel();
+    super.dispose();
+  }
 }

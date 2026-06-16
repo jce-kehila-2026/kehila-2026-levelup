@@ -16,6 +16,9 @@ import '../../widgets/group_card.dart';
 import '../../widgets/empty_state.dart';
 import '../../../logic/controllers/group_controller.dart';
 import '../../../di/service_locator.dart';
+import '../../../data/models/curriculum_model.dart';
+import '../../../data/repositories/curriculum_repository.dart';
+import '../../../data/models/user_model.dart';
 
 class GroupsScreen extends StatefulWidget {
   const GroupsScreen({super.key});
@@ -31,7 +34,7 @@ class _GroupsScreenState extends State<GroupsScreen> with SingleTickerProviderSt
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
     _tabController.addListener(_onTabChanged);
     // Always refresh on mount — GroupController is a singleton so data may be stale.
     WidgetsBinding.instance.addPostFrameCallback((_) => _controller.refresh());
@@ -58,6 +61,8 @@ class _GroupsScreenState extends State<GroupsScreen> with SingleTickerProviderSt
 
   void _showAddGroupDialog() {
     final nameController = TextEditingController();
+    final selectedLevelIds = <String>{};
+
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -70,29 +75,69 @@ class _GroupsScreenState extends State<GroupsScreen> with SingleTickerProviderSt
             Text('New Group', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
           ],
         ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('Create a new group', style: TextStyle(fontSize: 13, color: AppColors.mutedForeground)),
-            const SizedBox(height: 16),
-            TextField(
-              controller: nameController,
-              autofocus: true,
-              decoration: InputDecoration(
-                hintText: 'Group Name',
-                prefixIcon: const Icon(Icons.label_outline, size: 18),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: AppColors.input, width: 1.5),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
-                ),
-              ),
-            ),
-          ],
+        content: StatefulBuilder(
+          builder: (context, setDialogState) => FutureBuilder<List<LevelModel>>(
+            future: getIt<CurriculumRepository>().getLevels(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const SizedBox(
+                  height: 150,
+                  child: Center(child: CircularProgressIndicator()),
+                );
+              }
+              final levels = snapshot.data ?? [];
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Create a new group', style: TextStyle(fontSize: 13, color: AppColors.mutedForeground)),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: nameController,
+                    autofocus: true,
+                    decoration: InputDecoration(
+                      hintText: 'Group Name',
+                      prefixIcon: const Icon(Icons.label_outline, size: 18),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: AppColors.input, width: 1.5),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text('Select Levels', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.text)),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: levels.map((lvl) {
+                      final isSelected = selectedLevelIds.contains(lvl.id);
+                      return FilterChip(
+                        selected: isSelected,
+                        label: Text(lvl.name),
+                        selectedColor: AppColors.primary.withValues(alpha: 0.2),
+                        checkmarkColor: AppColors.primary,
+                        onSelected: (selected) {
+                          setDialogState(() {
+                            if (selected) {
+                              selectedLevelIds.add(lvl.id);
+                            } else {
+                              selectedLevelIds.remove(lvl.id);
+                            }
+                          });
+                        },
+                      );
+                    }).toList(),
+                  ),
+                ],
+              );
+            },
+          ),
         ),
         actions: [
           TextButton(
@@ -102,28 +147,36 @@ class _GroupsScreenState extends State<GroupsScreen> with SingleTickerProviderSt
           ElevatedButton(
             onPressed: () async {
               final name = nameController.text.trim();
+              if (name.isEmpty) return;
+              if (selectedLevelIds.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('At least one level must be selected.'),
+                    backgroundColor: AppColors.error,
+                  ),
+                );
+                return;
+              }
               Navigator.pop(ctx);
-              if (name.isNotEmpty) {
-                try {
-                  await _controller.createGroup(name);
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Group "$name" created'),
-                        behavior: SnackBarBehavior.floating,
-                      ),
-                    );
-                  }
-                } catch (e) {
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Failed to create group: $e'),
-                        backgroundColor: AppColors.error,
-                        behavior: SnackBarBehavior.floating,
-                      ),
-                    );
-                  }
+              try {
+                await _controller.createGroup(name, selectedLevelIds.toList());
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Group "$name" created'),
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Failed to create group: $e'),
+                      backgroundColor: AppColors.error,
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
                 }
               }
             },
@@ -152,9 +205,32 @@ class _GroupsScreenState extends State<GroupsScreen> with SingleTickerProviderSt
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Are you sure you want to delete this group?\nStudents count: ${group.students.length}\nInstructors count: ${group.instructorIds.length}',
+            Text('Are you sure you want to delete this group?\nInstructors count: ${group.instructorIds.length}',
                 style: const TextStyle(fontSize: 14, color: AppColors.mutedForeground)),
             const SizedBox(height: 12),
+            if (group.students.isNotEmpty) ...[
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.error.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: AppColors.error.withValues(alpha: 0.3)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.warning_amber_rounded, color: AppColors.error, size: 22),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Warning: This group has ${group.students.length} student(s). They will be unassigned from this group.',
+                        style: const TextStyle(color: AppColors.error, fontSize: 13, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
@@ -389,12 +465,14 @@ class _GroupsScreenState extends State<GroupsScreen> with SingleTickerProviderSt
 
         final l10n = AppLocalizations.of(context)!;
         final isArchiveTab = _tabController.index == 1;
+        final isUnassignedTab = _tabController.index == 2;
         final groups = _controller.groups;
         final archivedGroups = _controller.archivedGroups;
+        final unassignedStudents = _controller.unassignedStudents;
 
         return Scaffold(
           backgroundColor: AppColors.background,
-          floatingActionButton: !isArchiveTab
+          floatingActionButton: _tabController.index == 0
               ? FloatingActionButton(
                   heroTag: 'fab_admin_groups',
                   onPressed: _showAddGroupDialog,
@@ -429,7 +507,11 @@ class _GroupsScreenState extends State<GroupsScreen> with SingleTickerProviderSt
                                 ),
                                 const SizedBox(width: 8),
                                 Text(
-                                  isArchiveTab ? 'Archived Groups' : l10n.groupsTitle,
+                                  isArchiveTab
+                                      ? 'Archived Groups'
+                                      : isUnassignedTab
+                                          ? 'Unassigned Students'
+                                          : l10n.groupsTitle,
                                   style: Theme.of(context)
                                       .textTheme
                                       .titleLarge
@@ -441,7 +523,9 @@ class _GroupsScreenState extends State<GroupsScreen> with SingleTickerProviderSt
                             Text(
                               isArchiveTab
                                   ? '${archivedGroups.length} archived groups'
-                                  : l10n.groupsCount(groups.length.toString()),
+                                  : isUnassignedTab
+                                      ? '${unassignedStudents.length} unassigned students'
+                                      : l10n.groupsCount(groups.length.toString()),
                               style: const TextStyle(
                                   fontSize: 13, color: AppColors.mutedForeground),
                             ),
@@ -468,6 +552,7 @@ class _GroupsScreenState extends State<GroupsScreen> with SingleTickerProviderSt
                     tabs: [
                       Tab(text: 'Active (${groups.length})'),
                       Tab(text: 'Archived (${archivedGroups.length})'),
+                      Tab(text: 'Unassigned (${unassignedStudents.length})'),
                     ],
                   ),
                 ),
@@ -493,10 +578,9 @@ class _GroupsScreenState extends State<GroupsScreen> with SingleTickerProviderSt
                                     itemCount: groups.length,
                                     itemBuilder: (context, index) {
                                       final group = groups[index];
-                                      final activeLevels = group.activeLevels;
-                                      final levelLabel = activeLevels.isEmpty
+                                      final levelLabel = group.levelIds.isEmpty
                                           ? l10n.noLevelsAssigned
-                                          : activeLevels
+                                          : group.levelIds
                                               .map((l) => l10n.levelLabel(
                                                   l.replaceAll('l', '')))
                                               .join(' · ');
@@ -541,8 +625,22 @@ class _GroupsScreenState extends State<GroupsScreen> with SingleTickerProviderSt
                                               group.instructorIds.length,
                                           levelName: levelLabel,
                                           studentsCount: group.studentIds.length,
-                                          onPress: () =>
-                                              context.push('/group/${group.id}'),
+                                          onPress: () async {
+                                            await context.push('/group/${group.id}');
+                                            _controller.refresh();
+                                          },
+                                          trailing: PopupMenuButton<String>(
+                                            icon: const Icon(Icons.more_vert, size: 18, color: AppColors.mutedForeground),
+                                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                            onSelected: (val) {
+                                              if (val == 'rename') _showRenameGroupDialog(group);
+                                              if (val == 'archive') _confirmArchiveGroup(group);
+                                            },
+                                            itemBuilder: (_) => [
+                                              const PopupMenuItem(value: 'rename', child: Row(children: [Icon(Icons.edit_outlined, size: 16), SizedBox(width: 8), Text('Rename')])),
+                                              const PopupMenuItem(value: 'archive', child: Row(children: [Icon(Icons.archive_outlined, size: 16, color: AppColors.error), SizedBox(width: 8), Text('Archive', style: TextStyle(color: AppColors.error))])),
+                                            ],
+                                          ),
                                         ),
                                       );
                                     },
@@ -573,6 +671,28 @@ class _GroupsScreenState extends State<GroupsScreen> with SingleTickerProviderSt
                           ),
                         ],
                       ),
+
+                      // ── Unassigned Students ──
+                      Column(
+                        children: [
+                          Expanded(
+                            child: unassignedStudents.isEmpty
+                                ? const EmptyState(
+                                    icon: Icons.person_off_outlined,
+                                    title: 'No unassigned students',
+                                    subtitle: 'All students are in groups',
+                                  )
+                                : ListView.builder(
+                                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                                    itemCount: unassignedStudents.length,
+                                    itemBuilder: (context, index) {
+                                      final student = unassignedStudents[index];
+                                      return _buildUnassignedStudentCard(student);
+                                    },
+                                  ),
+                          ),
+                        ],
+                      ),
                     ],
                   ),
                 ),
@@ -581,6 +701,184 @@ class _GroupsScreenState extends State<GroupsScreen> with SingleTickerProviderSt
           ),
         );
       },
+    );
+  }
+
+  void _showRenameGroupDialog(GroupModel group) {
+    final nameController = TextEditingController(text: group.name);
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.background,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Rename Group', style: TextStyle(fontWeight: FontWeight.bold)),
+        content: TextField(
+          controller: nameController,
+          autofocus: true,
+          decoration: const InputDecoration(
+            labelText: 'New Group Name',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel', style: TextStyle(color: AppColors.mutedForeground)),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final newName = nameController.text.trim();
+              Navigator.pop(ctx);
+              if (newName.isNotEmpty && newName != group.name) {
+                try {
+                  await _controller.updateGroup(group.id, newName);
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Failed to rename group: $e'), backgroundColor: AppColors.error),
+                    );
+                  }
+                }
+              }
+            },
+            child: const Text('Rename', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildUnassignedStudentCard(UserModel student) {
+    final name = student.name;
+    final parts = name.split(' ');
+    final initials = parts.length >= 2
+        ? '${parts[0][0]}${parts[1][0]}'.toUpperCase()
+        : (parts.isNotEmpty && parts[0].length >= 2 ? parts[0].substring(0, 2).toUpperCase() : '??');
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.border),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+            foregroundColor: AppColors.primary,
+            radius: 22,
+            child: Text(initials, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(student.name, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.text)),
+                const SizedBox(height: 3),
+                Text('@${student.username ?? student.studentNumber}', style: const TextStyle(fontSize: 12, color: AppColors.mutedForeground)),
+                const SizedBox(height: 3),
+                if (student.levelId != null)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text('Level: ${student.levelId}', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.primary)),
+                  ),
+              ],
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () => _showAssignToGroupDialog(student),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            child: const Text('Assign'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showAssignToGroupDialog(UserModel student) {
+    final studentLevelId = student.levelId;
+    if (studentLevelId == null || studentLevelId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Student has no assigned level.'), backgroundColor: AppColors.error),
+      );
+      return;
+    }
+
+    final matchingGroups = _controller.groups
+        .where((g) => g.levelIds.contains(studentLevelId))
+        .toList();
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.background,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('Assign ${student.name} to Group', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: matchingGroups.isEmpty
+              ? Text('No active groups found for level: $studentLevelId')
+              : ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: matchingGroups.length,
+                  itemBuilder: (context, index) {
+                    final grp = matchingGroups[index];
+                    return ListTile(
+                      title: Text(grp.name, style: const TextStyle(fontWeight: FontWeight.w600)),
+                      trailing: ElevatedButton(
+                        onPressed: () async {
+                          Navigator.pop(ctx);
+                          try {
+                            await _controller.assignStudentToGroup(
+                              student.id,
+                              grp.id,
+                              studentLevelId,
+                              student.name,
+                            );
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('${student.name} assigned to ${grp.name}')),
+                              );
+                            }
+                          } catch (e) {
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Failed: $e'), backgroundColor: AppColors.error),
+                              );
+                            }
+                          }
+                        },
+                        child: const Text('Assign'),
+                      ),
+                    );
+                  },
+                ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel', style: TextStyle(color: AppColors.mutedForeground)),
+          ),
+        ],
+      ),
     );
   }
 

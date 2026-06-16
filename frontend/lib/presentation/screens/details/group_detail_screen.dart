@@ -13,6 +13,7 @@ import 'package:intl/intl.dart';
 import '../../../theme/app_theme.dart';
 import '../../widgets/empty_state.dart';
 import '../../../data/models/curriculum_model.dart';
+import '../../../data/models/group_model.dart';
 import '../../../data/models/user_model.dart';
 import '../../../logic/controllers/group_detail_controller.dart';
 import '../../../di/service_locator.dart';
@@ -55,6 +56,182 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
   }
 
   // ── Dialogs ──────────────────────────────
+
+  void _showRenameGroupDialog(String currentName) {
+    final controller = TextEditingController(text: currentName);
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.background,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Rename Group', style: TextStyle(fontWeight: FontWeight.bold)),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: const InputDecoration(
+            labelText: 'Group Name',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel', style: TextStyle(color: AppColors.mutedForeground)),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final name = controller.text.trim();
+              if (name.isNotEmpty && name != currentName) {
+                Navigator.pop(ctx);
+                try {
+                  await _controller.renameGroup(name);
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Group renamed to "$name"')),
+                    );
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Failed: $e'), backgroundColor: AppColors.error),
+                    );
+                  }
+                }
+              } else {
+                Navigator.pop(ctx);
+              }
+            },
+            child: const Text('Rename'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showAddLevelDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        final availableLevels = _controller.levels
+            .where((l) => !_controller.group.levelIds.contains(l.id))
+            .toList();
+
+        return AlertDialog(
+          backgroundColor: AppColors.background,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text('Add Level to Group', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: availableLevels.isEmpty
+                ? const Text('All available levels are already added to this group.', style: TextStyle(color: AppColors.mutedForeground))
+                : ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: availableLevels.length,
+                    itemBuilder: (context, index) {
+                      final lvl = availableLevels[index];
+                      return ListTile(
+                        title: Text(lvl.name, style: const TextStyle(fontWeight: FontWeight.w600)),
+                        trailing: ElevatedButton(
+                          onPressed: () async {
+                            Navigator.pop(ctx);
+                            try {
+                              await _controller.addLevelToGroup(lvl.id);
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text('Level "${lvl.name}" added to group.')),
+                                );
+                              }
+                            } catch (e) {
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text('Failed: $e'), backgroundColor: AppColors.error),
+                                );
+                              }
+                            }
+                          },
+                          child: const Text('Add'),
+                        ),
+                      );
+                    },
+                  ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel', style: TextStyle(color: AppColors.mutedForeground)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showTransferStudentDialog(UserModel student) {
+    final studentLevelId = student.levelId;
+    if (studentLevelId == null) return;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.background,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('Transfer ${student.name}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+        content: SizedBox(
+          width: double.maxFinite,
+          height: 300,
+          child: FutureBuilder<List<GroupModel>>(
+            future: _controller.getTransferTargetGroups(studentLevelId),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              final groups = snapshot.data ?? [];
+              if (groups.isEmpty) {
+                return const Center(
+                  child: Text('No other active groups found with this level.', style: TextStyle(color: AppColors.mutedForeground)),
+                );
+              }
+              return ListView.builder(
+                itemCount: groups.length,
+                itemBuilder: (context, index) {
+                  final grp = groups[index];
+                  return ListTile(
+                    title: Text(grp.name, style: const TextStyle(fontWeight: FontWeight.w600)),
+                    trailing: ElevatedButton(
+                      onPressed: () async {
+                        Navigator.pop(ctx);
+                        try {
+                          await _controller.transferStudent(student.id, grp.id);
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('${student.name} transferred to ${grp.name}')),
+                            );
+                          }
+                        } catch (e) {
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Transfer failed: $e'), backgroundColor: AppColors.error),
+                            );
+                          }
+                        }
+                      },
+                      child: const Text('Transfer'),
+                    ),
+                  );
+                },
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel', style: TextStyle(color: AppColors.mutedForeground)),
+          ),
+        ],
+      ),
+    );
+  }
 
   void _showAddInstructorDialog() {
     _controller.setAvailableInstructorsSearch('');
@@ -230,10 +407,12 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                               itemBuilder: (context, index) {
                                 final student = available[index];
                                 final isSelected = _controller.bulkSelectedStudentIds.contains(student.id);
+                                final currentGroupName = student.groupId != null ? _controller.getGroupName(student.groupId) : null;
                                 return _BulkSelectStudentTile(
                                   student: student,
                                   isSelected: isSelected,
                                   onToggle: () => _controller.toggleBulkStudent(student.id),
+                                  currentGroupName: currentGroupName,
                                 );
                               },
                             ),
@@ -244,13 +423,58 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(ctx),
-                  child: Text(l10n.closeButton, style: TextStyle(color: AppColors.mutedForeground)),
+                  child: Text(l10n.closeButton, style: const TextStyle(color: AppColors.mutedForeground)),
                 ),
                 if (selCount > 0)
                   ElevatedButton(
                     onPressed: () async {
+                      final preAssignedStudents = _controller.availableStudents
+                          .where((s) => _controller.bulkSelectedStudentIds.contains(s.id) && s.groupId != null)
+                          .toList();
+                      
+                      if (preAssignedStudents.isNotEmpty) {
+                        final proceed = await showDialog<bool>(
+                          context: context,
+                          builder: (c) => AlertDialog(
+                            backgroundColor: AppColors.background,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                            title: const Text('Confirm Transfer', style: TextStyle(fontWeight: FontWeight.bold)),
+                            content: Text(
+                              'The following student(s) are already in other groups:\n'
+                              '${preAssignedStudents.map((s) => '• ${s.name} (in ${_controller.getGroupName(s.groupId) ?? "Unknown"})').join('\n')}\n\n'
+                              'Adding them to this group will automatically transfer them. Proceed?'
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(c, false),
+                                child: const Text('Cancel', style: TextStyle(color: AppColors.mutedForeground)),
+                              ),
+                              ElevatedButton(
+                                onPressed: () => Navigator.pop(c, true),
+                                style: ElevatedButton.styleFrom(backgroundColor: AppColors.warning, foregroundColor: Colors.white),
+                                child: const Text('Transfer', style: TextStyle(fontWeight: FontWeight.bold)),
+                              ),
+                            ],
+                          ),
+                        );
+                        if (proceed != true) return;
+                      }
+
                       Navigator.pop(ctx);
-                      await _controller.bulkAddStudents(globalLevel);
+                      try {
+                        await _controller.bulkAddStudents(globalLevel);
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Students added successfully')),
+                          );
+                        }
+                      } catch (e) {
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Failed: $e'), backgroundColor: AppColors.error),
+                          );
+                        }
+                      }
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primary,
@@ -868,35 +1092,36 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
             title: Text(AppLocalizations.of(context)!.groupDetails, style: TextStyle(color: AppColors.text, fontSize: 16, fontWeight: FontWeight.bold)),
             centerTitle: true,
             actions: [
-              IconButton(
-                icon: const Icon(Icons.delete_outline, color: AppColors.error),
-                onPressed: () {
-                  showDialog(
-                    context: context,
-                    builder: (ctx) => AlertDialog(
-                      backgroundColor: AppColors.background,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                      title: Text(AppLocalizations.of(context)!.deleteGroup, style: TextStyle(fontWeight: FontWeight.bold)),
-                      content: Text(AppLocalizations.of(context)!.deleteGroupConfirm(group.name)),
-                      actions: [
-                        TextButton(onPressed: () => Navigator.pop(ctx), child: Text(AppLocalizations.of(context)!.cancelButton, style: TextStyle(color: AppColors.mutedForeground))),
-                        ElevatedButton(
-                          style: ElevatedButton.styleFrom(backgroundColor: AppColors.error, foregroundColor: AppColors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
-                          onPressed: () async {
-                            Navigator.pop(ctx);
-                            await _controller.deleteGroup();
-                            if (context.mounted) {
-                              Navigator.of(context).pop();
-                              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppLocalizations.of(context)!.groupDeleted(group.name)), backgroundColor: AppColors.error, behavior: SnackBarBehavior.floating));
-                            }
-                          },
-                          child: Text(AppLocalizations.of(context)!.deleteButton, style: TextStyle(fontWeight: FontWeight.bold)),
-                        ),
-                      ],
-                    ),
-                  );
-                },
-              ),
+              if (_controller.currentUserRole == UserRole.admin)
+                IconButton(
+                  icon: const Icon(Icons.delete_outline, color: AppColors.error),
+                  onPressed: () {
+                    showDialog(
+                      context: context,
+                      builder: (ctx) => AlertDialog(
+                        backgroundColor: AppColors.background,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                        title: Text(AppLocalizations.of(context)!.deleteGroup, style: const TextStyle(fontWeight: FontWeight.bold)),
+                        content: Text(AppLocalizations.of(context)!.deleteGroupConfirm(group.name)),
+                        actions: [
+                          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(AppLocalizations.of(context)!.cancelButton, style: const TextStyle(color: AppColors.mutedForeground))),
+                          ElevatedButton(
+                            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error, foregroundColor: AppColors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+                            onPressed: () async {
+                              Navigator.pop(ctx);
+                              await _controller.deleteGroup();
+                              if (context.mounted) {
+                                Navigator.of(context).pop();
+                                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppLocalizations.of(context)!.groupDeleted(group.name)), backgroundColor: AppColors.error, behavior: SnackBarBehavior.floating));
+                              }
+                            },
+                            child: Text(AppLocalizations.of(context)!.deleteButton, style: const TextStyle(fontWeight: FontWeight.bold)),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
             ],
           ),
           body: SafeArea(
@@ -927,13 +1152,26 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(group.name, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: AppColors.text)),
+                                  Row(
+                                    children: [
+                                      Flexible(child: Text(group.name, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: AppColors.text))),
+                                      if (_controller.currentUserRole == UserRole.admin) ...[
+                                        const SizedBox(width: 8),
+                                        IconButton(
+                                          icon: const Icon(Icons.edit_outlined, size: 18, color: AppColors.primary),
+                                          onPressed: () => _showRenameGroupDialog(group.name),
+                                          constraints: const BoxConstraints(),
+                                          padding: EdgeInsets.zero,
+                                        ),
+                                      ],
+                                    ],
+                                  ),
                                   const SizedBox(height: 6),
                                   // Level badges
                                   Wrap(
                                     spacing: 6,
                                     runSpacing: 4,
-                                    children: group.activeLevels.map((levelId) {
+                                    children: group.levelIds.map((levelId) {
                                       final label = _localizedLevelName(levelId, l10n);
                                       return Container(
                                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -977,32 +1215,92 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                     ),
                   ),
 
-                  // ── Instructors Section ──
-                  _buildSectionHeader(l10n.instructorsSectionTitle, onAdd: _showAddInstructorDialog),
+                  // ── Levels Section ──
+                  _buildSectionHeader('Levels', onAdd: _controller.currentUserRole == UserRole.admin ? _showAddLevelDialog : null),
 
-                  if (instructors.isEmpty)
-                    Padding(
+                  if (group.levelIds.isEmpty)
+                    const Padding(
                       padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                      child: Text(AppLocalizations.of(context)!.noInstructorsAssigned, style: TextStyle(color: AppColors.mutedForeground)),
+                      child: Text('No levels assigned to this group.', style: TextStyle(color: AppColors.mutedForeground)),
                     )
                   else
-                    ListView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
+                    Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 20),
-                      itemCount: instructors.length,
-                      itemBuilder: (context, index) {
-                        final inst = instructors[index];
-                        return _buildUserCard(
-                          user: inst,
-                          avatarColor: AppColors.accent.withValues(alpha: 0.2),
-                          avatarTextColor: AppColors.accentDark,
-                          onRemove: () => _controller.removeInstructor(inst.id),
-                        );
-                      },
+                      child: Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: group.levelIds.map((levelId) {
+                          final label = _localizedLevelName(levelId, l10n);
+                          return InputChip(
+                            label: Text(label),
+                            labelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.primary),
+                            backgroundColor: AppColors.primary.withValues(alpha: 0.08),
+                            deleteIconColor: AppColors.error,
+                            onDeleted: _controller.currentUserRole == UserRole.admin
+                                ? () async {
+                                    try {
+                                      await _controller.removeLevelFromGroup(levelId);
+                                      if (mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(content: Text('Level "$label" removed.')),
+                                        );
+                                      }
+                                    } catch (e) {
+                                      if (mounted) {
+                                        showDialog(
+                                          context: context,
+                                          builder: (c) => AlertDialog(
+                                            backgroundColor: AppColors.background,
+                                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                            title: const Text('Cannot Remove Level', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.error)),
+                                            content: Text(e.toString().replaceAll('Exception: ', '')),
+                                            actions: [
+                                              TextButton(
+                                                onPressed: () => Navigator.pop(c),
+                                                child: const Text('OK'),
+                                              ),
+                                            ],
+                                          ),
+                                        );
+                                      }
+                                    }
+                                  }
+                                : null,
+                          );
+                        }).toList(),
+                      ),
                     ),
 
                   const SizedBox(height: 20),
+
+                  // ── Instructors Section ──
+                  if (_controller.currentUserRole == UserRole.admin) ...[
+                    _buildSectionHeader(l10n.instructorsSectionTitle, onAdd: _showAddInstructorDialog),
+
+                    if (instructors.isEmpty)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                        child: Text(AppLocalizations.of(context)!.noInstructorsAssigned, style: const TextStyle(color: AppColors.mutedForeground)),
+                      )
+                    else
+                      ListView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        itemCount: instructors.length,
+                        itemBuilder: (context, index) {
+                          final inst = instructors[index];
+                          return _buildUserCard(
+                            user: inst,
+                            avatarColor: AppColors.accent.withValues(alpha: 0.2),
+                            avatarTextColor: AppColors.accentDark,
+                            onRemove: () => _controller.removeInstructor(inst.id),
+                          );
+                        },
+                      ),
+
+                    const SizedBox(height: 20),
+                  ],
 
                   // ── Students Section ──
                   _buildSectionHeader(l10n.studentsSectionTitle, onAdd: _showAddStudentDialog),
@@ -1045,7 +1343,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                             ),
                           ),
                         ),
-                        if (group.activeLevels.isNotEmpty) ...[
+                        if (group.levelIds.isNotEmpty) ...[
                           const SizedBox(width: 8),
                           Container(
                             decoration: BoxDecoration(
@@ -1065,7 +1363,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                                   value: null,
                                   child: Text(l10n.allLevels),
                                 ),
-                                ...group.activeLevels.map((levelId) => DropdownMenuItem<String?>(
+                                ...group.levelIds.map((levelId) => DropdownMenuItem<String?>(
                                   value: levelId,
                                   child: Text(_localizedLevelName(levelId, l10n)),
                                 )),
@@ -1143,7 +1441,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
 
   // ── Reusable Widgets ──────────────────────────────
 
-  Widget _buildSectionHeader(String title, {required VoidCallback onAdd}) {
+  Widget _buildSectionHeader(String title, {VoidCallback? onAdd}) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20).copyWith(bottom: 12),
       child: Row(
@@ -1151,11 +1449,12 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
           Container(width: 3, height: 18, decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(2))),
           const SizedBox(width: 10),
           Expanded(child: Text(title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.primaryDark, letterSpacing: 0.6))),
-          TextButton.icon(
-            onPressed: onAdd,
-            icon: const Icon(Icons.add, size: 14),
-            label: Text(AppLocalizations.of(context)!.addButton, style: TextStyle(fontSize: 12)),
-          ),
+          if (onAdd != null)
+            TextButton.icon(
+              onPressed: onAdd,
+              icon: const Icon(Icons.add, size: 14),
+              label: Text(AppLocalizations.of(context)!.addButton, style: const TextStyle(fontSize: 12)),
+            ),
         ],
       ),
     );
@@ -1245,13 +1544,16 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               onSelected: (val) {
                 if (val == 'reset') _showResetPinDialog(studentUser!);
+                if (val == 'transfer') _showTransferStudentDialog(studentUser!);
                 if (val == 'remove') onRemove();
                 if (val == 'delete') _showDeleteStudentConfirmation(studentUser!);
               },
               itemBuilder: (_) => [
-                PopupMenuItem(value: 'reset', child: Row(children: [Icon(Icons.lock_reset, size: 16, color: AppColors.primary), SizedBox(width: 8), Text(AppLocalizations.of(context)!.resetPin)])),
-                PopupMenuItem(value: 'remove', child: Row(children: [Icon(Icons.remove_circle_outline, size: 16, color: AppColors.warning), SizedBox(width: 8), Text(AppLocalizations.of(context)!.removeFromGroup)])),
-                PopupMenuItem(value: 'delete', child: Row(children: [Icon(Icons.delete_outline, size: 16, color: AppColors.error), SizedBox(width: 8), Text(AppLocalizations.of(context)!.deletePermanently, style: TextStyle(color: AppColors.error))])),
+                PopupMenuItem(value: 'reset', child: Row(children: [const Icon(Icons.lock_reset, size: 16, color: AppColors.primary), const SizedBox(width: 8), Text(AppLocalizations.of(context)!.resetPin)])),
+                if (_controller.currentUserRole == UserRole.admin)
+                  const PopupMenuItem(value: 'transfer', child: Row(children: [Icon(Icons.swap_horiz, size: 16, color: AppColors.primary), SizedBox(width: 8), Text('Transfer Student')])),
+                PopupMenuItem(value: 'remove', child: Row(children: [const Icon(Icons.remove_circle_outline, size: 16, color: AppColors.warning), const SizedBox(width: 8), Text(AppLocalizations.of(context)!.removeFromGroup)])),
+                PopupMenuItem(value: 'delete', child: Row(children: [const Icon(Icons.delete_outline, size: 16, color: AppColors.error), const SizedBox(width: 8), Text(AppLocalizations.of(context)!.deletePermanently, style: const TextStyle(color: AppColors.error))])),
               ],
             )
           else
@@ -1335,14 +1637,16 @@ class _CreateStudentRow {
 // ── Private Widget: Bulk-select student tile (checkbox + name only) ──
 
 class _BulkSelectStudentTile extends StatelessWidget {
-  final dynamic student;
+  final UserModel student;
   final bool isSelected;
   final VoidCallback onToggle;
+  final String? currentGroupName;
 
   const _BulkSelectStudentTile({
     required this.student,
     required this.isSelected,
     required this.onToggle,
+    this.currentGroupName,
   });
 
   @override
@@ -1374,9 +1678,28 @@ class _BulkSelectStudentTile extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(student.name as String, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                  Text(student.name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
                   const SizedBox(height: 2),
-                  Text('@${student.username ?? student.userNumber}', style: const TextStyle(fontSize: 12, color: AppColors.mutedForeground)),
+                  Text('@${student.username ?? student.studentNumber}', style: const TextStyle(fontSize: 12, color: AppColors.mutedForeground)),
+                  if (currentGroupName != null) ...[
+                    const SizedBox(height: 4),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: AppColors.warning.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: AppColors.warning.withValues(alpha: 0.3)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.warning_amber_rounded, size: 11, color: AppColors.warning),
+                          const SizedBox(width: 4),
+                          Text('In group: $currentGroupName', style: const TextStyle(fontSize: 10, color: AppColors.warning, fontWeight: FontWeight.bold)),
+                        ],
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),

@@ -66,6 +66,9 @@ class GroupModel {
   /// Curriculum material IDs shared with this group by the instructor.
   final List<String> sharedMaterialIds;
 
+  /// Academic level IDs explicitly set on this group.
+  final List<String> levelIds;
+
   GroupModel({
     required this.id,
     int? serialNumber,
@@ -77,6 +80,7 @@ class GroupModel {
     this.instructorIds = const [],
     this.students = const [],
     this.sharedMaterialIds = const [],
+    this.levelIds = const [],
   }) : _groupNumberStr = groupNumber ?? serialNumber?.toString() ?? '0';
 
   // Backward-compatibility getter
@@ -106,6 +110,7 @@ class GroupModel {
       createdAt: _parseDate(map['createdAt']) ?? DateTime.now(),
       isArchived: map['isArchived'] as bool? ?? false,
       archivedAt: _parseDate(map['archivedAt']),
+      levelIds: List<String>.from(map['levelIds'] ?? []),
     );
   }
 
@@ -119,6 +124,7 @@ class GroupModel {
       'createdAt': createdAt.toIso8601String(),
       'isArchived': isArchived,
       if (archivedAt != null) 'archivedAt': archivedAt!.toIso8601String(),
+      'levelIds': levelIds,
     };
   }
 }

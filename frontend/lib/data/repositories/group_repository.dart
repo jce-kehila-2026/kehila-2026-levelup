@@ -61,6 +61,14 @@ class GroupRepository {
     return GroupModel.fromMap(doc.data()!, doc.id);
   }
 
+  /// Returns a stream of a single group by its Firestore document ID.
+  Stream<GroupModel?> streamGroupById(String id) {
+    return _groups.doc(id).snapshots().map((doc) {
+      if (!doc.exists || doc.data() == null) return null;
+      return GroupModel.fromMap(doc.data()!, doc.id);
+    });
+  }
+
   // ─────────────────────────────────────────────
   // CREATE
   // ─────────────────────────────────────────────
@@ -69,7 +77,7 @@ class GroupRepository {
   /// The caller is added to [instructorIds] only if they are an instructor.
   /// Admin-created groups start with an empty [instructorIds] list.
   /// No serial number is stored — display order is derived from [createdAt].
-  Future<GroupModel> createGroup(String name) async {
+  Future<GroupModel> createGroup(String name, List<String> levelIds) async {
     final uid = _auth.currentUser?.uid;
     if (uid == null) throw Exception('Not authenticated');
 
@@ -89,6 +97,7 @@ class GroupRepository {
       'createdAt': now,
       'serialNumber': serialNumber,
       'isArchived': false,
+      'levelIds': levelIds,
     };
 
     await newDocRef.set(data);
@@ -101,6 +110,7 @@ class GroupRepository {
       students: const [],
       createdAt: now.toDate(),
       isArchived: false,
+      levelIds: levelIds,
     );
   }
 
@@ -192,24 +202,67 @@ class GroupRepository {
   }
 
   // ─────────────────────────────────────────────
+  // UPDATE — levels
+  // ─────────────────────────────────────────────
+
+  /// Adds a level ID to the group's [levelIds] array.
+  Future<void> addLevelToGroup(String groupId, String levelId) async {
+    await _groups.doc(groupId).update({
+      'levelIds': FieldValue.arrayUnion([levelId]),
+    });
+  }
+
+  /// Removes a level ID from the group's [levelIds] array.
+  Future<void> removeLevelFromGroup(String groupId, String levelId) async {
+    await _groups.doc(groupId).update({
+      'levelIds': FieldValue.arrayRemove([levelId]),
+    });
+  }
+
+  /// Replaces the group's [levelIds] list entirely.
+  Future<void> updateGroupLevels(String groupId, List<String> levelIds) async {
+    await _groups.doc(groupId).update({
+      'levelIds': levelIds,
+    });
+  }
+
+  // ─────────────────────────────────────────────
   // UPDATE — students (embedded array)
   // ─────────────────────────────────────────────
 
   /// Embeds a [GroupStudentEmbed] object into the group's [students] array.
+  /// If [oldGroupId] is specified, removes the student's embed from the old group atomically.
   Future<void> addStudentToGroup(
     String groupId,
     String studentId,
     String levelId, {
     String name = '',
+    String? oldGroupId,
   }) async {
+    final batch = _db.batch();
+
+    // If student is already in another group, remove them from it atomically
+    if (oldGroupId != null && oldGroupId.isNotEmpty) {
+      final oldGroup = await getGroupById(oldGroupId);
+      if (oldGroup != null) {
+        final embedToRemove = oldGroup.students
+            .where((s) => s.id == studentId)
+            .map((s) => s.toMap())
+            .toList();
+        if (embedToRemove.isNotEmpty) {
+          batch.update(_groups.doc(oldGroupId), {
+            'students': FieldValue.arrayRemove(embedToRemove),
+          });
+        }
+      }
+    }
+
     final embed = <String, dynamic>{
       'id': studentId,
       'name': name,
       'level': levelId,
       'lastActive': null,
     };
-
-    final batch = _db.batch();
 
     batch.update(_groups.doc(groupId), {
       'students': FieldValue.arrayUnion([embed]),

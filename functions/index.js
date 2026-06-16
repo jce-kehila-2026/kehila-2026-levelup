@@ -169,15 +169,14 @@ exports.archiveUser = onCall({
     throw new HttpsError("invalid-argument", "uid is required.");
   }
 
-  if (callerRole === "instructor") {
-    const targetDoc = await admin.firestore()
-      .collection("users")
-      .doc(uid)
-      .get();
-    const targetRole = targetDoc.exists ? targetDoc.data().role : null;
-    if (targetRole !== "student") {
-      throw new HttpsError("permission-denied", "Instructors can only archive students.");
-    }
+  const targetDoc = await admin.firestore()
+    .collection("users")
+    .doc(uid)
+    .get();
+  const targetRole = targetDoc.exists ? targetDoc.data().role : null;
+
+  if (callerRole === "instructor" && targetRole !== "student") {
+    throw new HttpsError("permission-denied", "Instructors can only archive students.");
   }
 
   await admin.auth().updateUser(uid, { disabled: true });
@@ -186,6 +185,20 @@ exports.archiveUser = onCall({
     isArchived: true,
     archivedAt: admin.firestore.FieldValue.serverTimestamp(),
   });
+
+  if (targetRole === "instructor") {
+    const groupsSnap = await admin.firestore()
+      .collection("groups")
+      .where("instructorIds", "arrayContains", uid)
+      .get();
+    const batch = admin.firestore().batch();
+    groupsSnap.docs.forEach((doc) => {
+      batch.update(doc.ref, {
+        instructorIds: admin.firestore.FieldValue.arrayRemove(uid)
+      });
+    });
+    await batch.commit();
+  }
 
   return { success: true };
 });

@@ -18,6 +18,9 @@ class InstructorGroupController extends ChangeNotifier {
 
   List<GroupModel> _groups = [];
   List<UserModel> _allStudents = [];
+  List<String> _instructorAssignedLevelIds = [];
+
+  List<String> get instructorAssignedLevelIds => _instructorAssignedLevelIds;
 
   InstructorGroupController(this._groupRepository, this._userRepository) {
     _init();
@@ -37,6 +40,7 @@ class InstructorGroupController extends ChangeNotifier {
         currentUser = await _userRepository.getStudentById(uid);
       }
       final assignedLevels = currentUser?.assignedLevels ?? [];
+      _instructorAssignedLevelIds = assignedLevels;
 
       _groups = await _groupRepository.getGroups();
       final rawStudents = await _userRepository.getStudents();
@@ -72,7 +76,7 @@ class InstructorGroupController extends ChangeNotifier {
   }
 
   /// Creates a group. Optimistic: adds to list immediately, syncs in background.
-  Future<void> addGroup(String name) async {
+  Future<void> addGroup(String name, List<String> levelIds) async {
     final placeholder = GroupModel(
       id: '__optimistic__${DateTime.now().millisecondsSinceEpoch}',
       serialNumber: _groups.isEmpty ? 1 : _groups.last.serialNumber + 1,
@@ -81,12 +85,13 @@ class InstructorGroupController extends ChangeNotifier {
       students: [],
       createdAt: DateTime.now(),
       isArchived: false,
+      levelIds: levelIds,
     );
     _groups = [..._groups, placeholder];
     notifyListeners();
 
     try {
-      final created = await _groupRepository.createGroup(name);
+      final created = await _groupRepository.createGroup(name, levelIds);
       _groups = _groups.where((g) => g.id != placeholder.id).toList()
         ..add(created);
       _groups.sort((a, b) => a.createdAt.compareTo(b.createdAt));
@@ -150,6 +155,7 @@ class InstructorGroupController extends ChangeNotifier {
         currentUser = await _userRepository.getStudentById(uid);
       }
       final assignedLevels = currentUser?.assignedLevels ?? [];
+      _instructorAssignedLevelIds = assignedLevels;
 
       _groups = await _groupRepository.getGroups();
       final rawStudents = await _userRepository.getStudents();
