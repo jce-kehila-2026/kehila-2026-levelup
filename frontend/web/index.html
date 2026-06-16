@@ -31,6 +31,13 @@
 
   <title>frontend</title>
   <link rel="manifest" href="manifest.json">
+
+  <script src="pdf.min.js" onload="
+    window.pdfjsLib = window['pdfjs-dist/build/pdf'];
+    window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    window.pdfJsReady = true;
+    console.log('pdf.js loaded successfully');
+  "></script>
 </head>
 <body>
   <!--

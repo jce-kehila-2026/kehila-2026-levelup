@@ -198,10 +198,92 @@ class CurriculumController extends ChangeNotifier {
     }
   }
 
-  Future<void> addMaterial(String levelId, String weekId, String title, {String? content}) async {
+  Future<void> editWeek(String levelId, String weekId, String newName) async {
+    if (newName.isEmpty) return;
+    String? oldName;
+    for (final level in _levels) {
+      if (level.id == levelId) {
+        for (final week in level.weeks) {
+          if (week.id == weekId) {
+            oldName = week.name;
+            week.name = newName;
+            break;
+          }
+        }
+      }
+    }
+    notifyListeners();
+    try {
+      await _repository.editWeek(levelId, weekId, newName);
+      _levels = await _repository.getLevels();
+      notifyListeners();
+      _audit.log(action: 'Renamed curriculum week', category: 'curriculum', details: '"$oldName" → "$newName"');
+    } catch (e) {
+      for (final level in _levels) {
+        if (level.id == levelId) {
+          for (final week in level.weeks) {
+            if (week.id == weekId) {
+              if (oldName != null) week.name = oldName;
+              break;
+            }
+          }
+        }
+      }
+      notifyListeners();
+      rethrow;
+    }
+  }
+
+  Future<void> deleteWeek(String levelId, String weekId) async {
+    WeekModel? removed;
+    for (final level in _levels) {
+      if (level.id == levelId) {
+        final idx = level.weeks.indexWhere((w) => w.id == weekId);
+        if (idx != -1) {
+          removed = level.weeks.removeAt(idx);
+          break;
+        }
+      }
+    }
+    notifyListeners();
+    try {
+      await _repository.deleteWeek(levelId, weekId);
+      _levels = await _repository.getLevels();
+      notifyListeners();
+      _audit.log(action: 'Deleted curriculum week', category: 'curriculum', details: removed?.name ?? weekId);
+    } catch (e) {
+      if (removed != null) {
+        for (final level in _levels) {
+          if (level.id == levelId) {
+            level.weeks.add(removed);
+            level.weeks.sort((a, b) => a.name.compareTo(b.name));
+            break;
+          }
+        }
+        notifyListeners();
+      }
+      rethrow;
+    }
+  }
+
+  Future<void> addMaterial(
+    String levelId,
+    String weekId,
+    String title, {
+    String? content,
+    String? deltaJson,
+    List<Map<String, String>> attachments = const [],
+  }) async {
     if (title.isEmpty) return;
     try {
-      await _repository.addMaterial(levelId, weekId, title, content: content);
+      await _repository.addMaterial(
+        levelId,
+        weekId,
+        title,
+        content: content,
+        deltaJson: deltaJson,
+        attachments: attachments,
+      );
       _levels = await _repository.getLevels();
       notifyListeners();
       
@@ -347,9 +429,25 @@ class CurriculumController extends ChangeNotifier {
     }
   }
 
-  Future<void> updateItem(String levelId, String weekId, String itemId, String title, String content) async {
+  Future<void> updateItem(
+    String levelId,
+    String weekId,
+    String itemId,
+    String title,
+    String content, {
+    String? deltaJson,
+    List<Map<String, String>> attachments = const [],
+  }) async {
     try {
-      await _repository.updateItem(levelId, weekId, itemId, title, content);
+      await _repository.updateItem(
+        levelId,
+        weekId,
+        itemId,
+        title,
+        content,
+        deltaJson: deltaJson,
+        attachments: attachments,
+      );
       _levels = await _repository.getLevels();
       notifyListeners();
       _audit.log(action: 'Updated curriculum item', category: 'curriculum', details: '"$title"');

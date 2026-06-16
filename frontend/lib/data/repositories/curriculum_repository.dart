@@ -122,6 +122,38 @@ class CurriculumRepository {
     await _saveLevel(level);
   }
 
+  Future<void> editWeek(String levelId, String weekId, String newName) async {
+    final trimmedName = newName.trim();
+    if (trimmedName.isEmpty) return;
+    final level = await _fetchLevel(levelId);
+    final week = level.weeks.firstWhere((w) => w.id == weekId);
+    week.name = trimmedName;
+    await _saveLevel(level);
+  }
+
+  Future<void> deleteWeek(String levelId, String weekId) async {
+    final level = await _fetchLevel(levelId);
+    final week = level.weeks.firstWhere((w) => w.id == weekId);
+    final itemIds = week.items.map((i) => i.id).toList();
+    level.weeks.removeWhere((w) => w.id == weekId);
+
+    final batch = _db.batch();
+    batch.set(_db.collection('curriculum').doc(level.id), level.toMap());
+
+    for (final itemId in itemIds) {
+      final assignedSnaps = await _db
+          .collection('assigned_materials')
+          .where('materialId', isEqualTo: itemId)
+          .get();
+      for (final doc in assignedSnaps.docs) {
+        batch.delete(doc.reference);
+      }
+    }
+
+    await batch.commit();
+    _cache = [];
+  }
+
   // ── Item Operations ─────────────────────────────────────────────────────────
 
   /// Appends a material item to the week identified by [weekId] inside [levelId].
@@ -132,6 +164,7 @@ class CurriculumRepository {
     String title, {
     String? content,
     String? deltaJson,
+    List<Map<String, String>> attachments = const [],
   }) async {
     final level = await _fetchLevel(levelId);
     final week = level.weeks.firstWhere((w) => w.id == weekId);
@@ -143,6 +176,7 @@ class CurriculumRepository {
       deltaJson: deltaJson,
       searchTags: [],
       visible: true,
+      attachments: attachments,
     ));
     await _saveLevel(level);
   }
@@ -191,6 +225,7 @@ class CurriculumRepository {
     String title,
     String content, {
     String? deltaJson,
+    List<Map<String, String>> attachments = const [],
   }) async {
     final level = await _fetchLevel(levelId);
     final week = level.weeks.firstWhere((w) => w.id == weekId);
@@ -198,6 +233,7 @@ class CurriculumRepository {
     item.title = title;
     item.content = content;
     if (deltaJson != null) item.deltaJson = deltaJson;
+    item.attachments = attachments;
     await _saveLevel(level);
   }
 
