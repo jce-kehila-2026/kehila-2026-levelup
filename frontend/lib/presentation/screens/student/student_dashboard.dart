@@ -1,8 +1,3 @@
-/// Presentation Tier — Screen
-/// Path: lib/presentation/screens/student/student_dashboard.dart
-///
-///  Zero mock data — lessons, stats from StudentDashboardController
-///  Uses ListenableBuilder for reactivity
 library;
 
 import 'package:flutter/material.dart';

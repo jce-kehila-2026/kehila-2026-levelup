@@ -275,6 +275,7 @@ class _InstructorGroupsScreenState extends State<InstructorGroupsScreen> {
         return Scaffold(
           backgroundColor: AppColors.background,
           floatingActionButton: FloatingActionButton(
+            heroTag: 'fab_instructor_groups',
             onPressed: _showAddGroupDialog,
             backgroundColor: AppColors.primary,
             elevation: 6,
