@@ -97,10 +97,13 @@ class _StudentLayoutState extends State<StudentLayout> {
     );
   }
 
+  static const bool _enableResponsiveDesktopLayout = true;
+
   @override
   Widget build(BuildContext context) {
     final tabParam = GoRouterState.of(context).uri.queryParameters['tab'];
     final currentIndex = (int.tryParse(tabParam ?? '') ?? 0).clamp(0, 3);
+    final bool isWide = _enableResponsiveDesktopLayout && MediaQuery.of(context).size.width > 850;
 
     return Scaffold(
       appBar: AppBar(
@@ -178,59 +181,132 @@ class _StudentLayoutState extends State<StudentLayout> {
           const SizedBox(width: 8),
         ],
       ),
-      body: IndexedStack(
-        index: currentIndex,
-        children: _screens,
-      ),
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          border: Border(top: BorderSide(color: AppColors.border, width: 1)),
-        ),
-        child: BottomNavigationBar(
-          currentIndex: currentIndex,
-          onTap: (i) {
-            _closeSearch();
-            context.go('/student?tab=$i');
-          },
-          backgroundColor: AppColors.white,
-          selectedItemColor: AppColors.primary,
-          unselectedItemColor: AppColors.mutedForeground,
-          selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 11),
-          unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 11),
-          type: BottomNavigationBarType.fixed,
-          elevation: 0,
-          items: [
-            BottomNavigationBarItem(icon: const GoldenNavIcon(icon: Icons.home, active: false), activeIcon: const GoldenNavIcon(icon: Icons.home), label: AppLocalizations.of(context)!.navHome),
-            BottomNavigationBarItem(icon: const GoldenNavIcon(icon: Icons.check_circle, active: false), activeIcon: const GoldenNavIcon(icon: Icons.check_circle), label: AppLocalizations.of(context)!.navTasks),
-            BottomNavigationBarItem(
-              icon: ListenableBuilder(
-                listenable: getIt<StudentNotificationController>(),
-                builder: (context, _) {
-                  final count = getIt<StudentNotificationController>().unreadCount;
-                  return Badge(
-                    label: count > 0 ? Text('$count') : null,
-                    isLabelVisible: count > 0,
-                    child: const GoldenNavIcon(icon: Icons.notifications, active: false),
-                  );
-                },
-              ),
-              activeIcon: ListenableBuilder(
-                listenable: getIt<StudentNotificationController>(),
-                builder: (context, _) {
-                  final count = getIt<StudentNotificationController>().unreadCount;
-                  return Badge(
-                    label: count > 0 ? Text('$count') : null,
-                    isLabelVisible: count > 0,
-                    child: const GoldenNavIcon(icon: Icons.notifications),
-                  );
-                },
-              ),
-              label: AppLocalizations.of(context)!.navAlerts,
+      body: isWide
+          ? Row(
+              children: [
+                NavigationRail(
+                  selectedIndex: currentIndex,
+                  onDestinationSelected: (i) {
+                    _closeSearch();
+                    context.go('/student?tab=$i');
+                  },
+                  backgroundColor: AppColors.white,
+                  selectedLabelTextStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 11, color: AppColors.primary),
+                  unselectedLabelTextStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 11, color: AppColors.mutedForeground),
+                  indicatorColor: AppColors.secondary,
+                  labelType: NavigationRailLabelType.all,
+                  destinations: [
+                    NavigationRailDestination(
+                      icon: const GoldenNavIcon(icon: Icons.home, active: false),
+                      selectedIcon: const GoldenNavIcon(icon: Icons.home),
+                      label: Text(AppLocalizations.of(context)!.navHome),
+                    ),
+                    NavigationRailDestination(
+                      icon: const GoldenNavIcon(icon: Icons.check_circle, active: false),
+                      selectedIcon: const GoldenNavIcon(icon: Icons.check_circle),
+                      label: Text(AppLocalizations.of(context)!.navTasks),
+                    ),
+                    NavigationRailDestination(
+                      icon: ListenableBuilder(
+                        listenable: getIt<StudentNotificationController>(),
+                        builder: (context, _) {
+                          final count = getIt<StudentNotificationController>().unreadCount;
+                          return Badge(
+                            label: count > 0 ? Text('$count') : null,
+                            isLabelVisible: count > 0,
+                            child: const GoldenNavIcon(icon: Icons.notifications, active: false),
+                          );
+                        },
+                      ),
+                      selectedIcon: ListenableBuilder(
+                        listenable: getIt<StudentNotificationController>(),
+                        builder: (context, _) {
+                          final count = getIt<StudentNotificationController>().unreadCount;
+                          return Badge(
+                            label: count > 0 ? Text('$count') : null,
+                            isLabelVisible: count > 0,
+                            child: const GoldenNavIcon(icon: Icons.notifications),
+                          );
+                        },
+                      ),
+                      label: Text(AppLocalizations.of(context)!.navAlerts),
+                    ),
+                    NavigationRailDestination(
+                      icon: const GoldenNavIcon(icon: Icons.person, active: false),
+                      selectedIcon: const GoldenNavIcon(icon: Icons.person),
+                      label: Text(AppLocalizations.of(context)!.navProfile),
+                    ),
+                  ],
+                ),
+                Container(width: 1, color: AppColors.border),
+                Expanded(
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 1100),
+                      child: IndexedStack(
+                        index: currentIndex,
+                        children: _screens,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            )
+          : IndexedStack(
+              index: currentIndex,
+              children: _screens,
             ),
-            BottomNavigationBarItem(icon: const GoldenNavIcon(icon: Icons.person, active: false), activeIcon: const GoldenNavIcon(icon: Icons.person), label: AppLocalizations.of(context)!.navProfile),
-          ],
-        ),
-      ),
+      bottomNavigationBar: isWide
+          ? null
+          : Container(
+              decoration: BoxDecoration(
+                border: Border(top: BorderSide(color: AppColors.border, width: 1)),
+              ),
+              child: BottomNavigationBar(
+                currentIndex: currentIndex,
+                onTap: (i) {
+                  _closeSearch();
+                  context.go('/student?tab=$i');
+                },
+                backgroundColor: AppColors.white,
+                selectedItemColor: AppColors.primary,
+                unselectedItemColor: AppColors.mutedForeground,
+                selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 11),
+                unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 11),
+                type: BottomNavigationBarType.fixed,
+                elevation: 0,
+                items: [
+                  BottomNavigationBarItem(icon: const GoldenNavIcon(icon: Icons.home, active: false), activeIcon: const GoldenNavIcon(icon: Icons.home), label: AppLocalizations.of(context)!.navHome),
+                  BottomNavigationBarItem(icon: const GoldenNavIcon(icon: Icons.check_circle, active: false), activeIcon: const GoldenNavIcon(icon: Icons.check_circle), label: AppLocalizations.of(context)!.navTasks),
+                  BottomNavigationBarItem(
+                    icon: ListenableBuilder(
+                      listenable: getIt<StudentNotificationController>(),
+                      builder: (context, _) {
+                        final count = getIt<StudentNotificationController>().unreadCount;
+                        return Badge(
+                          label: count > 0 ? Text('$count') : null,
+                          isLabelVisible: count > 0,
+                          child: const GoldenNavIcon(icon: Icons.notifications, active: false),
+                        );
+                      },
+                    ),
+                    activeIcon: ListenableBuilder(
+                      listenable: getIt<StudentNotificationController>(),
+                      builder: (context, _) {
+                        final count = getIt<StudentNotificationController>().unreadCount;
+                        return Badge(
+                          label: count > 0 ? Text('$count') : null,
+                          isLabelVisible: count > 0,
+                          child: const GoldenNavIcon(icon: Icons.notifications),
+                        );
+                      },
+                    ),
+                    label: AppLocalizations.of(context)!.navAlerts,
+                  ),
+                  BottomNavigationBarItem(icon: const GoldenNavIcon(icon: Icons.person, active: false), activeIcon: const GoldenNavIcon(icon: Icons.person), label: AppLocalizations.of(context)!.navProfile),
+                ],
+              ),
+            ),
     );
   }
 }

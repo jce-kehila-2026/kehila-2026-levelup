@@ -105,85 +105,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
 
-                  // Toggle
-                  Container(
-                    decoration: BoxDecoration(
-                      color: AppColors.white,
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: AppColors.border),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.04),
-                          blurRadius: 4,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    padding: const EdgeInsets.all(4),
-                    margin: const EdgeInsets.only(bottom: 20),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: GestureDetector(
-                            onTap: () => _onSwitchMode('student'),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(vertical: 11),
-                              decoration: BoxDecoration(
-                                color: mode == 'student' ? AppColors.primary : Colors.transparent,
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(Icons.person, size: 14, color: mode == 'student' ? Colors.white : AppColors.mutedForeground),
-                                  const SizedBox(width: 6),
-                                  Flexible(
-                                    child: Text(
-                                      l10n.loginToggleStudent,
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w600,
-                                        color: mode == 'student' ? Colors.white : AppColors.mutedForeground,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                        Expanded(
-                          child: GestureDetector(
-                            onTap: () => _onSwitchMode('staff'),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(vertical: 11),
-                              decoration: BoxDecoration(
-                                color: mode == 'staff' ? AppColors.primary : Colors.transparent,
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(Icons.work, size: 14, color: mode == 'staff' ? Colors.white : AppColors.mutedForeground),
-                                  const SizedBox(width: 6),
-                                  Flexible(
-                                    child: Text(
-                                      l10n.loginToggleStaff,
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w600,
-                                        color: mode == 'staff' ? Colors.white : AppColors.mutedForeground,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+
 
                   // Form Card
                   Container(
@@ -221,24 +143,42 @@ class _LoginScreenState extends State<LoginScreen> {
                             obscureText: true,
                           ),
                           const SizedBox(height: 8),
-                          Align(
-                            alignment: AlignmentDirectional.centerEnd,
-                            child: TextButton(
-                              onPressed: isLoading ? null : _handleForgotPassword,
-                              style: TextButton.styleFrom(
-                                padding: EdgeInsets.zero,
-                                minimumSize: Size.zero,
-                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                              ),
-                              child: Text(
-                                l10n.loginForgotPassword,
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.primary,
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              TextButton(
+                                onPressed: isLoading ? null : () => _onSwitchMode('student'),
+                                style: TextButton.styleFrom(
+                                  padding: EdgeInsets.zero,
+                                  minimumSize: Size.zero,
+                                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                ),
+                                child: const Text(
+                                  "I'm a Student",
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.primary,
+                                  ),
                                 ),
                               ),
-                            ),
+                              TextButton(
+                                onPressed: isLoading ? null : _handleForgotPassword,
+                                style: TextButton.styleFrom(
+                                  padding: EdgeInsets.zero,
+                                  minimumSize: Size.zero,
+                                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                ),
+                                child: Text(
+                                  l10n.loginForgotPassword,
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.primary,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ] else ...[
                           Text(l10n.loginUsernameLabel, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.primaryDark)),
@@ -295,6 +235,27 @@ class _LoginScreenState extends State<LoginScreen> {
                                   ],
                                 ),
                         ),
+                        if (mode == 'student') ...[
+                          const SizedBox(height: 18),
+                          Center(
+                            child: TextButton(
+                              onPressed: isLoading ? null : () => _onSwitchMode('staff'),
+                              style: TextButton.styleFrom(
+                                padding: EdgeInsets.zero,
+                                minimumSize: Size.zero,
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ),
+                              child: const Text(
+                                "I'm a Staff",
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.primary,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ),

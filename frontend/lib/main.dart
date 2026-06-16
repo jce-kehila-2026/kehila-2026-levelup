@@ -86,39 +86,51 @@ class LevelApp extends StatelessWidget {
           return BrandedBackground(child: app);
         }
 
-        const double screenWidth = 390.0;
-        const double screenHeight = 844.0;
+        return ListenableBuilder(
+          listenable: _router.routerDelegate,
+          builder: (context, _) {
+            final currentPath = _router.routerDelegate.currentConfiguration.uri.path;
+            final isLoginScreen = currentPath == '/login' || currentPath == '/';
 
-        return ColoredBox(
-          color: const Color(0xFFE5E7EB),
-          child: Center(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 40.0, horizontal: 20.0),
-              child: FittedBox(
-                fit: BoxFit.contain,
-                child: Container(
-                  width: screenWidth,
-                  height: screenHeight,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Colors.black12,
-                        blurRadius: 24,
-                        spreadRadius: 4,
-                        offset: Offset(0, 10),
+            if (!isLoginScreen) {
+              return BrandedBackground(child: app);
+            }
+
+            const double screenWidth = 390.0;
+            const double screenHeight = 844.0;
+
+            return ColoredBox(
+              color: const Color(0xFFE5E7EB),
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 40.0, horizontal: 20.0),
+                  child: FittedBox(
+                    fit: BoxFit.contain,
+                    child: Container(
+                      width: screenWidth,
+                      height: screenHeight,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: const [
+                          BoxShadow(
+                            color: Colors.black12,
+                            blurRadius: 24,
+                            spreadRadius: 4,
+                            offset: Offset(0, 10),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: BrandedBackground(child: app),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: BrandedBackground(child: app),
+                      ),
+                    ),
                   ),
                 ),
               ),
-            ),
-          ),
+            );
+          },
         );
       },
     );
