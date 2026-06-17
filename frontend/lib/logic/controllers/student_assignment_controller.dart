@@ -78,6 +78,10 @@ class StudentAssignmentController extends ChangeNotifier {
             .toList();
         _isLoading = false;
         notifyListeners();
+      }, onError: (e) {
+        debugPrint('StudentAssignmentController: submissions stream error: $e');
+        _isLoading = false;
+        notifyListeners();
       });
 
       // Handle assignments stream subscription
@@ -106,6 +110,10 @@ class StudentAssignmentController extends ChangeNotifier {
             _allAssignments.sort((a, b) => b.createdAt.compareTo(a.createdAt));
             _isLoading = false;
             notifyListeners();
+          }, onError: (e) {
+            debugPrint('StudentAssignmentController: assignments stream error: $e');
+            _isLoading = false;
+            notifyListeners();
           });
         } else {
           _allAssignments = [];
@@ -113,6 +121,8 @@ class StudentAssignmentController extends ChangeNotifier {
           notifyListeners();
         }
       }
+    }, onError: (e) {
+      debugPrint('StudentAssignmentController: user doc stream error: $e');
     });
   }
 

@@ -562,9 +562,8 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
   }
 
   String? _validatePhone(String? value) {
-    final v = value?.trim() ?? '';
-    if (v.isEmpty) return 'Phone number is required';
-    if (!v.startsWith('05') || v.length != 10 || int.tryParse(v) == null) {
+    if (value == null || value.isEmpty) return 'Phone number is required';
+    if (!value.startsWith('05') || value.length != 10 || int.tryParse(value) == null) {
       return 'Invalid phone number';
     }
     return null;
@@ -1386,41 +1385,41 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
 
                     // Dispose controllers before closing dialog
                     for (final r in rows) {
-                      (r['nameCtrl'] as TextEditingController)
-                          .dispose();
-                      (r['usernameCtrl'] as TextEditingController)
-                          .dispose();
+                      (r['nameCtrl'] as TextEditingController).dispose();
+                      (r['usernameCtrl'] as TextEditingController).dispose();
                     }
                     batchUsernames.clear();
-                    Navigator.pop(context);
 
-                    // Show progress spinner
-                    if (!context.mounted) return;
+                    final pageContext = this.context;
+                    Navigator.pop(context); // Close the Add Students dialog
+
+                    // Show progress spinner on pageContext
                     showDialog(
-                      context: context,
+                      context: pageContext,
                       barrierDismissible: false,
                       builder: (_) => const Center(
-                          child: CircularProgressIndicator()),
+                        child: CircularProgressIndicator(),
+                      ),
                     );
 
                     try {
-                      final created = await _controller
-                          .bulkAddStudents(payload);
-                      if (!context.mounted) return;
-                      Navigator.pop(context); // dismiss spinner
-                      _showCredentialsDialog(created);
+                      final created = await _controller.bulkAddStudents(payload);
+                      if (pageContext.mounted) {
+                        Navigator.pop(pageContext); // dismiss spinner
+                        _showCredentialsDialog(created);
+                      }
                     } catch (e) {
-                      if (!context.mounted) return;
-                      Navigator.pop(context); // dismiss spinner
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content:
-                              Text('Failed to add students: $e'),
-                          backgroundColor: AppColors.error,
-                          behavior: SnackBarBehavior.floating,
-                          duration: const Duration(seconds: 6),
-                        ),
-                      );
+                      if (pageContext.mounted) {
+                        Navigator.pop(pageContext); // dismiss spinner
+                        ScaffoldMessenger.of(pageContext).showSnackBar(
+                          SnackBar(
+                            content: Text('Failed to add students: $e'),
+                            backgroundColor: AppColors.error,
+                            behavior: SnackBarBehavior.floating,
+                            duration: const Duration(seconds: 6),
+                          ),
+                        );
+                      }
                     }
                   },
                   child: Text(
@@ -1479,67 +1478,62 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
                     'Important: Save the PIN below. For security reasons, it will not be shown again.',
                   style: TextStyle(fontSize: 13, color: AppColors.mutedForeground, fontWeight: FontWeight.w500),
                 ),
-                const SizedBox(height: 16),
-                ListView.separated(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: users.length,
-                    separatorBuilder: (_, index) => const Divider(height: 20),
-                    itemBuilder: (context, idx) {
-                      final u = users[idx];
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            u.name,
-                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.primaryDark),
+                ...[
+                  for (int idx = 0; idx < users.length; idx++) ...[
+                    if (idx > 0) const Divider(height: 20),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          users[idx].name,
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.primaryDark),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Username: ${users[idx].username}',
+                          style: const TextStyle(fontSize: 12, color: AppColors.mutedForeground),
+                        ),
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: AppColors.background,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: AppColors.border),
                           ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Username: ${u.username}',
-                            style: const TextStyle(fontSize: 12, color: AppColors.mutedForeground),
-                          ),
-                          const SizedBox(height: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                            decoration: BoxDecoration(
-                              color: AppColors.background,
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: AppColors.border),
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  'PIN: ${u.pinCode}',
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                    color: AppColors.primaryDark,
-                                    letterSpacing: 2,
-                                  ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'PIN: ${users[idx].pinCode}',
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.primaryDark,
+                                  letterSpacing: 2,
                                 ),
-                                IconButton(
-                                  icon: const Icon(Icons.copy, size: 16),
-                                  onPressed: () {
-                                    Clipboard.setData(ClipboardData(text: u.pinCode ?? ''));
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text('PIN copied to clipboard'),
-                                        behavior: SnackBarBehavior.floating,
-                                      ),
-                                    );
-                                  },
-                                  constraints: const BoxConstraints(),
-                                  padding: EdgeInsets.zero,
-                                )
-                              ],
-                            ),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.copy, size: 16),
+                                onPressed: () {
+                                  Clipboard.setData(ClipboardData(text: users[idx].pinCode ?? ''));
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('PIN copied to clipboard'),
+                                      behavior: SnackBarBehavior.floating,
+                                    ),
+                                  );
+                                },
+                                constraints: const BoxConstraints(),
+                                padding: EdgeInsets.zero,
+                              )
+                            ],
                           ),
-                        ],
-                      );
-                    },
-                  ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ],
                 ],
               ),
             ),
@@ -1736,13 +1730,10 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
                       setDialogState(() => emailError = 'Please enter a valid email address');
                       return;
                     }
-                    // Phone is optional when editing — only validate format if provided
-                    if (newPhone.isNotEmpty) {
-                      final phoneErr = _validatePhone(newPhone);
-                      if (phoneErr != null) {
-                        setDialogState(() => phoneError = phoneErr);
-                        return;
-                      }
+                    final phoneErr = _validatePhone(newPhone);
+                    if (phoneErr != null) {
+                      setDialogState(() => phoneError = phoneErr);
+                      return;
                     }
 
                     final scaffoldContext = context;
@@ -1753,7 +1744,7 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
                         instModel.id,
                         newName,
                         newEmail,
-                        newPhone.isEmpty ? null : newPhone,
+                        newPhone,
                         gender: selectedGender,
                         dateOfBirth: selectedDob,
                         location: selectedLocation?.en,
@@ -2008,14 +1999,34 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(color: AppColors.border),
                             ),
-                            child: Text(
-                              newPin,
-                              style: const TextStyle(
-                                fontSize: 28,
-                                fontWeight: FontWeight.w800,
-                                color: AppColors.primaryDark,
-                                letterSpacing: 6,
-                              ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  newPin,
+                                  style: const TextStyle(
+                                    fontSize: 28,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.primaryDark,
+                                    letterSpacing: 8,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                IconButton(
+                                  icon: const Icon(Icons.copy_outlined, color: AppColors.primary),
+                                  tooltip: 'Copy PIN',
+                                  onPressed: () {
+                                    Clipboard.setData(ClipboardData(text: newPin));
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text('PIN copied to clipboard'),
+                                        behavior: SnackBarBehavior.floating,
+                                        duration: Duration(seconds: 2),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ],
                             ),
                           ),
                           const SizedBox(height: 18),

@@ -24,12 +24,24 @@ Future<void> performLogout() async {
   // 1. Cancel all Firestore stream subscriptions on singleton controllers.
   //    Use try-catch for each so that an uninitialized (never-accessed) lazy
   //    singleton doesn't break the entire logout flow.
-  try { getIt<AdminDashboardController>().cancelSubscriptions(); } catch (_) {}
-  try { getIt<InstructorDashboardController>().cancelSubscriptions(); } catch (_) {}
-  try { getIt<StudentDashboardController>().cancelSubscriptions(); } catch (_) {}
-  try { getIt<StudentAssignmentController>().cancelSubscriptions(); } catch (_) {}
-  try { getIt<StudentNotificationController>().cancelSubscriptions(); } catch (_) {}
-  try { getIt<StudentProfileController>().cancelSubscriptions(); } catch (_) {}
+  if (getIt.checkLazySingletonInstanceExists<AdminDashboardController>()) {
+    try { getIt<AdminDashboardController>().cancelSubscriptions(); } catch (_) {}
+  }
+  if (getIt.checkLazySingletonInstanceExists<InstructorDashboardController>()) {
+    try { getIt<InstructorDashboardController>().cancelSubscriptions(); } catch (_) {}
+  }
+  if (getIt.checkLazySingletonInstanceExists<StudentDashboardController>()) {
+    try { getIt<StudentDashboardController>().cancelSubscriptions(); } catch (_) {}
+  }
+  if (getIt.checkLazySingletonInstanceExists<StudentAssignmentController>()) {
+    try { getIt<StudentAssignmentController>().cancelSubscriptions(); } catch (_) {}
+  }
+  if (getIt.checkLazySingletonInstanceExists<StudentNotificationController>()) {
+    try { getIt<StudentNotificationController>().cancelSubscriptions(); } catch (_) {}
+  }
+  if (getIt.checkLazySingletonInstanceExists<StudentProfileController>()) {
+    try { getIt<StudentProfileController>().cancelSubscriptions(); } catch (_) {}
+  }
 
   // 2. Reset auth controller state
   try { getIt<AuthController>().reset(); } catch (_) {}

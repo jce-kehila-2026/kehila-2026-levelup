@@ -88,6 +88,8 @@ class GroupDetailController extends ChangeNotifier {
           group = updatedGroup;
           notifyListeners();
         }
+      }, onError: (e) {
+        debugPrint('GroupDetailController: group stream error: $e');
       });
     } catch (e) {
       debugPrint('GroupDetailController._init error: $e');
@@ -575,19 +577,7 @@ class GroupDetailController extends ChangeNotifier {
     final index = _allStudents.indexWhere((s) => s.id == studentId);
     if (index != -1) {
       final old = _allStudents[index];
-      _allStudents[index] = UserModel(
-        id: old.id,
-        userNumber: old.userNumber,
-        name: old.name,
-        email: old.email,
-        role: old.role,
-        studentNumber: old.studentNumber,
-        username: old.username,
-        pinCode: newPin,
-        lastActive: old.lastActive,
-        phoneNumber: old.phoneNumber,
-        assignedLevels: old.assignedLevels,
-      );
+      _allStudents[index] = old.copyWith(pinCode: newPin);
       notifyListeners();
       _audit.log(action: 'Reset student PIN', category: 'users', targetPersonName: old.name, targetStudentNumber: old.studentNumber, details: group.name);
     }

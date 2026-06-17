@@ -99,6 +99,8 @@ class AdminDashboardController extends ChangeNotifier {
       _studentCount = students;
       _instructorCount = instructors;
       notifyListeners();
+    }, onError: (e) {
+      debugPrint('AdminDashboardController: users stream error: $e');
     });
 
     // Live group count from the groups collection (excluding archived groups)
@@ -118,6 +120,8 @@ class AdminDashboardController extends ChangeNotifier {
       }
       _groupCount = activeGroups;
       notifyListeners();
+    }, onError: (e) {
+      debugPrint('AdminDashboardController: groups stream error: $e');
     });
 
     // Live curriculum count and lessons count from the curriculum collection
@@ -132,6 +136,8 @@ class AdminDashboardController extends ChangeNotifier {
       _lessonCount = levels.fold(
           0, (acc, l) => acc + l.weeks.fold(0, (ws, w) => ws + w.items.length));
       notifyListeners();
+    }, onError: (e) {
+      debugPrint('AdminDashboardController: levels stream error: $e');
     });
   }
 

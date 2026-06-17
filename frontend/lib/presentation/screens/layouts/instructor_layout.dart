@@ -11,7 +11,8 @@ import '../../../logic/controllers/instructor_group_controller.dart';
 import '../../../logic/controllers/curriculum_controller.dart';
 import '../../../logic/controllers/instructor_assignment_controller.dart';
 import '../../../logic/controllers/instructor_log_controller.dart';
-import '../../../data/repositories/user_repository.dart';
+import '../../../data/models/curriculum_model.dart';
+import '../../../data/repositories/curriculum_repository.dart';
 
 import '../instructor/instructor_dashboard.dart';
 import '../instructor/groups_screen.dart';
@@ -108,19 +109,7 @@ class _InstructorLayoutState extends State<InstructorLayout> {
     final firebaseUser = FirebaseAuth.instance.currentUser;
     if (firebaseUser == null) return;
 
-    final doc = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(firebaseUser.uid)
-        .get();
-    if (!doc.exists || !mounted) return;
-
-    final data = doc.data()!;
-    final name = (data['displayName'] as String?) ?? (data['name'] as String?) ?? '';
-    final email = (data['email'] as String?) ?? firebaseUser.email ?? '';
-    final phoneCtrl = TextEditingController(text: (data['phoneNumber'] as String?) ?? '');
-
-    String? phoneError;
-
+    // Show loading indicator sheet first while fetching
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -129,111 +118,100 @@ class _InstructorLayoutState extends State<InstructorLayout> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (ctx) {
-        return StatefulBuilder(
-          builder: (ctx, setStateSheet) {
-            return Padding(
-              padding: EdgeInsets.only(
-                bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
-                left: 20,
-                right: 20,
-                top: 16,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Center(
-                    child: Container(
-                      width: 36,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: AppColors.border,
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    AppLocalizations.of(context)!.myProfile,
-                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.text),
-                  ),
-                  const SizedBox(height: 16),
-                  _readOnlyField(AppLocalizations.of(context)!.fullNameLabel, name),
-                  const SizedBox(height: 12),
-                  _readOnlyField(AppLocalizations.of(context)!.emailAddressLabel, email),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: phoneCtrl,
-                    decoration: InputDecoration(
-                      labelText: AppLocalizations.of(context)!.phoneNumberLabel,
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      errorText: phoneError,
-                    ),
-                    keyboardType: TextInputType.phone,
-                    onChanged: (val) {
-                      setStateSheet(() {
-                        phoneError = null;
-                      });
-                    },
-                  ),
-                  const SizedBox(height: 20),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: AppColors.white,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                      ),
-                      onPressed: () async {
-                        final phoneVal = phoneCtrl.text.trim();
-                        if (phoneVal.isNotEmpty && !RegExp(r'^\d{10}$').hasMatch(phoneVal)) {
-                          setStateSheet(() {
-                            phoneError = 'Phone number must be exactly 10 digits';
-                          });
-                          return;
-                        }
-
-                        final nav = Navigator.of(ctx);
-                        try {
-                          await getIt<UserRepository>().updateInstructorProfile(
-                            firebaseUser.uid,
-                            name,
-                            email,
-                            phoneVal.isNotEmpty ? phoneVal : null,
-                          );
-                          nav.pop();
-                          if (mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                              content: Text(AppLocalizations.of(context)!.profileUpdated(name)),
-                              backgroundColor: AppColors.primary,
-                              behavior: SnackBarBehavior.floating,
-                            ));
-                          }
-                        } catch (e) {
-                          if (mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                              content: Text('Failed to update profile: $e'),
-                              backgroundColor: AppColors.error,
-                              behavior: SnackBarBehavior.floating,
-                            ));
-                          }
-                        }
-                      },
-                      child: Text(AppLocalizations.of(context)!.save, style: const TextStyle(fontWeight: FontWeight.bold)),
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
+        return const SizedBox(
+          height: 200,
+          child: Center(child: CircularProgressIndicator()),
         );
       },
-    ).then((_) {
-      phoneCtrl.dispose();
-    });
+    );
+
+    try {
+      final results = await Future.wait([
+        FirebaseFirestore.instance.collection('users').doc(firebaseUser.uid).get(),
+        getIt<CurriculumRepository>().getLevels(),
+      ]);
+
+      final doc = results[0] as DocumentSnapshot<Map<String, dynamic>>;
+      final levels = results[1] as List<LevelModel>;
+
+      if (!mounted) return;
+      Navigator.of(context).pop(); // Dismiss loading sheet
+
+      if (!doc.exists) return;
+
+      final data = doc.data()!;
+      final name = (data['displayName'] as String?) ?? (data['name'] as String?) ?? '—';
+      final email = (data['email'] as String?) ?? firebaseUser.email ?? '—';
+      final phone = (data['phoneNumber'] as String?) ?? '—';
+      final location = (data['location'] as String?) ?? '—';
+      final assignedLevelsRaw = (data['assignedLevels'] as List<dynamic>?)?.cast<String>() ?? [];
+
+      final levelNames = assignedLevelsRaw.map((id) {
+        final lvl = levels.where((l) => l.id == id).firstOrNull;
+        return lvl?.name ?? id;
+      }).join(', ');
+      final displayLevels = levelNames.isNotEmpty ? levelNames : '—';
+
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: AppColors.background,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        builder: (ctx) {
+          return Padding(
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
+              left: 20,
+              right: 20,
+              top: 16,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 36,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: AppColors.border,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  AppLocalizations.of(context)!.myProfile,
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.text),
+                ),
+                const SizedBox(height: 16),
+                _readOnlyField(AppLocalizations.of(context)!.fullNameLabel, name),
+                const SizedBox(height: 12),
+                _readOnlyField(AppLocalizations.of(context)!.emailAddressLabel, email),
+                const SizedBox(height: 12),
+                _readOnlyField(AppLocalizations.of(context)!.phoneNumberLabel, phone),
+                const SizedBox(height: 12),
+                _readOnlyField('Location', location),
+                const SizedBox(height: 12),
+                _readOnlyField('Assigned Levels', displayLevels),
+                const SizedBox(height: 16),
+              ],
+            ),
+          );
+        },
+      );
+    } catch (e) {
+      if (mounted) {
+        Navigator.of(context).pop(); // Dismiss loading sheet
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Failed to load profile: $e'),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+        ));
+      }
+    }
   }
 
   Widget _readOnlyField(String label, String value) {

@@ -130,6 +130,56 @@ class UserModel {
       'idNumber': idNumber,
     };
   }
+
+  UserModel copyWith({
+    String? id,
+    String? userNumberStr,
+    String? name,
+    String? displayName,
+    String? email,
+    String? phoneNumber,
+    UserRole? role,
+    List<String>? assignedLevels,
+    List<String>? searchKeywords,
+    String? levelId,
+    String? studentNumber,
+    String? username,
+    String? pinCode,
+    DateTime? lastActive,
+    bool? isArchived,
+    DateTime? createdAt,
+    String? groupId,
+    String? createdBy,
+    String? gender,
+    DateTime? dateOfBirth,
+    String? location,
+    String? idNumber,
+  }) {
+    return UserModel(
+      id: id ?? this.id,
+      userNumberStr: userNumberStr ?? _userNumberStr,
+      displayName: displayName ?? this.displayName,
+      name: name ?? this.name,
+      email: email ?? this.email,
+      phoneNumber: phoneNumber ?? this.phoneNumber,
+      role: role ?? this.role,
+      assignedLevels: assignedLevels ?? this.assignedLevels,
+      searchKeywords: searchKeywords ?? this.searchKeywords,
+      levelId: levelId ?? this.levelId,
+      studentNumber: studentNumber ?? this.studentNumber,
+      username: username ?? this.username,
+      pinCode: pinCode ?? this.pinCode,
+      lastActive: lastActive ?? this.lastActive,
+      isArchived: isArchived ?? this.isArchived,
+      createdAt: createdAt ?? this.createdAt,
+      groupId: groupId ?? this.groupId,
+      createdBy: createdBy ?? this.createdBy,
+      gender: gender ?? this.gender,
+      dateOfBirth: dateOfBirth ?? this.dateOfBirth,
+      location: location ?? this.location,
+      idNumber: idNumber ?? this.idNumber,
+    );
+  }
 }
 
 DateTime? _parseTimestamp(dynamic value) {
