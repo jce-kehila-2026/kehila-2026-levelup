@@ -97,13 +97,16 @@ class AuditLogController extends ChangeNotifier {
       bool matchTime = true;
       if (_timeFilter != 'all') {
         final now = DateTime.now();
-        final diff = now.difference(log.preciseTimestamp);
+        final today = DateTime(now.year, now.month, now.day);
+        final logDay = DateTime(log.preciseTimestamp.year, log.preciseTimestamp.month, log.preciseTimestamp.day);
+        final differenceInDays = today.difference(logDay).inDays;
+
         if (_timeFilter == 'today') {
-          matchTime = diff.inDays == 0 && now.day == log.preciseTimestamp.day;
+          matchTime = logDay == today;
         } else if (_timeFilter == '7days') {
-          matchTime = diff.inDays <= 7;
+          matchTime = differenceInDays <= 7;
         } else if (_timeFilter == '30days') {
-          matchTime = diff.inDays <= 30;
+          matchTime = differenceInDays <= 30;
         }
       }
 

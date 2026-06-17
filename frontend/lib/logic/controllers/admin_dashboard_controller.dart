@@ -137,11 +137,20 @@ class AdminDashboardController extends ChangeNotifier {
 
   // ── Dispose ────────────────────────────────────────────────────────────────
 
+  /// Cancel all active Firestore stream subscriptions without disposing the
+  /// controller. Called by the logout helper before FirebaseAuth.signOut().
+  void cancelSubscriptions() {
+    _usersSub?.cancel();
+    _usersSub = null;
+    _groupsSub?.cancel();
+    _groupsSub = null;
+    _levelsSub?.cancel();
+    _levelsSub = null;
+  }
+
   @override
   void dispose() {
-    _usersSub?.cancel();
-    _groupsSub?.cancel();
-    _levelsSub?.cancel();
+    cancelSubscriptions();
     super.dispose();
   }
 

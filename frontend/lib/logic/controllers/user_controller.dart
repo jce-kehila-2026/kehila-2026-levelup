@@ -91,7 +91,12 @@ class UserController extends ChangeNotifier {
 
   /// Adds an instructor. Optimistic: adds placeholder row instantly, replaces with
   /// real doc once the Cloud Function returns the UID.
-  Future<void> addInstructor(String name, String email, String? phoneNumber, String? homeAddress, List<String> assignedLevels) async {
+  Future<void> addInstructor(String name, String email, String? phoneNumber, List<String> assignedLevels, {
+    String? gender,
+    DateTime? dateOfBirth,
+    String? location,
+    String? idNumber,
+  }) async {
     if (name.isEmpty) return;
 
     // Optimistic placeholder
@@ -103,13 +108,17 @@ class UserController extends ChangeNotifier {
       role: UserRole.instructor,
       assignedLevels: assignedLevels,
       lastActive: null,
+      gender: gender,
+      dateOfBirth: dateOfBirth,
+      location: location,
+      idNumber: idNumber,
     );
     _instructors = [..._instructors, placeholder];
     notifyListeners();
 
     try {
       final generatedUsername = _generateUsername(email);
-      await _repository.addInstructor(name, email, phoneNumber, homeAddress, assignedLevels, username: generatedUsername);
+      await _repository.addInstructor(name, email, phoneNumber, assignedLevels, username: generatedUsername, gender: gender, dateOfBirth: dateOfBirth, location: location, idNumber: idNumber);
       final fresh = await _repository.getInstructors();
       _instructors = fresh;
       notifyListeners();
@@ -138,7 +147,7 @@ class UserController extends ChangeNotifier {
       return UserModel(
         id: i.id, userNumber: i.userNumber, name: i.name, email: i.email,
         role: i.role, assignedLevels: levels, lastActive: i.lastActive,
-        phoneNumber: i.phoneNumber, address: i.address,
+        phoneNumber: i.phoneNumber,
       );
     }).toList();
     notifyListeners();
@@ -154,20 +163,27 @@ class UserController extends ChangeNotifier {
   }
 
   /// Updates instructor profile. Optimistic: reflects name/email change locally.
-  Future<void> updateInstructorProfile(String instructorId, String name, String email, String? phoneNumber, String? homeAddress) async {
+  Future<void> updateInstructorProfile(String instructorId, String name, String email, String? phoneNumber, {
+    String? gender,
+    DateTime? dateOfBirth,
+    String? location,
+    String? idNumber,
+  }) async {
     final old = _instructors.firstWhere((i) => i.id == instructorId, orElse: () => throw Exception('Not found'));
     _instructors = _instructors.map((i) {
       if (i.id != instructorId) return i;
       return UserModel(
         id: i.id, userNumber: i.userNumber, name: name, email: email,
         role: i.role, assignedLevels: i.assignedLevels, lastActive: i.lastActive,
-        phoneNumber: phoneNumber, address: homeAddress,
+        phoneNumber: phoneNumber,
+        gender: gender, dateOfBirth: dateOfBirth, location: location,
+        idNumber: idNumber ?? i.idNumber, // preserve existing idNumber if not explicitly changed
       );
     }).toList();
     notifyListeners();
 
     try {
-      await _repository.updateInstructorProfile(instructorId, name, email, phoneNumber, homeAddress);
+      await _repository.updateInstructorProfile(instructorId, name, email, phoneNumber, gender: gender, dateOfBirth: dateOfBirth, location: location, idNumber: idNumber);
       _audit.log(action: 'Updated instructor profile', category: 'users', targetPersonName: name, details: email);
     } catch (e) {
       _instructors = _instructors.map((i) => i.id == instructorId ? old : i).toList();
@@ -186,7 +202,6 @@ class UserController extends ChangeNotifier {
       await _repository.deleteInstructor(instructorId);
       _archivedUsers = await _repository.getArchivedUsers();
       notifyListeners();
-      _audit.log(action: 'Archived instructor', category: 'users', targetPersonName: removed.name, details: removed.email);
     } catch (e) {
       _instructors = [..._instructors, removed];
       notifyListeners();
@@ -204,7 +219,6 @@ class UserController extends ChangeNotifier {
       await _repository.deleteStudent(studentId);
       _archivedUsers = await _repository.getArchivedUsers();
       notifyListeners();
-      _audit.log(action: 'Archived student', category: 'users', targetPersonName: removed.name, targetStudentNumber: removed.studentNumber);
     } catch (e) {
       _students = [..._students, removed];
       notifyListeners();
@@ -223,6 +237,9 @@ class UserController extends ChangeNotifier {
     required String username,
     required String pinCode,
     required String levelId,
+    String? gender,
+    DateTime? dateOfBirth,
+    String? location,
   }) async {
     final u = username.toLowerCase().trim();
 
@@ -236,6 +253,9 @@ class UserController extends ChangeNotifier {
       username: u,
       pinCode: pinCode,
       lastActive: null,
+      gender: gender,
+      dateOfBirth: dateOfBirth,
+      location: location,
     );
     _students = [..._students, placeholder];
     notifyListeners();
@@ -246,6 +266,9 @@ class UserController extends ChangeNotifier {
         username: u,
         pinCode: pinCode,
         levelId: levelId,
+        gender: gender,
+        dateOfBirth: dateOfBirth,
+        location: location,
       );
       final created = UserModel(
         id: result.uid,
@@ -257,6 +280,9 @@ class UserController extends ChangeNotifier {
         username: u,
         pinCode: pinCode,
         lastActive: null,
+        gender: gender,
+        dateOfBirth: dateOfBirth,
+        location: location,
       );
       _students = _students.map((s) => s.id == placeholder.id ? created : s).toList();
       notifyListeners();
@@ -270,23 +296,26 @@ class UserController extends ChangeNotifier {
   }
 
   /// Creates multiple students sequentially.
-  /// Each map in [students] must have keys: 'name', 'username', 'pin', 'levelId'.
-  Future<List<UserModel>> bulkAddStudents(List<Map<String, String>> students) async {
+  /// Each map in [students] must have keys: 'name', 'username', 'pin', 'levelId' and optionally: 'gender', 'dateOfBirth', 'location'.
+  Future<List<UserModel>> bulkAddStudents(List<Map<String, dynamic>> students) async {
     final created = <UserModel>[];
 
     // Add optimistic placeholders for all rows at once
     final placeholders = students.map((s) {
-      final u = s['username']!.toLowerCase().trim();
+      final u = (s['username'] as String).toLowerCase().trim();
       return UserModel(
         id: '__optimistic__${DateTime.now().millisecondsSinceEpoch}_${s['username']}',
         userNumber: 0,
-        name: s['name']!,
+        name: s['name'] as String,
         email: '$u@levelup.edu',
         role: UserRole.student,
         studentNumber: '#…',
         username: u,
-        pinCode: s['pin']!,
+        pinCode: s['pin'] as String,
         lastActive: null,
+        gender: s['gender'] as String?,
+        dateOfBirth: s['dateOfBirth'] as DateTime?,
+        location: s['location'] as String?,
       );
     }).toList();
 
@@ -296,23 +325,29 @@ class UserController extends ChangeNotifier {
     try {
       for (int i = 0; i < students.length; i++) {
         final s = students[i];
-        final u = s['username']!.toLowerCase().trim();
+        final u = (s['username'] as String).toLowerCase().trim();
         final result = await _repository.addStudent(
-          name: s['name']!,
+          name: s['name'] as String,
           username: u,
-          pinCode: s['pin']!,
-          levelId: s['levelId']!,
+          pinCode: s['pin'] as String,
+          levelId: s['levelId'] as String,
+          gender: s['gender'] as String?,
+          dateOfBirth: s['dateOfBirth'] as DateTime?,
+          location: s['location'] as String?,
         );
         final model = UserModel(
           id: result.uid,
           userNumber: result.userNumber,
-          name: s['name']!,
+          name: s['name'] as String,
           email: '${u.replaceAll('_', '').replaceAll('.', '')}@levelup.edu',
           role: UserRole.student,
           studentNumber: '#${result.userNumber}',
           username: u,
-          pinCode: s['pin']!,
+          pinCode: s['pin'] as String,
           lastActive: null,
+          gender: s['gender'] as String?,
+          dateOfBirth: s['dateOfBirth'] as DateTime?,
+          location: s['location'] as String?,
         );
         created.add(model);
         // Replace this placeholder with the real model
@@ -323,9 +358,9 @@ class UserController extends ChangeNotifier {
         _audit.log(
           action: 'Added student',
           category: 'users',
-          targetPersonName: s['name']!,
+          targetPersonName: s['name'] as String,
           targetStudentNumber: '#${result.userNumber}',
-          details: 'Username: $u | Level: ${s['levelId']!}',
+          details: 'Username: $u | Level: ${s['levelId'] as String}',
         );
       }
       return created;
@@ -416,7 +451,6 @@ class UserController extends ChangeNotifier {
 
     try {
       await _repository.permanentlyDeleteUser(uid);
-      _audit.log(action: 'Permanently deleted user', category: 'users', targetPersonName: removed.name, details: removed.role.name);
     } catch (e) {
       _archivedUsers = [..._archivedUsers, removed];
       notifyListeners();

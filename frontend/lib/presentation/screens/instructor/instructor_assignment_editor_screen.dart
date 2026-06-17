@@ -189,13 +189,18 @@ class _InstructorAssignmentEditorScreenState extends State<InstructorAssignmentE
           builder: (ctx) => AlertDialog(
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
             title: Text(l10n.insertImageTitle, style: const TextStyle(fontWeight: FontWeight.bold)),
-            content: TextField(
-              controller: urlCtrl,
-              autofocus: true,
-              decoration: InputDecoration(
-                hintText: 'https://example.com/image.jpg',
-                prefixIcon: const Icon(Icons.link, size: 18),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+            content: SingleChildScrollView(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 500),
+                child: TextField(
+                  controller: urlCtrl,
+                  autofocus: true,
+                  decoration: InputDecoration(
+                    hintText: 'https://example.com/image.jpg',
+                    prefixIcon: const Icon(Icons.link, size: 18),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                ),
               ),
             ),
             actions: [

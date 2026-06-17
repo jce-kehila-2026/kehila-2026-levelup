@@ -47,9 +47,14 @@ class _CurriculumScreenState extends State<CurriculumScreen> {
       builder: (context) => AlertDialog(
         backgroundColor: AppColors.background,
         title: Text(AppLocalizations.of(context)!.addWeekTitle, style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.text)),
-        content: TextField(
-          decoration: InputDecoration(labelText: AppLocalizations.of(context)!.weekNameLabel, border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))),
-          onChanged: (val) => name = val,
+        content: SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 500),
+            child: TextField(
+              decoration: InputDecoration(labelText: AppLocalizations.of(context)!.weekNameLabel, border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))),
+              onChanged: (val) => name = val,
+            ),
+          ),
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: Text(AppLocalizations.of(context)!.cancel, style: const TextStyle(color: AppColors.mutedForeground))),
@@ -129,12 +134,17 @@ class _CurriculumScreenState extends State<CurriculumScreen> {
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.background,
         title: const Text('Edit Level', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.text)),
-        content: TextField(
-          controller: nameCtrl,
-          autofocus: true,
-          decoration: InputDecoration(
-            labelText: AppLocalizations.of(context)!.levelNameLabel,
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        content: SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 500),
+            child: TextField(
+              controller: nameCtrl,
+              autofocus: true,
+              decoration: InputDecoration(
+                labelText: AppLocalizations.of(context)!.levelNameLabel,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
           ),
         ),
         actions: [
@@ -174,12 +184,17 @@ class _CurriculumScreenState extends State<CurriculumScreen> {
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.background,
         title: const Text('Edit Week', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.text)),
-        content: TextField(
-          controller: nameCtrl,
-          autofocus: true,
-          decoration: InputDecoration(
-            labelText: 'Week name',
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        content: SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 500),
+            child: TextField(
+              controller: nameCtrl,
+              autofocus: true,
+              decoration: InputDecoration(
+                labelText: 'Week name',
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
           ),
         ),
         actions: [
@@ -207,14 +222,19 @@ class _CurriculumScreenState extends State<CurriculumScreen> {
         backgroundColor: AppColors.background,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Text('Delete Week', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.text)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Are you sure you want to delete "${week.name}"?', style: const TextStyle(color: AppColors.text, fontWeight: FontWeight.w500)),
-            const SizedBox(height: 12),
-            const Text('All materials and assignments inside this week will be permanently deleted. This action cannot be undone.', style: TextStyle(color: AppColors.mutedForeground, fontSize: 13)),
-          ],
+        content: SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 500),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Are you sure you want to delete "${week.name}"?', style: const TextStyle(color: AppColors.text, fontWeight: FontWeight.w500)),
+                const SizedBox(height: 12),
+                const Text('All materials and assignments inside this week will be permanently deleted. This action cannot be undone.', style: TextStyle(color: AppColors.mutedForeground, fontSize: 13)),
+              ],
+            ),
+          ),
         ),
         actions: [
           TextButton(
@@ -245,14 +265,19 @@ class _CurriculumScreenState extends State<CurriculumScreen> {
           AppLocalizations.of(ctx)!.addLevelTitle,
           style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.text),
         ),
-        content: TextField(
-          controller: nameCtrl,
-          autofocus: true,
-          decoration: InputDecoration(
-            labelText: AppLocalizations.of(ctx)!.levelNameLabel,
-            hintText: 'e.g. Level 4',
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        content: SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 500),
+            child: TextField(
+              controller: nameCtrl,
+              autofocus: true,
+              decoration: InputDecoration(
+                labelText: AppLocalizations.of(ctx)!.levelNameLabel,
+                hintText: 'e.g. Level 4',
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              ),
+            ),
           ),
         ),
         actions: [
@@ -319,10 +344,13 @@ class _CurriculumScreenState extends State<CurriculumScreen> {
                     height: 60,
                     child: Center(child: CircularProgressIndicator()),
                   )
-                : Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
+                : SingleChildScrollView(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 500),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
                       Text(
                         'Are you sure you want to delete "${level.name}"?',
                         style: const TextStyle(color: AppColors.text, fontWeight: FontWeight.w500),
@@ -377,6 +405,8 @@ class _CurriculumScreenState extends State<CurriculumScreen> {
                         style: TextStyle(color: AppColors.mutedForeground, fontSize: 13),
                       ),
                     ],
+                      ),
+                    ),
                   ),
             actions: [
               TextButton(

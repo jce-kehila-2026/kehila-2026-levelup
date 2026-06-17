@@ -3,9 +3,8 @@ import 'package:frontend/l10n/app_localizations.dart';
 import 'package:go_router/go_router.dart';
 import '../../../theme/app_theme.dart';
 import '../../widgets/locale_toggle_button.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import '../../../di/service_locator.dart';
-import '../../../logic/controllers/auth_controller.dart';
+import '../../../logic/helpers/logout_helper.dart';
 import '../../../logic/controllers/curriculum_controller.dart';
 import '../../../logic/controllers/user_controller.dart';
 import '../../../logic/controllers/group_controller.dart';
@@ -183,8 +182,7 @@ class _AdminLayoutState extends State<AdminLayout> {
           _buildIconButton(
             icon: Icons.logout,
             onPressed: () async {
-              getIt<AuthController>().reset();
-              await FirebaseAuth.instance.signOut();
+              await performLogout();
               if (context.mounted) context.go('/login');
             },
           ),

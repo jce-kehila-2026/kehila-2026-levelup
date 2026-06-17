@@ -41,14 +41,19 @@ class _InstructorGroupsScreenState extends State<InstructorGroupsScreen> {
         backgroundColor: AppColors.background,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Text(AppLocalizations.of(context)!.editGroupName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-        content: TextField(
-          controller: nameController,
-          autofocus: true,
-          decoration: InputDecoration(
-            hintText: AppLocalizations.of(context)!.groupName,
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.input, width: 1.5)),
-            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.primary, width: 1.5)),
+        content: SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 500),
+            child: TextField(
+              controller: nameController,
+              autofocus: true,
+              decoration: InputDecoration(
+                hintText: AppLocalizations.of(context)!.groupName,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.input, width: 1.5)),
+                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.primary, width: 1.5)),
+              ),
+            ),
           ),
         ),
         actions: [
@@ -96,32 +101,37 @@ class _InstructorGroupsScreenState extends State<InstructorGroupsScreen> {
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text(AppLocalizations.of(context)!.deleteGroupConfirm(group.name), style: const TextStyle(fontWeight: FontWeight.bold)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(AppLocalizations.of(context)!.deleteGroupConfirmDesc(group.students.length.toString(), group.instructorIds.length.toString())),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.07),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.info_outline, size: 15, color: AppColors.primary),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      AppLocalizations.of(context)!.deleteGroupWarning,
-                      style: const TextStyle(fontSize: 12, color: AppColors.primary),
-                    ),
+        content: SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 500),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(AppLocalizations.of(context)!.deleteGroupConfirmDesc(group.students.length.toString(), group.instructorIds.length.toString())),
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.07),
+                    borderRadius: BorderRadius.circular(10),
                   ),
-                ],
-              ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.info_outline, size: 15, color: AppColors.primary),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          AppLocalizations.of(context)!.deleteGroupWarning,
+                          style: const TextStyle(fontSize: 12, color: AppColors.primary),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
         actions: [
           TextButton(
@@ -185,53 +195,58 @@ class _InstructorGroupsScreenState extends State<InstructorGroupsScreen> {
         content: StatefulBuilder(
           builder: (context, setDialogState) {
             final levels = _controller.instructorAssignedLevelIds;
-            return Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(AppLocalizations.of(context)!.createNewGroupDesc, style: const TextStyle(fontSize: 13, color: AppColors.mutedForeground)),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: nameController,
-                  decoration: InputDecoration(
-                    hintText: AppLocalizations.of(context)!.groupNameHint,
-                    prefixIcon: const Icon(Icons.label_outline, size: 18),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.input, width: 1.5)),
-                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.primary, width: 1.5)),
-                  ),
-                  autofocus: true,
+            return SingleChildScrollView(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 500),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(AppLocalizations.of(context)!.createNewGroupDesc, style: const TextStyle(fontSize: 13, color: AppColors.mutedForeground)),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: nameController,
+                      decoration: InputDecoration(
+                        hintText: AppLocalizations.of(context)!.groupNameHint,
+                        prefixIcon: const Icon(Icons.label_outline, size: 18),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.input, width: 1.5)),
+                        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.primary, width: 1.5)),
+                      ),
+                      autofocus: true,
+                    ),
+                    const SizedBox(height: 16),
+                    const Text('Select Levels', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.text)),
+                    const SizedBox(height: 8),
+                    if (levels.isEmpty)
+                      const Text('No assigned levels found.', style: TextStyle(fontSize: 12, color: AppColors.error))
+                    else
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: levels.map((lvlId) {
+                          final isSelected = selectedLevelIds.contains(lvlId);
+                          final levelLabel = AppLocalizations.of(context)!.levelLabel(lvlId.replaceAll('l', ''));
+                          return FilterChip(
+                            selected: isSelected,
+                            label: Text(levelLabel),
+                            selectedColor: AppColors.primary.withValues(alpha: 0.2),
+                            checkmarkColor: AppColors.primary,
+                            onSelected: (selected) {
+                              setDialogState(() {
+                                if (selected) {
+                                  selectedLevelIds.add(lvlId);
+                                } else {
+                                  selectedLevelIds.remove(lvlId);
+                                }
+                              });
+                            },
+                          );
+                        }).toList(),
+                      ),
+                  ],
                 ),
-                const SizedBox(height: 16),
-                const Text('Select Levels', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.text)),
-                const SizedBox(height: 8),
-                if (levels.isEmpty)
-                  const Text('No assigned levels found.', style: TextStyle(fontSize: 12, color: AppColors.error))
-                else
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: levels.map((lvlId) {
-                      final isSelected = selectedLevelIds.contains(lvlId);
-                      final levelLabel = AppLocalizations.of(context)!.levelLabel(lvlId.replaceAll('l', ''));
-                      return FilterChip(
-                        selected: isSelected,
-                        label: Text(levelLabel),
-                        selectedColor: AppColors.primary.withValues(alpha: 0.2),
-                        checkmarkColor: AppColors.primary,
-                        onSelected: (selected) {
-                          setDialogState(() {
-                            if (selected) {
-                              selectedLevelIds.add(lvlId);
-                            } else {
-                              selectedLevelIds.remove(lvlId);
-                            }
-                          });
-                        },
-                      );
-                    }).toList(),
-                  ),
-              ],
+              ),
             );
           },
         ),

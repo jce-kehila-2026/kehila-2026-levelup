@@ -415,6 +415,9 @@ class GroupDetailController extends ChangeNotifier {
     String levelId, {
     required String username,
     required String pinCode,
+    String? gender,
+    DateTime? dateOfBirth,
+    String? location,
   }) async {
     if (_currentUserRole == UserRole.instructor && !_currentUserAssignedLevels.contains(levelId)) {
       throw Exception('Unauthorized: You can only create students for your assigned levels.');
@@ -428,6 +431,9 @@ class GroupDetailController extends ChangeNotifier {
         username: actualUsername,
         pinCode: actualPinCode,
         levelId: levelId,
+        gender: gender,
+        dateOfBirth: dateOfBirth,
+        location: location,
       );
 
       await _groupRepository.addStudentToGroup(
@@ -436,6 +442,10 @@ class GroupDetailController extends ChangeNotifier {
         levelId,
         name: fullName,
       );
+
+      if (!group.levelIds.contains(levelId)) {
+        await _groupRepository.addLevelToGroup(groupId, levelId);
+      }
 
       await _initQuietly();
 
@@ -449,6 +459,9 @@ class GroupDetailController extends ChangeNotifier {
         username: actualUsername,
         pinCode: actualPinCode,
         lastActive: null,
+        gender: gender,
+        dateOfBirth: dateOfBirth,
+        location: location,
       );
       _audit.log(action: 'Created and added student to group', category: 'users', targetPersonName: fullName, targetStudentNumber: '#${result.userNumber}', details: 'Group: ${group.name} | Level: $levelId');
       return created;
@@ -460,7 +473,14 @@ class GroupDetailController extends ChangeNotifier {
   /// Creates multiple students, then adds them all to this group.
   /// Each entry must include: name, username (manually entered), levelId.
   Future<List<UserModel>> bulkCreateStudents(
-      List<({String name, String username, String levelId})> entries) async {
+      List<({
+        String name,
+        String username,
+        String levelId,
+        String? gender,
+        DateTime? dateOfBirth,
+        String? location
+      })> entries) async {
     final created = <UserModel>[];
     try {
       for (final e in entries) {
@@ -475,6 +495,9 @@ class GroupDetailController extends ChangeNotifier {
           username: u,
           pinCode: pinCode,
           levelId: e.levelId,
+          gender: e.gender,
+          dateOfBirth: e.dateOfBirth,
+          location: e.location,
         );
 
         await _groupRepository.addStudentToGroup(
@@ -483,6 +506,10 @@ class GroupDetailController extends ChangeNotifier {
           e.levelId,
           name: e.name,
         );
+
+        if (!group.levelIds.contains(e.levelId)) {
+          await _groupRepository.addLevelToGroup(groupId, e.levelId);
+        }
 
         created.add(UserModel(
           id: result.uid,
@@ -494,6 +521,9 @@ class GroupDetailController extends ChangeNotifier {
           username: u,
           pinCode: pinCode,
           lastActive: null,
+          gender: e.gender,
+          dateOfBirth: e.dateOfBirth,
+          location: e.location,
         ));
       }
       await _initQuietly();
@@ -556,7 +586,6 @@ class GroupDetailController extends ChangeNotifier {
         pinCode: newPin,
         lastActive: old.lastActive,
         phoneNumber: old.phoneNumber,
-        address: old.address,
         assignedLevels: old.assignedLevels,
       );
       notifyListeners();

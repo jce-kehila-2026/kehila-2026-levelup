@@ -11,10 +11,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:frontend/l10n/app_localizations.dart';
 import '../../../data/models/curriculum_model.dart';
+import '../../../data/repositories/curriculum_repository.dart';
 import '../../../data/models/user_model.dart';
 import '../../../theme/app_theme.dart';
 import '../../../logic/controllers/user_controller.dart';
 import '../../../di/service_locator.dart';
+import '../../widgets/location_picker.dart';
+import '../../../utils/jerusalem_locations.dart';
 import 'package:intl/intl.dart';
 
 class UsersScreen extends StatefulWidget {
@@ -356,6 +359,27 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
             ? 'Archived on: ${DateFormat('MMM d, y').format(user.createdAt!)}'
             : 'Archived on: —';
         final l10n = AppLocalizations.of(ctx)!;
+
+        // Resolve location localized name
+        String locationStr = '—';
+        if (user.location != null) {
+          final match = kJerusalemLocations.firstWhere(
+            (l) => l.en.toLowerCase() == user.location!.toLowerCase() || l.ar == user.location,
+            orElse: () => JerusalemLocation(en: user.location!, ar: user.location!),
+          );
+          locationStr = match.name(Localizations.localeOf(ctx).languageCode);
+        }
+
+        // Format DOB — stored as DateTime(year, 1, 1), display year only
+        final dobStr = user.dateOfBirth != null
+            ? user.dateOfBirth!.year.toString()
+            : '—';
+
+        // Gender capitalization
+        final genderStr = user.gender != null && user.gender!.isNotEmpty
+            ? user.gender![0].toUpperCase() + user.gender!.substring(1)
+            : '—';
+
         return Padding(
           padding: EdgeInsets.fromLTRB(20, 16, 20, MediaQuery.of(ctx).viewInsets.bottom + 32),
           child: Column(
@@ -391,7 +415,6 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
               if (isInstructor) ...[
                 _detailRow(Icons.email_outlined, 'Email', user.email ?? '—'),
                 _detailRow(Icons.phone_outlined, 'Phone', user.phoneNumber ?? '—'),
-                _detailRow(Icons.home_outlined, 'Address', user.address ?? '—'),
                 _detailRow(
                   Icons.layers_outlined,
                   'Assigned Levels',
@@ -401,6 +424,7 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
                           _controller.levels.firstWhere((l) => l.id == id, orElse: () => LevelModel(id: id, name: id)).name
                         ).join(', '),
                 ),
+                if (user.idNumber != null) _detailRow(Icons.assignment_ind_outlined, 'ID Number', user.idNumber!),
               ] else ...[
                 _detailRow(Icons.alternate_email, 'Username', '@${user.username ?? '—'}'),
                 _detailRow(Icons.layers_outlined, 'Level',
@@ -408,6 +432,9 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
                 ),
                 _detailRow(Icons.numbers, 'Student Number', user.studentNumber ?? '#${user.userNumber}'),
               ],
+              _detailRow(Icons.male, 'Gender', genderStr),
+              _detailRow(Icons.calendar_today, 'Year of Birth', dobStr),
+              _detailRow(Icons.location_on_outlined, 'Location', locationStr),
               _detailRow(Icons.archive_outlined, 'Archived', archivedDateStr),
               const SizedBox(height: 4),
               // ── Restore / Close ──
@@ -502,14 +529,173 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
 
   static final _emailRegex = RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$');
 
+  static const _commonEmailDomains = [
+    'gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com',
+    'icloud.com', 'live.com', 'msn.com', 'ymail.com',
+  ];
+
+  static int _levenshtein(String a, String b) {
+    final m = a.length, n = b.length;
+    final dp = List.generate(m + 1, (_) => List.filled(n + 1, 0));
+    for (var i = 0; i <= m; i++) { dp[i][0] = i; }
+    for (var j = 0; j <= n; j++) { dp[0][j] = j; }
+    for (var i = 1; i <= m; i++) {
+      for (var j = 1; j <= n; j++) {
+        dp[i][j] = a[i - 1] == b[j - 1]
+            ? dp[i - 1][j - 1]
+            : 1 + [dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]].reduce((x, y) => x < y ? x : y);
+      }
+    }
+    return dp[m][n];
+  }
+
+  String? _suggestEmailDomain(String email) {
+    final atIndex = email.lastIndexOf('@');
+    if (atIndex < 0 || atIndex >= email.length - 1) return null;
+    final local = email.substring(0, atIndex + 1);
+    final domain = email.substring(atIndex + 1).toLowerCase();
+    if (_commonEmailDomains.contains(domain)) return null;
+    for (final known in _commonEmailDomains) {
+      if (_levenshtein(domain, known) <= 2) return '$local$known';
+    }
+    return null;
+  }
+
+  String? _validatePhone(String? value) {
+    final v = value?.trim() ?? '';
+    if (v.isEmpty) return 'Phone number is required';
+    if (!v.startsWith('05') || v.length != 10 || int.tryParse(v) == null) {
+      return 'Invalid phone number';
+    }
+    return null;
+  }
+
+  String? _validateIdNumber(String? value) {
+    if (value == null || value.isEmpty) return null;
+    if (value.length != 9 || int.tryParse(value) == null) {
+      return 'Invalid ID number';
+    }
+    return null;
+  }
+
+  Future<String> _resolveUniqueUsername(String fullName, Set<String> batchUsernames) async {
+    final parts = fullName.trim().toLowerCase().split(' ');
+    final first = parts.first.replaceAll(RegExp(r'[^a-z]'), '');
+    final last = parts.length > 1
+        ? parts.last.replaceAll(RegExp(r'[^a-z]'), '')
+        : '';
+    if (first.isEmpty) return '';
+
+    for (int i = 1; i <= last.length; i++) {
+      final candidate = '$first.${last.substring(0, i)}';
+      if (!batchUsernames.contains(candidate) && !(await _controller.usernameExists(candidate))) return candidate;
+    }
+
+    final base = '$first.$last';
+    int n = 1;
+    while (batchUsernames.contains('$base$n') || await _controller.usernameExists('$base$n')) { n++; }
+    return '$base$n';
+  }
+
+  Widget _buildLocationField({
+    required JerusalemLocation? selectedLocation,
+    required VoidCallback onTap,
+    String? hint,
+  }) {
+    final langCode = Localizations.localeOf(context).languageCode;
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+        decoration: BoxDecoration(
+          border: Border.all(color: AppColors.border),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                selectedLocation != null
+                    ? selectedLocation.name(langCode)
+                    : hint ?? 'Location (optional)',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: selectedLocation != null ? AppColors.text : AppColors.mutedForeground,
+                ),
+              ),
+            ),
+            const Icon(Icons.location_on_outlined, size: 18, color: AppColors.mutedForeground),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDateOfBirthField({
+    required DateTime? selectedDob,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+        decoration: BoxDecoration(
+          border: Border.all(color: AppColors.border),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                selectedDob != null
+                    ? selectedDob.year.toString()
+                    : 'Year of Birth (optional)',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: selectedDob != null ? AppColors.text : AppColors.mutedForeground,
+                ),
+              ),
+            ),
+            const Icon(Icons.calendar_today, size: 16, color: AppColors.mutedForeground),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGenderSelector({
+    required String? selectedGender,
+    required void Function(String) onChanged,
+  }) {
+    return SegmentedButton<String>(
+      segments: const [
+        ButtonSegment(value: 'male', label: Text('Male'), icon: Icon(Icons.male)),
+        ButtonSegment(value: 'female', label: Text('Female'), icon: Icon(Icons.female)),
+      ],
+      selected: {selectedGender ?? 'male'},
+      onSelectionChanged: (val) => onChanged(val.first),
+      style: SegmentedButton.styleFrom(
+        selectedBackgroundColor: AppColors.primary.withValues(alpha: 0.12),
+        selectedForegroundColor: AppColors.primary,
+      ),
+    );
+  }
+
   void _showAddInstructorDialog() {
     String name = '';
     String email = '';
     String phoneNumber = '';
-    String homeAddress = '';
+    String idNumber = '';
     List<String> assignedLevels = [];
     String? emailError;
+    String? emailSuggestion;
     String? phoneError;
+    String? idError;
+    String selectedGender = 'male';
+    DateTime? selectedDob;
+    JerusalemLocation? selectedLocation;
+    final emailCtrl = TextEditingController();
+    final levelsFuture = getIt<CurriculumRepository>().getLevels();
 
     showDialog(
       context: context,
@@ -518,18 +704,23 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
           builder: (context, setDialogState) {
             final isEmailValid = email.isNotEmpty && _emailRegex.hasMatch(email);
 
-            return AlertDialog(
+            return Padding(
+              padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+              child: AlertDialog(
               backgroundColor: AppColors.background,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
               title: Text(AppLocalizations.of(context)!.addInstructorTitle, style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.text)),
               content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    TextField(
-                      decoration: InputDecoration(
-                        labelText: AppLocalizations.of(context)!.fullNameLabel,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 500),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      TextField(
+                        decoration: InputDecoration(
+                          labelText: AppLocalizations.of(context)!.fullNameLabel,
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                       ),
@@ -537,6 +728,7 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
                     ),
                     const SizedBox(height: 16),
                     TextField(
+                      controller: emailCtrl,
                       decoration: InputDecoration(
                         labelText: AppLocalizations.of(context)!.emailAddressLabel,
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
@@ -548,7 +740,71 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
                       onChanged: (val) => setDialogState(() {
                         email = val;
                         emailError = null;
+                        emailSuggestion = _suggestEmailDomain(val.trim());
                       }),
+                    ),
+                    if (emailSuggestion != null) ...[
+                      const SizedBox(height: 6),
+                      GestureDetector(
+                        onTap: () => setDialogState(() {
+                          email = emailSuggestion!;
+                          emailCtrl.text = emailSuggestion!;
+                          emailCtrl.selection = TextSelection.collapsed(offset: emailSuggestion!.length);
+                          emailSuggestion = null;
+                        }),
+                        child: Text.rich(
+                          TextSpan(children: [
+                            const TextSpan(text: 'Did you mean ', style: TextStyle(fontSize: 12, color: AppColors.mutedForeground)),
+                            TextSpan(text: emailSuggestion, style: const TextStyle(fontSize: 12, color: AppColors.primary, fontWeight: FontWeight.w600, decoration: TextDecoration.underline)),
+                            const TextSpan(text: '?', style: TextStyle(fontSize: 12, color: AppColors.mutedForeground)),
+                          ]),
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 16),
+                    // Gender selector
+                    const Text('Gender', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                    const SizedBox(height: 8),
+                    _buildGenderSelector(
+                      selectedGender: selectedGender,
+                      onChanged: (val) => setDialogState(() => selectedGender = val),
+                    ),
+                    const SizedBox(height: 16),
+                    // Date of Birth
+                    _buildDateOfBirthField(
+                      selectedDob: selectedDob,
+                      onTap: () async {
+                        final picked = await showDialog<DateTime>(
+                          context: context,
+                          builder: (BuildContext context) {
+                            return AlertDialog(
+                              title: const Text('Select Year of Birth'),
+                              content: SizedBox(
+                                width: 300,
+                                height: 300,
+                                child: YearPicker(
+                                  firstDate: DateTime(1940),
+                                  lastDate: DateTime.now(),
+                                  selectedDate: selectedDob ?? DateTime(2000),
+                                  onChanged: (DateTime dateTime) {
+                                    Navigator.pop(context, dateTime);
+                                  },
+                                ),
+                              ),
+                            );
+                          },
+                        );
+                        if (picked != null) setDialogState(() => selectedDob = DateTime(picked.year, 1, 1));
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    // Location
+                    _buildLocationField(
+                      selectedLocation: selectedLocation,
+                      onTap: () async {
+                        final loc = await showLocationPicker(context);
+                        if (loc != null) setDialogState(() => selectedLocation = loc);
+                      },
                     ),
                     const SizedBox(height: 16),
                     TextField(
@@ -565,37 +821,56 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
                       }),
                     ),
                     const SizedBox(height: 16),
+                    // ID Number
                     TextField(
                       decoration: InputDecoration(
-                        labelText: AppLocalizations.of(context)!.homeAddressLabel,
+                        labelText: 'ID Number (optional)',
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        errorText: idError,
+                        counterText: '',
                       ),
-                      onChanged: (val) => homeAddress = val,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      maxLength: 9,
+                      onChanged: (val) => setDialogState(() {
+                        idNumber = val;
+                        idError = null;
+                      }),
                     ),
                     const SizedBox(height: 16),
                     Text(AppLocalizations.of(context)!.assignLevels, style: const TextStyle(fontWeight: FontWeight.w600)),
                     const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8,
-                      children: _controller.levels.map((level) {
-                        final isSelected = assignedLevels.contains(level.id);
-                        return ChoiceChip(
-                          label: Text(level.name),
-                          selected: isSelected,
-                          onSelected: (selected) {
-                            setDialogState(() {
-                              if (selected) {
-                                assignedLevels.add(level.id);
-                              } else {
-                                assignedLevels.remove(level.id);
-                              }
-                            });
-                          },
+                    FutureBuilder<List<LevelModel>>(
+                      future: levelsFuture,
+                      builder: (_, snap) {
+                        if (snap.connectionState != ConnectionState.done) {
+                          return const SizedBox(height: 48, child: Center(child: CircularProgressIndicator()));
+                        }
+                        final levels = snap.data ?? [];
+                        return Wrap(
+                          spacing: 8,
+                          children: levels.map((level) {
+                            final isSelected = assignedLevels.contains(level.id);
+                            return ChoiceChip(
+                              label: Text(level.name),
+                              selected: isSelected,
+                              onSelected: (selected) {
+                                setDialogState(() {
+                                  if (selected) {
+                                    assignedLevels.add(level.id);
+                                  } else {
+                                    assignedLevels.remove(level.id);
+                                  }
+                                });
+                              },
+                            );
+                          }).toList(),
                         );
-                      }).toList(),
+                      },
                     ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
               actions: [
@@ -611,8 +886,15 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
                   ),
                   onPressed: name.isEmpty || !isEmailValid ? null : () async {
                     final phoneVal = phoneNumber.trim();
-                    if (phoneVal.isNotEmpty && !RegExp(r'^\d{10}$').hasMatch(phoneVal)) {
-                      setDialogState(() => phoneError = 'Phone number must be exactly 10 digits');
+                    final phoneErr = _validatePhone(phoneVal);
+                    if (phoneErr != null) {
+                      setDialogState(() => phoneError = phoneErr);
+                      return;
+                    }
+                    final idVal = idNumber.trim();
+                    final idErr = _validateIdNumber(idVal.isEmpty ? null : idVal);
+                    if (idErr != null) {
+                      setDialogState(() => idError = idErr);
                       return;
                     }
                     final exists = await _controller.emailExists(email);
@@ -624,7 +906,15 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
                     final successMsg = AppLocalizations.of(context)!.instructorAddedSuccess;
                     Navigator.pop(context);
                     try {
-                      await _controller.addInstructor(name, email, phoneVal.isNotEmpty ? phoneVal : null, homeAddress.isNotEmpty ? homeAddress : null, assignedLevels);
+                      await _controller.addInstructor(
+                        name, email,
+                        phoneVal,
+                        assignedLevels,
+                        gender: selectedGender,
+                        dateOfBirth: selectedDob,
+                        location: selectedLocation?.en,
+                        idNumber: idVal.isNotEmpty ? idVal : null,
+                      );
                       if (mounted) {
                         ScaffoldMessenger.of(this.context).showSnackBar(SnackBar(
                           content: Text(successMsg),
@@ -646,6 +936,7 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
                   child: Text(AppLocalizations.of(context)!.add, style: const TextStyle(fontWeight: FontWeight.bold)),
                 ),
               ],
+              ),
             );
           }
         );
@@ -654,9 +945,11 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
   }
 
   void _showAddStudentDialog() {
-    // Each entry: {name, username, pin, nameError, usernameError}
+    // Each entry: {nameCtrl, usernameCtrl, pin, nameError, usernameError, gender, dateOfBirth, location}
     String genPin() =>
         (100000 + Random().nextInt(900000)).toString();
+
+    final batchUsernames = <String>{};
 
     final rows = <Map<String, dynamic>>[
       {
@@ -665,6 +958,9 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
         'pin': genPin(),
         'nameError': null,
         'usernameError': null,
+        'gender': 'male',
+        'dateOfBirth': null,
+        'location': null,
       }
     ];
 
@@ -676,10 +972,13 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
-            return AlertDialog(
+            return Padding(
+              padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+              child: AlertDialog(
               backgroundColor: AppColors.background,
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(20)),
+              insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
               titlePadding:
                   const EdgeInsets.fromLTRB(24, 24, 24, 0),
               contentPadding:
@@ -702,6 +1001,9 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
                         'pin': genPin(),
                         'nameError': null,
                         'usernameError': null,
+                        'gender': 'male',
+                        'dateOfBirth': null,
+                        'location': null,
                       });
                     }),
                     icon: const Icon(Icons.add, size: 16,
@@ -717,9 +1019,9 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
                   ),
                 ],
               ),
-              content: SizedBox(
-                width: 480,
-                child: SingleChildScrollView(
+              content: SingleChildScrollView(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 500),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -754,6 +1056,7 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
                                   if (rows.length > 1)
                                     InkWell(
                                       onTap: () => setDialogState(() {
+                                        batchUsernames.remove((row['usernameCtrl'] as TextEditingController).text);
                                         (row['nameCtrl']
                                                 as TextEditingController)
                                             .dispose();
@@ -795,8 +1098,67 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
                                       row['nameError'] as String?,
                                   isDense: true,
                                 ),
-                                onChanged: (_) => setDialogState(
-                                    () => row['nameError'] = null),
+                                onChanged: (val) async {
+                                  setDialogState(() => row['nameError'] = null);
+                                  final parts = val.trim().toLowerCase().split(' ');
+                                  final first = parts.first.replaceAll(RegExp(r'[^a-z]'), '');
+                                  if (first.isEmpty) return;
+                                  final oldUsername = (row['usernameCtrl'] as TextEditingController).text;
+                                  batchUsernames.remove(oldUsername);
+                                  final resolved = await _resolveUniqueUsername(val, batchUsernames);
+                                  if (rows.contains(row)) {
+                                    batchUsernames.add(resolved);
+                                    setDialogState(() {
+                                      (row['usernameCtrl'] as TextEditingController).text = resolved;
+                                      row['usernameError'] = null;
+                                    });
+                                  }
+                                },
+                              ),
+                              const SizedBox(height: 10),
+                              // Gender Selector
+                              const Text('Gender', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
+                              const SizedBox(height: 6),
+                              _buildGenderSelector(
+                                selectedGender: row['gender'] as String?,
+                                onChanged: (val) => setDialogState(() => row['gender'] = val),
+                              ),
+                              const SizedBox(height: 10),
+                              // Date of Birth
+                              _buildDateOfBirthField(
+                                selectedDob: row['dateOfBirth'] as DateTime?,
+                                onTap: () async {
+                                  final picked = await showDialog<DateTime>(
+                                    context: context,
+                                    builder: (BuildContext context) {
+                                      return AlertDialog(
+                                        title: const Text('Select Year of Birth'),
+                                        content: SizedBox(
+                                          width: 300,
+                                          height: 300,
+                                          child: YearPicker(
+                                            firstDate: DateTime(1940),
+                                            lastDate: DateTime.now(),
+                                            selectedDate: (row['dateOfBirth'] as DateTime?) ?? DateTime(2000),
+                                            onChanged: (DateTime dateTime) {
+                                              Navigator.pop(context, dateTime);
+                                            },
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  );
+                                  if (picked != null) setDialogState(() => row['dateOfBirth'] = DateTime(picked.year, 1, 1));
+                                },
+                              ),
+                              const SizedBox(height: 10),
+                              // Location
+                              _buildLocationField(
+                                selectedLocation: row['location'] as JerusalemLocation?,
+                                onTap: () async {
+                                  final loc = await showLocationPicker(context);
+                                  if (loc != null) setDialogState(() => row['location'] = loc);
+                                },
                               ),
                               const SizedBox(height: 10),
                               // Username
@@ -918,6 +1280,7 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
                       (r['usernameCtrl'] as TextEditingController)
                           .dispose();
                     }
+                    batchUsernames.clear();
                     Navigator.pop(context);
                   },
                   child: Text(AppLocalizations.of(context)!.cancel,
@@ -1015,6 +1378,9 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
                                   .toLowerCase(),
                               'pin': r['pin'] as String,
                               'levelId': levelId,
+                              'gender': r['gender'] as String?,
+                              'dateOfBirth': r['dateOfBirth'] as DateTime?,
+                              'location': (r['location'] as JerusalemLocation?)?.en,
                             })
                         .toList();
 
@@ -1025,7 +1391,7 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
                       (r['usernameCtrl'] as TextEditingController)
                           .dispose();
                     }
-
+                    batchUsernames.clear();
                     Navigator.pop(context);
 
                     // Show progress spinner
@@ -1063,6 +1429,7 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
                   ),
                 ),
               ],
+              ),
             );
           },
         );
@@ -1075,9 +1442,12 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
       context: context,
       barrierDismissible: false,
       builder: (ctx) {
-        return AlertDialog(
+        return Padding(
+          padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+          child: AlertDialog(
           backgroundColor: AppColors.white,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
           contentPadding: const EdgeInsets.all(24),
           title: Row(
             children: [
@@ -1098,21 +1468,21 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
               ),
             ],
           ),
-          content: SizedBox(
-            width: double.maxFinite,
+          content: SingleChildScrollView(
+            child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 500),
             child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Important: Save the PIN below. For security reasons, it will not be shown again.',
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Important: Save the PIN below. For security reasons, it will not be shown again.',
                   style: TextStyle(fontSize: 13, color: AppColors.mutedForeground, fontWeight: FontWeight.w500),
                 ),
                 const SizedBox(height: 16),
-                Flexible(
-                  child: ListView.separated(
+                ListView.separated(
                     shrinkWrap: true,
-                    physics: const ClampingScrollPhysics(),
+                    physics: const NeverScrollableScrollPhysics(),
                     itemCount: users.length,
                     separatorBuilder: (_, index) => const Divider(height: 20),
                     itemBuilder: (context, idx) {
@@ -1170,8 +1540,8 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
                       );
                     },
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
           actions: [
@@ -1188,37 +1558,54 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
               ),
             ),
           ],
+          ),
         );
       },
     );
   }
 
   void _showEditProfileDialog(dynamic instructor) {
-    final nameCtrl = TextEditingController(text: instructor.name);
-    final emailCtrl = TextEditingController(text: instructor.email ?? '');
-    final phoneCtrl = TextEditingController(text: instructor.phoneNumber ?? '');
-    final addressCtrl = TextEditingController(text: instructor.address ?? '');
+    final instModel = instructor as UserModel;
+    final nameCtrl = TextEditingController(text: instModel.name);
+    final emailCtrl = TextEditingController(text: instModel.email ?? '');
+    final phoneCtrl = TextEditingController(text: instModel.phoneNumber ?? '');
+    final idNumberCtrl = TextEditingController(text: instModel.idNumber ?? '');
     String? phoneError;
+    String? idNumberError;
     String? emailError;
+    String? emailSuggestion;
+    String selectedGender = instModel.gender ?? 'male';
+    DateTime? selectedDob = instModel.dateOfBirth;
+    JerusalemLocation? selectedLocation = instModel.location != null
+        ? kJerusalemLocations.firstWhere(
+            (l) => l.en.toLowerCase() == instModel.location!.toLowerCase() || l.ar == instModel.location,
+            orElse: () => JerusalemLocation(en: instModel.location!, ar: instModel.location!),
+          )
+        : null;
 
     showDialog(
       context: context,
       builder: (ctx) {
         return StatefulBuilder(
           builder: (ctx, setDialogState) {
-            return AlertDialog(
+            return Padding(
+              padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+              child: AlertDialog(
               backgroundColor: AppColors.background,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-              title: Text(AppLocalizations.of(ctx)!.editProfileTitle(instructor.name), style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.text, fontSize: 16)),
+              insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+              title: Text(AppLocalizations.of(ctx)!.editProfileTitle(instModel.name), style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.text, fontSize: 16)),
               content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    TextField(
-                      controller: nameCtrl,
-                      decoration: InputDecoration(
-                        labelText: AppLocalizations.of(ctx)!.fullNameLabel,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 500),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      TextField(
+                        controller: nameCtrl,
+                        decoration: InputDecoration(
+                          labelText: AppLocalizations.of(ctx)!.fullNameLabel,
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                       ),
@@ -1232,7 +1619,72 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
                         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                         errorText: emailError,
                       ),
-                      onChanged: (_) => setDialogState(() => emailError = null),
+                      onChanged: (val) => setDialogState(() {
+                        emailError = null;
+                        emailSuggestion = _suggestEmailDomain(val.trim());
+                      }),
+                    ),
+                    if (emailSuggestion != null) ...[
+                      const SizedBox(height: 6),
+                      GestureDetector(
+                        onTap: () => setDialogState(() {
+                          emailCtrl.text = emailSuggestion!;
+                          emailCtrl.selection = TextSelection.collapsed(offset: emailSuggestion!.length);
+                          emailSuggestion = null;
+                        }),
+                        child: Text.rich(
+                          TextSpan(children: [
+                            const TextSpan(text: 'Did you mean ', style: TextStyle(fontSize: 12, color: AppColors.mutedForeground)),
+                            TextSpan(text: emailSuggestion, style: const TextStyle(fontSize: 12, color: AppColors.primary, fontWeight: FontWeight.w600, decoration: TextDecoration.underline)),
+                            const TextSpan(text: '?', style: TextStyle(fontSize: 12, color: AppColors.mutedForeground)),
+                          ]),
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 16),
+                    // Gender selector
+                    const Text('Gender', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                    const SizedBox(height: 8),
+                    _buildGenderSelector(
+                      selectedGender: selectedGender,
+                      onChanged: (val) => setDialogState(() => selectedGender = val),
+                    ),
+                    const SizedBox(height: 16),
+                    // Date of Birth
+                    _buildDateOfBirthField(
+                      selectedDob: selectedDob,
+                      onTap: () async {
+                        final picked = await showDialog<DateTime>(
+                          context: context,
+                          builder: (BuildContext context) {
+                            return AlertDialog(
+                              title: const Text('Select Year of Birth'),
+                              content: SizedBox(
+                                width: 300,
+                                height: 300,
+                                child: YearPicker(
+                                  firstDate: DateTime(1940),
+                                  lastDate: DateTime.now(),
+                                  selectedDate: selectedDob ?? DateTime(2000),
+                                  onChanged: (DateTime dateTime) {
+                                    Navigator.pop(context, dateTime);
+                                  },
+                                ),
+                              ),
+                            );
+                          },
+                        );
+                        if (picked != null) setDialogState(() => selectedDob = DateTime(picked.year, 1, 1));
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    // Location
+                    _buildLocationField(
+                      selectedLocation: selectedLocation,
+                      onTap: () async {
+                        final loc = await showLocationPicker(context);
+                        if (loc != null) setDialogState(() => selectedLocation = loc);
+                      },
                     ),
                     const SizedBox(height: 16),
                     TextField(
@@ -1248,19 +1700,24 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
                     ),
                     const SizedBox(height: 16),
                     TextField(
-                      controller: addressCtrl,
+                      controller: idNumberCtrl,
                       decoration: InputDecoration(
-                        labelText: AppLocalizations.of(ctx)!.homeAddressLabel,
+                        labelText: 'ID Number',
+                        hintText: '9-digit national ID',
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        errorText: idNumberError,
                       ),
+                      keyboardType: TextInputType.number,
+                      onChanged: (_) => setDialogState(() => idNumberError = null),
                     ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
               actions: [
                 TextButton(
-                  onPressed: () => Navigator.pop(ctx),
+                  onPressed: () { if (ctx.mounted) Navigator.pop(ctx); },
                   child: Text(AppLocalizations.of(ctx)!.cancel, style: const TextStyle(color: AppColors.mutedForeground)),
                 ),
                 ElevatedButton(
@@ -1273,30 +1730,36 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
                     final newName = nameCtrl.text.trim();
                     final newEmail = emailCtrl.text.trim();
                     final newPhone = phoneCtrl.text.trim();
-                    final newAddress = addressCtrl.text.trim();
 
                     if (newName.isEmpty) return;
                     if (newEmail.isEmpty || !_emailRegex.hasMatch(newEmail)) {
                       setDialogState(() => emailError = 'Please enter a valid email address');
                       return;
                     }
-                    if (newPhone.isNotEmpty && !RegExp(r'^\d{10}$').hasMatch(newPhone)) {
-                      setDialogState(() => phoneError = 'Phone number must be exactly 10 digits');
-                      return;
+                    // Phone is optional when editing — only validate format if provided
+                    if (newPhone.isNotEmpty) {
+                      final phoneErr = _validatePhone(newPhone);
+                      if (phoneErr != null) {
+                        setDialogState(() => phoneError = phoneErr);
+                        return;
+                      }
                     }
 
                     final scaffoldContext = context;
-                    final nav = Navigator.of(ctx);
 
                     try {
+                      final newIdNumber = idNumberCtrl.text.trim();
                       await _controller.updateInstructorProfile(
-                        instructor.id,
+                        instModel.id,
                         newName,
                         newEmail,
-                        newPhone.isNotEmpty ? newPhone : null,
-                        newAddress.isNotEmpty ? newAddress : null,
+                        newPhone.isEmpty ? null : newPhone,
+                        gender: selectedGender,
+                        dateOfBirth: selectedDob,
+                        location: selectedLocation?.en,
+                        idNumber: newIdNumber.isEmpty ? null : newIdNumber,
                       );
-                      nav.pop();
+                      if (ctx.mounted) Navigator.of(ctx).pop();
                       if (scaffoldContext.mounted) {
                         ScaffoldMessenger.of(scaffoldContext).showSnackBar(SnackBar(
                           content: Text(AppLocalizations.of(scaffoldContext)!.profileUpdated(newName)),
@@ -1317,6 +1780,7 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
                   child: Text(AppLocalizations.of(ctx)!.save, style: const TextStyle(fontWeight: FontWeight.bold)),
                 ),
               ],
+              ),
             );
           },
         );
@@ -1325,49 +1789,67 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
       nameCtrl.dispose();
       emailCtrl.dispose();
       phoneCtrl.dispose();
-      addressCtrl.dispose();
+      idNumberCtrl.dispose();
     });
   }
 
   void _showEditLevelsDialog(String instructorId, String instructorName, List<String> currentLevels) {
     List<String> selectedLevels = List<String>.from(currentLevels);
+    final levelsFuture = getIt<CurriculumRepository>().getLevels();
 
     showDialog(
       context: context,
       builder: (ctx) {
         return StatefulBuilder(
           builder: (ctx, setDialogState) {
-            return AlertDialog(
+            return Padding(
+              padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+              child: AlertDialog(
               backgroundColor: AppColors.background,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
               title: Text(AppLocalizations.of(ctx)!.editLevelsTitle(instructorName), style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.text, fontSize: 16)),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(AppLocalizations.of(ctx)!.selectLevelsSubtitle, style: const TextStyle(fontSize: 13, color: AppColors.mutedForeground)),
-                  const SizedBox(height: 16),
-                  ..._controller.levels.map((level) {
-                    final isSelected = selectedLevels.contains(level.id);
-                    return CheckboxListTile(
-                      value: isSelected,
-                      title: Text(level.name, style: const TextStyle(fontSize: 14)),
-                      activeColor: AppColors.primary,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                      contentPadding: EdgeInsets.zero,
-                      controlAffinity: ListTileControlAffinity.leading,
-                      onChanged: (val) {
-                        setDialogState(() {
-                          if (val == true) {
-                            selectedLevels.add(level.id);
-                          } else {
-                            selectedLevels.remove(level.id);
-                          }
-                        });
-                      },
-                    );
-                  }),
-                ],
+              content: FutureBuilder<List<LevelModel>>(
+                future: levelsFuture,
+                builder: (_, snap) {
+                  if (snap.connectionState != ConnectionState.done) {
+                    return const SizedBox(height: 80, child: Center(child: CircularProgressIndicator()));
+                  }
+                  final levels = snap.data ?? [];
+                  return SingleChildScrollView(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 500),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(AppLocalizations.of(ctx)!.selectLevelsSubtitle, style: const TextStyle(fontSize: 13, color: AppColors.mutedForeground)),
+                          const SizedBox(height: 16),
+                          ...levels.map((level) {
+                            final isSelected = selectedLevels.contains(level.id);
+                            return CheckboxListTile(
+                              value: isSelected,
+                              title: Text(level.name, style: const TextStyle(fontSize: 14)),
+                              activeColor: AppColors.primary,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              contentPadding: EdgeInsets.zero,
+                              controlAffinity: ListTileControlAffinity.leading,
+                              onChanged: (val) {
+                                setDialogState(() {
+                                  if (val == true) {
+                                    selectedLevels.add(level.id);
+                                  } else {
+                                    selectedLevels.remove(level.id);
+                                  }
+                                });
+                              },
+                            );
+                          }),
+                        ],
+                      ),
+                    ),
+                  );
+                },
               ),
               actions: [
                 TextButton(
@@ -1395,6 +1877,7 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
                   child: Text(AppLocalizations.of(ctx)!.save, style: const TextStyle(fontWeight: FontWeight.bold)),
                 ),
               ],
+              ),
             );
           },
         );
@@ -1405,10 +1888,18 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
   void _showDeleteConfirmation(String userId, String userName, {bool isStudent = false}) {
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+        child: AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
         title: Text(AppLocalizations.of(context)!.deleteUserTitle, style: const TextStyle(fontWeight: FontWeight.bold)),
-        content: Text(AppLocalizations.of(context)!.deleteUserConfirmation(userName)),
+        content: SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 500),
+            child: Text(AppLocalizations.of(context)!.deleteUserConfirmation(userName)),
+          ),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
@@ -1420,20 +1911,24 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
               foregroundColor: AppColors.white,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
-            onPressed: () {
+            onPressed: () async {
               Navigator.pop(ctx);
               if (isStudent) {
-                _controller.deleteStudent(userId);
+                await _controller.deleteStudent(userId);
               } else {
-                _controller.deleteInstructor(userId);
+                await _controller.deleteInstructor(userId);
               }
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text(AppLocalizations.of(context)!.userDeletedSuccess(userName)), behavior: SnackBarBehavior.floating),
-              );
+              _archivedLoaded = true;
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(AppLocalizations.of(context)!.userDeletedSuccess(userName)), behavior: SnackBarBehavior.floating),
+                );
+              }
             },
             child: Text(AppLocalizations.of(context)!.delete, style: const TextStyle(fontWeight: FontWeight.bold)),
           ),
         ],
+        ),
       ),
     );
   }
@@ -1442,11 +1937,19 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
     showDialog(
       context: context,
       builder: (ctx) {
-        return AlertDialog(
+        return Padding(
+          padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+          child: AlertDialog(
           backgroundColor: AppColors.background,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
           title: const Text('Reset PIN?', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.text)),
-          content: Text('Are you sure you want to reset the PIN for $studentName? This will generate a new 6-digit random PIN.'),
+          content: SingleChildScrollView(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 500),
+              child: Text('Are you sure you want to reset the PIN for $studentName? This will generate a new 6-digit random PIN.'),
+            ),
+          ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
@@ -1479,16 +1982,20 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
                     builder: (ctx2) => AlertDialog(
                       backgroundColor: AppColors.white,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
                       contentPadding: const EdgeInsets.all(28),
-                      content: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            width: 50,
-                            height: 50,
-                            decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.15), shape: BoxShape.circle),
-                            child: const Icon(Icons.lock_reset, size: 28, color: AppColors.accentDark),
-                          ),
+                      content: SingleChildScrollView(
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 500),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                width: 50,
+                                height: 50,
+                                decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.15), shape: BoxShape.circle),
+                                child: const Icon(Icons.lock_reset, size: 28, color: AppColors.accentDark),
+                              ),
                           const SizedBox(height: 14),
                           const Text('PIN Reset Successful', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                           const SizedBox(height: 6),
@@ -1524,10 +2031,12 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
                               child: const Text('Done', style: TextStyle(fontWeight: FontWeight.bold)),
                             ),
                           ),
-                        ],
+                              ],
+                            ),
+                          ),
+                        ),
                       ),
-                    ),
-                  );
+                    );
                 } catch (e) {
                   if (!mounted) return;
                   Navigator.pop(context); // Dismiss loading spinner
@@ -1541,6 +2050,7 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
               child: const Text('Reset', style: TextStyle(fontWeight: FontWeight.bold)),
             ),
           ],
+          ),
         );
       },
     );
@@ -1689,7 +2199,14 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
                               children: [
                                 Container(width: 3, height: 20, decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(2))),
                                 const SizedBox(width: 8),
-                                Text(headerTitle, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontSize: 22, fontWeight: FontWeight.bold)),
+                                Flexible(
+                                  child: Text(
+                                    headerTitle,
+                                    style: Theme.of(context).textTheme.titleLarge?.copyWith(fontSize: 22, fontWeight: FontWeight.bold),
+                                    overflow: TextOverflow.ellipsis,
+                                    maxLines: 1,
+                                  ),
+                                ),
                               ],
                             ),
                             const SizedBox(height: 4),

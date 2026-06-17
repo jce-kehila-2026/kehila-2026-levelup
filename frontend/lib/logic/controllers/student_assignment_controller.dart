@@ -171,12 +171,22 @@ class StudentAssignmentController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Cancel all active Firestore stream subscriptions without disposing the
+  /// controller. Called by the logout helper before FirebaseAuth.signOut().
+  void cancelSubscriptions() {
+    _authSub?.cancel();
+    _authSub = null;
+    _userDocSub?.cancel();
+    _userDocSub = null;
+    _assignmentsSub?.cancel();
+    _assignmentsSub = null;
+    _submissionsSub?.cancel();
+    _submissionsSub = null;
+  }
+
   @override
   void dispose() {
-    _authSub?.cancel();
-    _userDocSub?.cancel();
-    _assignmentsSub?.cancel();
-    _submissionsSub?.cancel();
+    cancelSubscriptions();
     super.dispose();
   }
 }
