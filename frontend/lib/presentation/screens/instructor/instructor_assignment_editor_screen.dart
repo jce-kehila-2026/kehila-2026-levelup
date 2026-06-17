@@ -188,6 +188,7 @@ class _InstructorAssignmentEditorScreenState extends State<InstructorAssignmentE
           context: context,
           builder: (ctx) => AlertDialog(
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            insetPadding: EdgeInsets.fromLTRB(24, 24, 24, MediaQuery.of(ctx).viewInsets.bottom + 24),
             title: Text(l10n.insertImageTitle, style: const TextStyle(fontWeight: FontWeight.bold)),
             content: SingleChildScrollView(
               child: ConstrainedBox(

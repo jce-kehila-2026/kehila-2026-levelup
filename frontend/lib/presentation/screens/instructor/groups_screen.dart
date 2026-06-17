@@ -41,6 +41,7 @@ class _InstructorGroupsScreenState extends State<InstructorGroupsScreen> {
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.background,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        insetPadding: EdgeInsets.fromLTRB(24, 24, 24, MediaQuery.of(ctx).viewInsets.bottom + 24),
         title: Row(
           children: [
             const Icon(Icons.group_add, color: AppColors.primary, size: 22),

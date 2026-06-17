@@ -609,29 +609,24 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                     }).toList(),
                   ),
                   const SizedBox(height: 14),
-                  ConstrainedBox(
-                    constraints: const BoxConstraints(maxHeight: 300),
-                    child: SingleChildScrollView(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: rows.asMap().entries.map((entry) {
-                          final i = entry.key;
-                          final row = entry.value;
-                          return _buildStudentFormRow(
-                            row: row,
-                            canRemove: rows.length > 1,
-                            enabled: !isCreating,
-                            batchUsernames: batchUsernames,
-                            onRemove: () => setDialogState(() {
-                              batchUsernames.remove(row.usernameCtrl.text);
-                              row.dispose();
-                              rows.removeAt(i);
-                            }),
-                            onChange: () => setDialogState(() {}),
-                          );
-                        }).toList(),
-                      ),
-                    ),
+                  Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: rows.asMap().entries.map((entry) {
+                      final i = entry.key;
+                      final row = entry.value;
+                      return _buildStudentFormRow(
+                        row: row,
+                        canRemove: rows.length > 1,
+                        enabled: !isCreating,
+                        batchUsernames: batchUsernames,
+                        onRemove: () => setDialogState(() {
+                          batchUsernames.remove(row.usernameCtrl.text);
+                          row.dispose();
+                          rows.removeAt(i);
+                        }),
+                        onChange: () => setDialogState(() {}),
+                      );
+                    }).toList(),
                   ),
                   if (!isCreating)
                     Padding(
