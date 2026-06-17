@@ -285,13 +285,13 @@ class UserController extends ChangeNotifier {
         location: location,
       );
       _students = _students.map((s) => s.id == placeholder.id ? created : s).toList();
-      notifyListeners();
       _audit.log(action: 'Added student', category: 'users', targetPersonName: name, targetStudentNumber: '#${result.userNumber}', details: 'Username: $u | Level: $levelId');
       return created;
     } catch (e) {
       _students = _students.where((s) => s.id != placeholder.id).toList();
-      notifyListeners();
       rethrow;
+    } finally {
+      notifyListeners();
     }
   }
 
@@ -352,7 +352,6 @@ class UserController extends ChangeNotifier {
         created.add(model);
         // Replace this placeholder with the real model
         _students = _students.map((st) => st.id == placeholders[i].id ? model : st).toList();
-        notifyListeners();
         
         // Write audit log for the added student
         _audit.log(
@@ -368,8 +367,9 @@ class UserController extends ChangeNotifier {
       // Roll back all remaining placeholders
       final placeholderIds = placeholders.map((p) => p.id).toSet();
       _students = _students.where((s) => !placeholderIds.contains(s.id)).toList();
-      notifyListeners();
       rethrow;
+    } finally {
+      notifyListeners();
     }
   }
 
@@ -380,11 +380,7 @@ class UserController extends ChangeNotifier {
 
     _students = _students.map((s) {
       if (s.id != studentId) return s;
-      return UserModel(
-        id: s.id, userNumber: s.userNumber, name: s.name, email: s.email,
-        role: s.role, studentNumber: s.studentNumber, username: s.username,
-        pinCode: newPin, lastActive: s.lastActive,
-      );
+      return s.copyWith(pinCode: newPin);
     }).toList();
     notifyListeners();
 

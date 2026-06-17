@@ -153,20 +153,17 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                             title: Text(lvl.name, style: const TextStyle(fontWeight: FontWeight.w600)),
                             trailing: ElevatedButton(
                               onPressed: () async {
+                                final messenger = ScaffoldMessenger.of(context);
                                 Navigator.pop(ctx);
                                 try {
                                   await _controller.addLevelToGroup(lvl.id);
-                                  if (mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(content: Text('Level "${lvl.name}" added to group.')),
-                                    );
-                                  }
+                                  messenger.showSnackBar(
+                                    SnackBar(content: Text('Level "${lvl.name}" added to group.')),
+                                  );
                                 } catch (e) {
-                                  if (mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(content: Text('Failed: $e'), backgroundColor: AppColors.error),
-                                    );
-                                  }
+                                  messenger.showSnackBar(
+                                    SnackBar(content: Text('Failed: $e'), backgroundColor: AppColors.error),
+                                  );
                                 }
                               },
                               child: const Text('Add'),
@@ -224,20 +221,17 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                     title: Text(grp.name, style: const TextStyle(fontWeight: FontWeight.w600)),
                     trailing: ElevatedButton(
                       onPressed: () async {
+                        final messenger = ScaffoldMessenger.of(context);
                         Navigator.pop(ctx);
                         try {
                           await _controller.transferStudent(student.id, grp.id);
-                          if (mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text('${student.name} transferred to ${grp.name}')),
-                            );
-                          }
+                          messenger.showSnackBar(
+                            SnackBar(content: Text('${student.name} transferred to ${grp.name}')),
+                          );
                         } catch (e) {
-                          if (mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text('Transfer failed: $e'), backgroundColor: AppColors.error),
-                            );
-                          }
+                          messenger.showSnackBar(
+                            SnackBar(content: Text('Transfer failed: $e'), backgroundColor: AppColors.error),
+                          );
                         }
                       },
                       child: const Text('Transfer'),
@@ -336,7 +330,9 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
         builder: (context, setDialogState) => ListenableBuilder(
           listenable: _controller,
           builder: (context, _) {
-            final available = _controller.availableStudents;
+            final available = _controller.availableStudents
+                .where((s) => s.levelId == globalLevel)
+                .toList();
             final selCount = _controller.bulkSelectionCount;
             final l10n = AppLocalizations.of(context)!;
             final levelName = _controller.levels
@@ -402,7 +398,12 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                                 child: Text(l.name),
                               ),
                             ).toList(),
-                            onChanged: (v) { if (v != null) setDialogState(() => globalLevel = v); },
+                            onChanged: (v) {
+                              if (v != null) {
+                                _controller.clearBulkSelection();
+                                setDialogState(() => globalLevel = v);
+                              }
+                            },
                           ),
                         ],
                       ),
@@ -460,6 +461,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                 if (selCount > 0)
                   ElevatedButton(
                     onPressed: () async {
+                      final messenger = ScaffoldMessenger.of(context);
                       final preAssignedStudents = _controller.availableStudents
                           .where((s) => _controller.bulkSelectedStudentIds.contains(s.id) && s.groupId != null)
                           .toList();
@@ -497,20 +499,18 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                         if (proceed != true) return;
                       }
 
-                      Navigator.pop(ctx);
+                      if (ctx.mounted) {
+                        Navigator.pop(ctx);
+                      }
                       try {
                         await _controller.bulkAddStudents(globalLevel);
-                        if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Students added successfully')),
-                          );
-                        }
+                        messenger.showSnackBar(
+                          const SnackBar(content: Text('Students added successfully')),
+                        );
                       } catch (e) {
-                        if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Failed: $e'), backgroundColor: AppColors.error),
-                          );
-                        }
+                        messenger.showSnackBar(
+                          SnackBar(content: Text('Failed: $e'), backgroundColor: AppColors.error),
+                        );
                       }
                     },
                     style: ElevatedButton.styleFrom(
@@ -1122,7 +1122,35 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                   decoration: BoxDecoration(color: AppColors.background, borderRadius: BorderRadius.circular(12), border: Border.all(color: AppColors.border)),
-                  child: Text(newPin, style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: AppColors.primaryDark, letterSpacing: 6)),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        newPin,
+                        style: const TextStyle(
+                          fontSize: 28,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.primaryDark,
+                          letterSpacing: 8,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      IconButton(
+                        icon: const Icon(Icons.copy_outlined, color: AppColors.primary),
+                        tooltip: 'Copy PIN',
+                        onPressed: () {
+                          Clipboard.setData(ClipboardData(text: newPin));
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('PIN copied to clipboard'),
+                              behavior: SnackBarBehavior.floating,
+                              duration: Duration(seconds: 2),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
                 ),
                 const SizedBox(height: 18),
                 SizedBox(width: double.infinity, child: ElevatedButton(
@@ -1473,13 +1501,13 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                                 ? () async {
                                     try {
                                       await _controller.removeLevelFromGroup(levelId);
-                                      if (mounted) {
+                                      if (context.mounted) {
                                         ScaffoldMessenger.of(context).showSnackBar(
                                           SnackBar(content: Text('Level "$label" removed.')),
                                         );
                                       }
                                     } catch (e) {
-                                      if (mounted) {
+                                      if (context.mounted) {
                                         showDialog(
                                           context: context,
                                           builder: (c) => AlertDialog(

@@ -862,6 +862,7 @@ class _GroupsScreenState extends State<GroupsScreen> with SingleTickerProviderSt
                       title: Text(grp.name, style: const TextStyle(fontWeight: FontWeight.w600)),
                       trailing: ElevatedButton(
                         onPressed: () async {
+                          final messenger = ScaffoldMessenger.of(context);
                           Navigator.pop(ctx);
                           try {
                             await _controller.assignStudentToGroup(
@@ -870,17 +871,13 @@ class _GroupsScreenState extends State<GroupsScreen> with SingleTickerProviderSt
                               studentLevelId,
                               student.name,
                             );
-                            if (mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text('${student.name} assigned to ${grp.name}')),
-                              );
-                            }
+                            messenger.showSnackBar(
+                              SnackBar(content: Text('${student.name} assigned to ${grp.name}')),
+                            );
                           } catch (e) {
-                            if (mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text('Failed: $e'), backgroundColor: AppColors.error),
-                              );
-                            }
+                            messenger.showSnackBar(
+                              SnackBar(content: Text('Failed: $e'), backgroundColor: AppColors.error),
+                            );
                           }
                         },
                         child: const Text('Assign'),

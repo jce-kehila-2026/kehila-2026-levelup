@@ -154,11 +154,13 @@ class AuditLogItem extends StatelessWidget {
                     child: Row(mainAxisSize: MainAxisSize.min, children: [
                       const Icon(Icons.person, size: 12, color: AppColors.primary),
                       const SizedBox(width: 4),
-                      Text(
-                        log.targetPersonName!,
-                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.primaryDark),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                      Flexible(
+                        child: Text(
+                          log.targetPersonName!,
+                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.primaryDark),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
                       if (log.targetStudentNumber != null) ...[
                         const SizedBox(width: 6),

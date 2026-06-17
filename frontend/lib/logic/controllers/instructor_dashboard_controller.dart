@@ -112,6 +112,8 @@ class InstructorDashboardController extends ChangeNotifier {
         _filterStudentsAndRecalc();
         notifyListeners();
       }
+    }, onError: (e) {
+      debugPrint('InstructorDashboardController: user profile stream error: $e');
     });
 
     // 2. Live group counts: filter docs where instructorIds contains this UID
@@ -127,6 +129,8 @@ class InstructorDashboardController extends ChangeNotifier {
       _myGroupsCount = _myGroups.length;
       _recalcStudentsCount();
       notifyListeners();
+    }, onError: (e) {
+      debugPrint('InstructorDashboardController: groups stream error: $e');
     });
 
     // 3. Live student changes: update _allStudents list in real-time
@@ -142,6 +146,8 @@ class InstructorDashboardController extends ChangeNotifier {
           .toList();
       _filterStudentsAndRecalc();
       notifyListeners();
+    }, onError: (e) {
+      debugPrint('InstructorDashboardController: students stream error: $e');
     });
 
     // 4. Live assignment list: re-fetch from repository on any change
@@ -157,6 +163,8 @@ class InstructorDashboardController extends ChangeNotifier {
       } catch (e) {
         debugPrint('InstructorDashboardController assignments stream error: $e');
       }
+    }, onError: (e) {
+      debugPrint('InstructorDashboardController: assignments stream error: $e');
     });
   }
 

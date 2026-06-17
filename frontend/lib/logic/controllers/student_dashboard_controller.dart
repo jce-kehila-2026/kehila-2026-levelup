@@ -194,6 +194,8 @@ class StudentDashboardController extends ChangeNotifier {
       if (!snap.exists || snap.data() == null) return;
       await _fetchAll();
       notifyListeners();
+    }, onError: (e) {
+      debugPrint('StudentDashboardController: user doc stream error: $e');
     });
   }
 
@@ -209,6 +211,8 @@ class StudentDashboardController extends ChangeNotifier {
         .listen((snap) async {
       await _fetchAll();
       notifyListeners();
+    }, onError: (e) {
+      debugPrint('StudentDashboardController: group stream error: $e');
     });
   }
 
