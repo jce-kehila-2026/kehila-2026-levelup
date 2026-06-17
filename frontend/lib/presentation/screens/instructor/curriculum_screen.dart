@@ -254,38 +254,43 @@ class _InstructorCurriculumScreenState extends State<InstructorCurriculumScreen>
             AppLocalizations.of(context)!.assignTemplateTitle(item.title),
             style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
           ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              DropdownButtonFormField<GroupModel>(
-                decoration: InputDecoration(
-                  labelText: AppLocalizations.of(context)!.selectGroupStep,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                ),
-                items: _groupController.myGroups.map((g) => DropdownMenuItem(
-                  value: g,
-                  child: Text(g.name),
-                )).toList(),
-                onChanged: (val) => setDialogState(() => selectedGroup = val),
+          content: SingleChildScrollView(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 500),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  DropdownButtonFormField<GroupModel>(
+                    decoration: InputDecoration(
+                      labelText: AppLocalizations.of(context)!.selectGroupStep,
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    ),
+                    items: _groupController.myGroups.map((g) => DropdownMenuItem(
+                      value: g,
+                      child: Text(g.name),
+                    )).toList(),
+                    onChanged: (val) => setDialogState(() => selectedGroup = val),
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<LevelModel>(
+                    initialValue: selectedLevel,
+                    decoration: InputDecoration(
+                      labelText: AppLocalizations.of(context)!.selectLevelHint,
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    ),
+                    items: _controller.levels
+                        .where((l) => _assignedLevelIds.contains(l.id))
+                        .map((l) => DropdownMenuItem(
+                      value: l,
+                      child: Text(l.name),
+                    )).toList(),
+                    onChanged: (val) => setDialogState(() => selectedLevel = val),
+                  ),
+                ],
               ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<LevelModel>(
-                initialValue: selectedLevel,
-                decoration: InputDecoration(
-                  labelText: AppLocalizations.of(context)!.selectLevelHint,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                ),
-                items: _controller.levels
-                    .where((l) => _assignedLevelIds.contains(l.id))
-                    .map((l) => DropdownMenuItem(
-                  value: l,
-                  child: Text(l.name),
-                )).toList(),
-                onChanged: (val) => setDialogState(() => selectedLevel = val),
-              ),
-            ],
+            ),
           ),
           actions: [
             TextButton(

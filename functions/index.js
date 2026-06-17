@@ -6,6 +6,53 @@ admin.initializeApp();
 
 const STUDENT_EMAIL_DOMAIN = "@students.levelup-26.local";
 
+const JERUSALEM_LOCATIONS = [
+  { en: "Abu Ghosh",                 ar: "أبوغوش وما حولها" },
+  { en: "Abu Tor - Al-Thawri",       ar: "أبوطور - الثوري" },
+  { en: "Al-Eizariya and Abu Dis",   ar: "العيزرية وأبوديس" },
+  { en: "Al-Issawiya",               ar: "العيساوية" },
+  { en: "Al-Walaja and Beit Sahour", ar: "الولجة وبيت ساحور" },
+  { en: "Anata - Shufat Camp",       ar: "عناتا - مخيم شعفاط" },
+  { en: "Atarot",                    ar: "عطروت" },
+  { en: "At-Tur - Mount of Olives",  ar: "الطور - جبل الزيتون" },
+  { en: "Beit Hanina",               ar: "بيت حنينا" },
+  { en: "Beit Safafa",               ar: "بيت صفافا" },
+  { en: "Jabal Al-Mukaber",          ar: "جبل المكبر" },
+  { en: "Kafr Aqab",                 ar: "كفر عقب" },
+  { en: "Old City",                  ar: "البلدة القديمة ومحيطها" },
+  { en: "Other",                     ar: "غير ذلك" },
+  { en: "Out of Jerusalem",          ar: "خارج حدود القدس" },
+  { en: "Ras al-Amud",               ar: "رأس العامود" },
+  { en: "Sheikh Jarrah",             ar: "الشيخ جراح" },
+  { en: "Shu'fat",                   ar: "شعفاط" },
+  { en: "Silwan",                    ar: "سلوان" },
+  { en: "Sur Baher",                 ar: "صورباهر" },
+  { en: "Umm Laysun",                ar: "أم ليسون" },
+  { en: "Umm Tuba",                  ar: "أم طوبا" },
+  { en: "Wadi al-Joz",               ar: "وادي الجوز" },
+];
+
+exports.checkEmailInSystem = onCall({
+  cors: ["http://localhost:53996", "http://localhost:5000", /^http:\/\/localhost(:\d+)?$/, "https://levelup-26.web.app", "https://levelup-26.firebaseapp.com"],
+  region: "us-central1",
+}, async (request) => {
+  const email = (request.data.email || "").trim().toLowerCase();
+  if (!email) return { found: false };
+
+  const snap = await admin.firestore()
+    .collection("users")
+    .where("email", "==", email)
+    .limit(1)
+    .get();
+
+  if (snap.empty) return { found: false };
+
+  const data = snap.docs[0].data();
+  if (data.role === "student" || data.isArchived === true) return { found: false };
+
+  return { found: true };
+});
+
 exports.createUser = onCall({
   cors: ["http://localhost:53996", "http://localhost:5000", /^http:\/\/localhost(:\d+)?$/, "https://levelup-26.web.app", "https://levelup-26.firebaseapp.com"],
   region: "us-central1",
@@ -57,6 +104,7 @@ exports.createUser = onCall({
   }
 
   let userRecord;
+  let authExists = false;
   try {
     userRecord = await admin.auth().createUser({
       email: email,
@@ -65,40 +113,69 @@ exports.createUser = onCall({
     });
   } catch (err) {
     if (err.code === "auth/email-already-exists") {
-      throw new HttpsError("already-exists", "That username or email is already taken.");
+      userRecord = await admin.auth().getUserByEmail(email);
+      authExists = true;
+    } else {
+      throw new HttpsError("internal", "Failed to create account: " + err.message);
     }
-    throw new HttpsError("internal", "Failed to create account: " + err.message);
   }
 
   const uid = userRecord.uid;
+
+  if (authExists) {
+    const existingDoc = await admin.firestore().collection("users").doc(uid).get();
+    if (existingDoc.exists) {
+      throw new HttpsError("already-exists", "That username or email is already taken.");
+    }
+  }
   const userDoc = {
     name: name,
+    displayName: name,
     role: role,
     userNumber: data.userNumber || null,
     isArchived: false,
     createdAt: admin.firestore.FieldValue.serverTimestamp(),
-    searchKeywords: name.toLowerCase().split(" ").concat([role]),
   };
 
-  const privateDoc = {};
+  // Build searchKeywords including new fields
+  const keywords = name.toLowerCase().split(" ").concat([role]);
+  if (data.gender) keywords.push(data.gender.toLowerCase());
+  if (data.location) {
+    keywords.push(data.location.toLowerCase());
+    const locMatch = JERUSALEM_LOCATIONS.find(
+      (l) => l.en.toLowerCase() === data.location.toLowerCase() || l.ar === data.location
+    );
+    if (locMatch) {
+      if (locMatch.en.toLowerCase() !== data.location.toLowerCase()) {
+        keywords.push(locMatch.en.toLowerCase());
+      }
+      if (locMatch.ar !== data.location) {
+        keywords.push(locMatch.ar.toLowerCase());
+      }
+    }
+  }
+  userDoc.searchKeywords = keywords;
 
   if (role === "student") {
     userDoc.username = data.username.toLowerCase();
     userDoc.levelId = data.levelId || null;
     userDoc.studentNumber = data.studentNumber || null;
     userDoc.createdBy = callerUid;
-
-    privateDoc.pinCode = data.pinCode;
+    userDoc.pinCode = data.pinCode;
+    userDoc.gender = data.gender || null;
+    userDoc.dateOfBirth = data.dateOfBirth ? new Date(data.dateOfBirth) : null;
+    userDoc.location = data.location || null;
   } else {
     userDoc.assignedLevels = data.assignedLevels || [];
-
-    privateDoc.email = email;
-    privateDoc.phoneNumber = data.phoneNumber || null;
-    privateDoc.address = data.address || null;
+    userDoc.email = email;
+    userDoc.phoneNumber = data.phoneNumber || null;
+    userDoc.gender = data.gender || null;
+    userDoc.dateOfBirth = data.dateOfBirth ? new Date(data.dateOfBirth) : null;
+    userDoc.location = data.location || null;
+    userDoc.idNumber = data.idNumber || null;
   }
 
   await admin.firestore().collection("users").doc(uid).set(userDoc);
-  await admin.firestore().collection("users_private").doc(uid).set(privateDoc);
 
   if (role === "instructor") {
     try {
@@ -179,25 +256,95 @@ exports.archiveUser = onCall({
     throw new HttpsError("permission-denied", "Instructors can only archive students.");
   }
 
-  await admin.auth().updateUser(uid, { disabled: true });
+  // Disable in Firebase Auth — wrapped in try/catch so Firestore update still runs
+  try {
+    await admin.auth().updateUser(uid, { disabled: true });
+  } catch (authErr) {
+    console.error('Failed to disable Auth user (non-fatal):', authErr.message);
+    // Continue — still mark as archived in Firestore
+  }
 
   await admin.firestore().collection("users").doc(uid).update({
     isArchived: true,
     archivedAt: admin.firestore.FieldValue.serverTimestamp(),
   });
 
+  // Instructor: remove from every group they belong to
   if (targetRole === "instructor") {
-    const groupsSnap = await admin.firestore()
-      .collection("groups")
-      .where("instructorIds", "arrayContains", uid)
-      .get();
-    const batch = admin.firestore().batch();
-    groupsSnap.docs.forEach((doc) => {
-      batch.update(doc.ref, {
-        instructorIds: admin.firestore.FieldValue.arrayRemove(uid)
-      });
-    });
-    await batch.commit();
+    try {
+      const groupsSnap = await admin.firestore()
+        .collection("groups")
+        .where("instructorIds", "arrayContains", uid)
+        .get();
+      if (!groupsSnap.empty) {
+        const batch = admin.firestore().batch();
+        groupsSnap.docs.forEach((doc) => {
+          batch.update(doc.ref, {
+            instructorIds: admin.firestore.FieldValue.arrayRemove(uid),
+          });
+        });
+        await batch.commit();
+      }
+    } catch (err) {
+      console.error("Failed to remove instructor from groups (non-fatal):", err.message);
+    }
+  }
+
+  // Student: remove from their group's embedded students array and clear groupId
+  if (targetRole === "student") {
+    try {
+      const groupId = targetDoc.exists ? targetDoc.data().groupId : null;
+      if (groupId) {
+        const groupDoc = await admin.firestore().collection("groups").doc(groupId).get();
+        if (groupDoc.exists) {
+          const students = groupDoc.data().students || [];
+          const studentEmbed = students.find((s) => s.id === uid);
+          const batch = admin.firestore().batch();
+          if (studentEmbed) {
+            batch.update(admin.firestore().collection("groups").doc(groupId), {
+              students: admin.firestore.FieldValue.arrayRemove(studentEmbed),
+            });
+          }
+          batch.update(admin.firestore().collection("users").doc(uid), {
+            groupId: admin.firestore.FieldValue.delete(),
+          });
+          await batch.commit();
+        }
+      }
+    } catch (err) {
+      console.error("Failed to remove student from group (non-fatal):", err.message);
+    }
+  }
+
+  try {
+    const callerName = callerDoc.exists
+      ? (callerDoc.data().displayName || callerDoc.data().name || "Unknown")
+      : "Unknown";
+    const callerNumber = callerDoc.exists
+      ? (callerDoc.data().userNumber?.toString() || "0")
+      : "0";
+    const targetName = targetDoc.exists ? (targetDoc.data().name || "") : "";
+    const logEntry = {
+      action: targetRole === "instructor" ? "Archived instructor" : "Archived student",
+      actionCategory: "users",
+      performedBy: request.auth.uid,
+      performerName: callerName,
+      performerRole: callerRole,
+      serialNumber: callerNumber,
+      targetPersonName: targetName,
+      time: admin.firestore.FieldValue.serverTimestamp(),
+      preciseTimestamp: admin.firestore.FieldValue.serverTimestamp(),
+    };
+    if (targetRole === "instructor") {
+      logEntry.details = targetDoc.exists ? (targetDoc.data().email || "") : "";
+    }
+    if (targetRole === "student") {
+      const sNum = targetDoc.exists ? (targetDoc.data().studentNumber || "") : "";
+      if (sNum) logEntry.targetStudentNumber = String(sNum);
+    }
+    await admin.firestore().collection("audit_logs").add(logEntry);
+  } catch (logErr) {
+    console.error("Failed to write archive audit log (non-fatal):", logErr.message);
   }
 
   return { success: true };
@@ -226,7 +373,11 @@ exports.restoreUser = onCall({
     throw new HttpsError("invalid-argument", "uid is required.");
   }
 
-  await admin.auth().updateUser(uid, { disabled: false });
+  try {
+    await admin.auth().updateUser(uid, { disabled: false });
+  } catch (authErr) {
+    console.error('Failed to re-enable Auth user (non-fatal):', authErr.message);
+  }
 
   await admin.firestore().collection("users").doc(uid).update({
     isArchived: false,
@@ -270,9 +421,9 @@ exports.resetStudentPin = onCall({ cors: true, region: "us-central1" }, async (r
 
   await admin.auth().updateUser(studentId, { password: newPin });
 
-  await admin.firestore().collection("users_private").doc(studentId).set({
+  await admin.firestore().collection("users").doc(studentId).update({
     pinCode: newPin,
-  }, { merge: true });
+  });
 
   return { success: true };
 });
@@ -308,16 +459,15 @@ exports.resendWelcomeEmail = onCall({ cors: true, region: "us-central1" }, async
 
   const name = instructorDoc.data().name;
 
-  const privateDoc = await admin.firestore()
-    .collection("users_private")
-    .doc(instructorId)
-    .get();
+  // Read the email from Firebase Auth (the canonical source), not Firestore,
+  // so a Firestore-only email edit never causes auth/user-not-found here.
+  const authUser = await admin.auth().getUser(instructorId);
+  const email = authUser.email;
 
-  if (!privateDoc.exists) {
-    throw new HttpsError("not-found", "Instructor private details not found.");
+  if (!email) {
+    throw new HttpsError("not-found", "Instructor email not found.");
   }
 
-  const email = privateDoc.data().email;
   const resetLink = await admin.auth().generatePasswordResetLink(email);
 
   const transporter = nodemailer.createTransport({
@@ -354,6 +504,38 @@ exports.resendWelcomeEmail = onCall({ cors: true, region: "us-central1" }, async
   return { success: true };
 });
 
+exports.updateInstructorEmail = onCall({
+  cors: ["http://localhost:53996", "http://localhost:5000", /^http:\/\/localhost(:\d+)?$/, "https://levelup-26.web.app", "https://levelup-26.firebaseapp.com"],
+  region: "us-central1",
+}, async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "You must be signed in.");
+  }
+
+  const callerDoc = await admin.firestore()
+    .collection("users")
+    .doc(request.auth.uid)
+    .get();
+  const callerRole = callerDoc.exists ? callerDoc.data().role : null;
+
+  if (callerRole !== "admin") {
+    throw new HttpsError("permission-denied", "Only admins can update instructor emails.");
+  }
+
+  const { instructorId, newEmail } = request.data;
+  if (!instructorId || !newEmail) {
+    throw new HttpsError("invalid-argument", "instructorId and newEmail are required.");
+  }
+
+  const email = newEmail.trim().toLowerCase();
+
+  // Update Firebase Auth — this is what keeps login working
+  await admin.auth().updateUser(instructorId, { email });
+
+  // Firestore email is updated by the client alongside the other profile fields
+  return { success: true };
+});
+
 exports.deleteUserPermanently = onCall({
   cors: ["http://localhost:53996", "http://localhost:5000", /^http:\/\/localhost(:\d+)?$/, "https://levelup-26.web.app", "https://levelup-26.firebaseapp.com"],
   region: "us-central1",
@@ -377,6 +559,10 @@ exports.deleteUserPermanently = onCall({
     throw new HttpsError("invalid-argument", "uid is required.");
   }
 
+  // Fetch target user data before deleting (needed for audit log)
+  const targetDoc = await admin.firestore().collection("users").doc(uid).get();
+  const targetData = targetDoc.exists ? targetDoc.data() : null;
+
   // Delete from Firebase Auth
   try {
     await admin.auth().deleteUser(uid);
@@ -388,7 +574,29 @@ exports.deleteUserPermanently = onCall({
 
   // Delete from Firestore
   await admin.firestore().collection("users").doc(uid).delete();
-  await admin.firestore().collection("users_private").doc(uid).delete();
+
+  try {
+    const callerName = callerDoc.exists
+      ? (callerDoc.data().displayName || callerDoc.data().name || "Unknown")
+      : "Unknown";
+    const callerNumber = callerDoc.exists
+      ? (callerDoc.data().userNumber?.toString() || "0")
+      : "0";
+    await admin.firestore().collection("audit_logs").add({
+      action: "Permanently deleted user",
+      actionCategory: "users",
+      performedBy: request.auth.uid,
+      performerName: callerName,
+      performerRole: callerRole,
+      serialNumber: callerNumber,
+      targetPersonName: targetData?.name || "",
+      details: targetData?.role || "",
+      time: admin.firestore.FieldValue.serverTimestamp(),
+      preciseTimestamp: admin.firestore.FieldValue.serverTimestamp(),
+    });
+  } catch (logErr) {
+    console.error("Failed to write delete audit log (non-fatal):", logErr.message);
+  }
 
   return { success: true };
 });

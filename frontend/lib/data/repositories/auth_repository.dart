@@ -4,6 +4,7 @@ library;
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/foundation.dart';
 
 class AuthRepository {
@@ -65,15 +66,19 @@ class AuthRepository {
       return null;
     }
   }
-  /// Returns true if the email was found and a reset link was sent.
-  /// Returns false if no admin/instructor account exists with that email.
+  /// Returns true if the email belongs to an admin/instructor in our system
+  /// and a reset link was sent. Returns false otherwise.
   Future<bool> sendPasswordResetEmail(String email) async {
     try {
-      final searchEmail = email.trim();
+      final searchEmail = email.trim().toLowerCase();
       if (searchEmail.isEmpty) return false;
 
-      // Directly send password reset email via Firebase Auth.
-      // This avoids any Firestore document dependency, casing mismatches, or composite index issues.
+      // Verify the email belongs to an admin/instructor in our Firestore users collection.
+      final result = await FirebaseFunctions.instanceFor(region: 'us-central1')
+          .httpsCallable('checkEmailInSystem')
+          .call({'email': searchEmail});
+      if (result.data['found'] != true) return false;
+
       await _auth.sendPasswordResetEmail(email: searchEmail);
       return true;
     } on FirebaseAuthException catch (e) {

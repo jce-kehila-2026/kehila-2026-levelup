@@ -5,6 +5,7 @@ library;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import '../models/user_model.dart';
+import '../../utils/jerusalem_locations.dart';
 
 class UserRepository {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
@@ -35,13 +36,7 @@ class UserRepository {
         .where('role', isEqualTo: 'instructor')
         .where('isArchived', isEqualTo: false)
         .get();
-    final list = await Future.wait(snap.docs.map((d) async {
-      final privateDoc = await _db.collection('users_private').doc(d.id).get();
-      final privateData = privateDoc.data() ?? {};
-      final merged = Map<String, dynamic>.from(d.data())..addAll(privateData);
-      return UserModel.fromMap(merged, d.id);
-    }));
-    return list;
+    return snap.docs.map((d) => UserModel.fromMap(d.data(), d.id)).toList();
   }
 
   Future<List<UserModel>> getStudents() async {
@@ -49,22 +44,13 @@ class UserRepository {
         .where('role', isEqualTo: 'student')
         .where('isArchived', isEqualTo: false)
         .get();
-    final list = await Future.wait(snap.docs.map((d) async {
-      final privateDoc = await _db.collection('users_private').doc(d.id).get();
-      final privateData = privateDoc.data() ?? {};
-      final merged = Map<String, dynamic>.from(d.data())..addAll(privateData);
-      return UserModel.fromMap(merged, d.id);
-    }));
-    return list;
+    return snap.docs.map((d) => UserModel.fromMap(d.data(), d.id)).toList();
   }
 
   Future<UserModel?> getStudentById(String id) async {
     final doc = await _users.doc(id).get();
     if (!doc.exists || doc.data() == null) return null;
-    final privateDoc = await _db.collection('users_private').doc(id).get();
-    final privateData = privateDoc.data() ?? {};
-    final merged = Map<String, dynamic>.from(doc.data()!)..addAll(privateData);
-    return UserModel.fromMap(merged, doc.id);
+    return UserModel.fromMap(doc.data()!, doc.id);
   }
 
   Future<int> getStudentCountByLevel(String levelId) async {
@@ -81,13 +67,7 @@ class UserRepository {
     final snap = await _users
         .where('isArchived', isEqualTo: true)
         .get();
-    final list = await Future.wait(snap.docs.map((d) async {
-      final privateDoc = await _db.collection('users_private').doc(d.id).get();
-      final privateData = privateDoc.data() ?? {};
-      final merged = Map<String, dynamic>.from(d.data())..addAll(privateData);
-      return UserModel.fromMap(merged, d.id);
-    }));
-    return list;
+    return snap.docs.map((d) => UserModel.fromMap(d.data(), d.id)).toList();
   }
 
   // ─────────────────────────────────────────────
@@ -102,13 +82,7 @@ class UserRepository {
         .where('isArchived', isEqualTo: false);
     if (role != null) q = q.where('role', isEqualTo: role);
     final snap = await q.limit(20).get();
-    final list = await Future.wait(snap.docs.map((d) async {
-      final privateDoc = await _db.collection('users_private').doc(d.id).get();
-      final privateData = privateDoc.data() ?? {};
-      final merged = Map<String, dynamic>.from(d.data())..addAll(privateData);
-      return UserModel.fromMap(merged, d.id);
-    }));
-    return list;
+    return snap.docs.map((d) => UserModel.fromMap(d.data(), d.id)).toList();
   }
 
   // ─────────────────────────────────────────────
@@ -122,9 +96,12 @@ class UserRepository {
     String name,
     String email,
     String? phoneNumber,
-    String? address,
     List<String> assignedLevels, {
     String? username,
+    String? gender,
+    DateTime? dateOfBirth,
+    String? location,
+    String? idNumber,
   }) async {
     final userNumber = await _getNextInstructorNumber();
     final callable = _functions.httpsCallable('createUser');
@@ -133,9 +110,12 @@ class UserRepository {
       'name': name,
       'email': email.trim().toLowerCase(),
       'phoneNumber': phoneNumber,
-      'address': address,
       'assignedLevels': assignedLevels,
       'userNumber': userNumber,
+      'gender': gender,
+      'dateOfBirth': dateOfBirth?.toIso8601String(),
+      'location': location,
+      'idNumber': idNumber,
     });
   }
 
@@ -148,6 +128,9 @@ class UserRepository {
     required String username,
     required String pinCode,
     required String levelId,
+    String? gender,
+    DateTime? dateOfBirth,
+    String? location,
   }) async {
     final userNumber = await _getNextStudentNumber();
     final callable = _functions.httpsCallable('createUser');
@@ -159,6 +142,9 @@ class UserRepository {
       'levelId': levelId,
       'userNumber': userNumber,
       'studentNumber': '#$userNumber',
+      'gender': gender,
+      'dateOfBirth': dateOfBirth?.toIso8601String(),
+      'location': location,
     });
     final uid = result.data['uid'] as String;
     return (uid: uid, userNumber: userNumber);
@@ -172,18 +158,50 @@ class UserRepository {
     String instructorId,
     String name,
     String email,
-    String? phoneNumber,
-    String? address,
-  ) async {
+    String? phoneNumber, {
+    String? gender,
+    DateTime? dateOfBirth,
+    String? location,
+    String? idNumber,
+  }) async {
+    final newEmail = email.trim().toLowerCase();
+
+    // If the email is changing we must update Firebase Auth as well as Firestore,
+    // because Auth is the source of truth for login credentials.
+    final currentDoc = await _users.doc(instructorId).get();
+    final currentData = currentDoc.data() ?? {};
+    final currentEmail = (currentData['email'] as String?)?.toLowerCase();
+    if (currentEmail != null && currentEmail != newEmail) {
+      final callable = _functions.httpsCallable('updateInstructorEmail');
+      await callable.call({'instructorId': instructorId, 'newEmail': newEmail});
+    }
+
+    // Preserve idNumber from Firestore if the caller didn't explicitly provide one
+    // (the edit-profile dialog has no idNumber field).
+    final effectiveIdNumber = idNumber ?? (currentData['idNumber'] as String?);
+
+    final extra = <String>['instructor'];
+    if (location != null && location.isNotEmpty) {
+      extra.add(location.toLowerCase());
+      final match = kJerusalemLocations.firstWhere(
+        (l) => l.en.toLowerCase() == location.toLowerCase() || l.ar == location,
+        orElse: () => JerusalemLocation(en: location, ar: location),
+      );
+      extra.add(match.en.toLowerCase());
+      extra.add(match.ar.toLowerCase());
+    }
+    if (gender != null && gender.isNotEmpty) extra.add(gender.toLowerCase());
     await _users.doc(instructorId).update({
       'name': name,
-      'searchKeywords': _buildKeywords(name, extra: ['instructor']),
-    });
-    await _db.collection('users_private').doc(instructorId).set({
-      'email': email.trim().toLowerCase(),
+      'displayName': name,
+      'email': newEmail,
       'phoneNumber': phoneNumber,
-      'address': address,
-    }, SetOptions(merge: true));
+      'gender': gender,
+      'dateOfBirth': dateOfBirth?.toIso8601String(),
+      'location': location,
+      'idNumber': effectiveIdNumber,
+      'searchKeywords': _buildKeywords(name, extra: extra),
+    });
   }
 
   Future<void> updateInstructorLevels(
@@ -202,16 +220,12 @@ class UserRepository {
     String? pinCode,
     String? levelId,
   }) async {
-    final publicUpdates = <String, dynamic>{};
-    final privateUpdates = <String, dynamic>{};
-    if (levelId != null) publicUpdates['levelId'] = levelId;
-    if (pinCode != null) privateUpdates['pinCode'] = pinCode;
+    final updates = <String, dynamic>{};
+    if (levelId != null) updates['levelId'] = levelId;
+    if (pinCode != null) updates['pinCode'] = pinCode;
     
-    if (publicUpdates.isNotEmpty) {
-      await _users.doc(studentId).update(publicUpdates);
-    }
-    if (privateUpdates.isNotEmpty) {
-      await _db.collection('users_private').doc(studentId).set(privateUpdates, SetOptions(merge: true));
+    if (updates.isNotEmpty) {
+      await _users.doc(studentId).update(updates);
     }
   }
 
@@ -268,7 +282,7 @@ class UserRepository {
   }
 
   Future<bool> emailExists(String email) async {
-    final snap = await _db.collection('users_private')
+    final snap = await _db.collection('users')
         .where('email', isEqualTo: email.trim().toLowerCase())
         .limit(1)
         .get();

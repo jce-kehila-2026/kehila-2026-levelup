@@ -4,9 +4,9 @@ import 'package:frontend/l10n/app_localizations.dart';
 import 'package:go_router/go_router.dart';
 import '../../../theme/app_theme.dart';
 import '../../widgets/locale_toggle_button.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import '../../../di/service_locator.dart';
-import '../../../logic/controllers/auth_controller.dart';
+import '../../../logic/helpers/logout_helper.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../../logic/controllers/instructor_group_controller.dart';
 import '../../../logic/controllers/curriculum_controller.dart';
 import '../../../logic/controllers/instructor_assignment_controller.dart';
@@ -114,17 +114,10 @@ class _InstructorLayoutState extends State<InstructorLayout> {
         .get();
     if (!doc.exists || !mounted) return;
 
-    final privateDoc = await FirebaseFirestore.instance
-        .collection('users_private')
-        .doc(firebaseUser.uid)
-        .get();
-    final privateData = privateDoc.data() ?? {};
-
     final data = doc.data()!;
-    final name = (data['name'] as String?) ?? '';
-    final email = (privateData['email'] as String?) ?? firebaseUser.email ?? '';
-    final phoneCtrl = TextEditingController(text: (privateData['phoneNumber'] as String?) ?? '');
-    final addressCtrl = TextEditingController(text: (privateData['address'] as String?) ?? '');
+    final name = (data['displayName'] as String?) ?? (data['name'] as String?) ?? '';
+    final email = (data['email'] as String?) ?? firebaseUser.email ?? '';
+    final phoneCtrl = TextEditingController(text: (data['phoneNumber'] as String?) ?? '');
 
     String? phoneError;
 
@@ -184,15 +177,6 @@ class _InstructorLayoutState extends State<InstructorLayout> {
                       });
                     },
                   ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: addressCtrl,
-                    decoration: InputDecoration(
-                      labelText: AppLocalizations.of(context)!.homeAddressLabel,
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    ),
-                  ),
                   const SizedBox(height: 20),
                   SizedBox(
                     width: double.infinity,
@@ -219,7 +203,6 @@ class _InstructorLayoutState extends State<InstructorLayout> {
                             name,
                             email,
                             phoneVal.isNotEmpty ? phoneVal : null,
-                            addressCtrl.text.trim().isNotEmpty ? addressCtrl.text.trim() : null,
                           );
                           nav.pop();
                           if (mounted) {
@@ -250,7 +233,6 @@ class _InstructorLayoutState extends State<InstructorLayout> {
       },
     ).then((_) {
       phoneCtrl.dispose();
-      addressCtrl.dispose();
     });
   }
 
@@ -352,8 +334,7 @@ class _InstructorLayoutState extends State<InstructorLayout> {
           _buildIconButton(
             icon: Icons.logout,
             onPressed: () async {
-              getIt<AuthController>().reset();
-              await FirebaseAuth.instance.signOut();
+              await performLogout();
               if (context.mounted) context.go('/login');
             },
           ),

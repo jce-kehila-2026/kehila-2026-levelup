@@ -12,7 +12,6 @@ class UserModel {
   final String displayName;
   final String? email;
   final String? phoneNumber;
-  final String? address;
   final UserRole role;
   final List<String> assignedLevels;
   final List<String> searchKeywords;
@@ -25,6 +24,10 @@ class UserModel {
   final DateTime? createdAt;
   final String? groupId;
   final String? createdBy;
+  final String? gender;        // 'male' or 'female'
+  final DateTime? dateOfBirth;
+  final String? location;      // city/neighborhood name
+  final String? idNumber;      // instructors only, 9 digits
 
   UserModel({
     required this.id,
@@ -34,7 +37,6 @@ class UserModel {
     String? displayName,
     this.email,
     this.phoneNumber,
-    this.address,
     required this.role,
     this.assignedLevels = const [],
     this.searchKeywords = const [],
@@ -47,6 +49,10 @@ class UserModel {
     this.createdAt,
     this.groupId,
     this.createdBy,
+    this.gender,
+    this.dateOfBirth,
+    this.location,
+    this.idNumber,
   }) : _userNumberStr = userNumberStr ?? userNumber?.toString() ?? '0',
        displayName = displayName ?? name ?? '';
 
@@ -81,7 +87,6 @@ class UserModel {
       displayName: map['displayName'] ?? map['name'] ?? '',
       email: map['email'],
       phoneNumber: map['phoneNumber'],
-      address: map['address'],
       role: parsedRole,
       assignedLevels: List<String>.from(map['assignedLevels'] ?? []),
       searchKeywords: List<String>.from(map['searchKeywords'] ?? []),
@@ -94,6 +99,10 @@ class UserModel {
       createdAt: _parseTimestamp(map['createdAt']),
       groupId: map['groupId'] as String?,
       createdBy: map['createdBy'] as String?,
+      gender: map['gender'] as String?,
+      dateOfBirth: _parseTimestamp(map['dateOfBirth']),
+      location: map['location'] as String?,
+      idNumber: map['idNumber'] as String?,
     );
   }
 
@@ -101,7 +110,6 @@ class UserModel {
     return {
       'role': role.name,
       'phoneNumber': phoneNumber,
-      'address': address,
       'userNumber': _userNumberStr,
       'email': email,
       'displayName': displayName,
@@ -116,6 +124,10 @@ class UserModel {
       'createdAt': createdAt?.toIso8601String(),
       'groupId': groupId,
       'createdBy': createdBy,
+      'gender': gender,
+      'dateOfBirth': dateOfBirth?.toIso8601String(),
+      'location': location,
+      'idNumber': idNumber,
     };
   }
 }

@@ -143,10 +143,12 @@ class _InstructorAssignmentsScreenState extends State<InstructorAssignmentsScree
           const SizedBox(width: 8),
           Text(AppLocalizations.of(context)!.adminTemplates, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
         ]),
-        content: SizedBox(
-          width: double.maxFinite,
-          height: 300,
-          child: templateItems.isEmpty
+        content: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 500),
+          child: SizedBox(
+            width: double.maxFinite,
+            height: 300,
+            child: templateItems.isEmpty
             ? Center(child: Text(AppLocalizations.of(context)!.noTemplatesAvailable, style: const TextStyle(color: AppColors.mutedForeground)))
             : ListView.builder(
                 itemCount: templateItems.length,
@@ -173,6 +175,7 @@ class _InstructorAssignmentsScreenState extends State<InstructorAssignmentsScree
                   );
                 },
               ),
+          ),
         ),
         actions: [
           TextButton(
@@ -199,12 +202,15 @@ class _InstructorAssignmentsScreenState extends State<InstructorAssignmentsScree
             AppLocalizations.of(context)!.assignTemplateTitle(templateTitle),
             style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
           ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              DropdownButtonFormField<GroupModel>(
-                decoration: InputDecoration(
-                  labelText: AppLocalizations.of(context)!.selectGroupStep,
+          content: SingleChildScrollView(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 500),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  DropdownButtonFormField<GroupModel>(
+                    decoration: InputDecoration(
+                      labelText: AppLocalizations.of(context)!.selectGroupStep,
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                   contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 ),
@@ -277,7 +283,9 @@ class _InstructorAssignmentsScreenState extends State<InstructorAssignmentsScree
                   ]),
                 ),
               ),
-            ],
+              ],
+            ),
+          ),
           ),
           actions: [
             TextButton(
@@ -491,7 +499,12 @@ class _InstructorAssignmentsScreenState extends State<InstructorAssignmentsScree
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text(l10n.deleteAssignment, style: const TextStyle(fontWeight: FontWeight.bold)),
-        content: Text(l10n.deleteAssignmentConfirm),
+        content: SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 500),
+            child: Text(l10n.deleteAssignmentConfirm),
+          ),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),

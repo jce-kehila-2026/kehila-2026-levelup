@@ -86,11 +86,14 @@ class _GroupsScreenState extends State<GroupsScreen> with SingleTickerProviderSt
                 );
               }
               final levels = snapshot.data ?? [];
-              return Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('Create a new group', style: TextStyle(fontSize: 13, color: AppColors.mutedForeground)),
+              return SingleChildScrollView(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 500),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Create a new group', style: TextStyle(fontSize: 13, color: AppColors.mutedForeground)),
                   const SizedBox(height: 16),
                   TextField(
                     controller: nameController,
@@ -134,7 +137,9 @@ class _GroupsScreenState extends State<GroupsScreen> with SingleTickerProviderSt
                       );
                     }).toList(),
                   ),
-                ],
+                    ],
+                  ),
+                ),
               );
             },
           ),
@@ -201,56 +206,61 @@ class _GroupsScreenState extends State<GroupsScreen> with SingleTickerProviderSt
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Text('Delete ${group.name}?',
             style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.text)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Are you sure you want to delete this group?\nInstructors count: ${group.instructorIds.length}',
-                style: const TextStyle(fontSize: 14, color: AppColors.mutedForeground)),
-            const SizedBox(height: 12),
-            if (group.students.isNotEmpty) ...[
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppColors.error.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: AppColors.error.withValues(alpha: 0.3)),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.warning_amber_rounded, color: AppColors.error, size: 22),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Warning: This group has ${group.students.length} student(s). They will be unassigned from this group.',
-                        style: const TextStyle(color: AppColors.error, fontSize: 13, fontWeight: FontWeight.bold),
-                      ),
+        content: SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 500),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Are you sure you want to delete this group?\nInstructors count: ${group.instructorIds.length}',
+                    style: const TextStyle(fontSize: 14, color: AppColors.mutedForeground)),
+                const SizedBox(height: 12),
+                if (group.students.isNotEmpty) ...[
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppColors.error.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: AppColors.error.withValues(alpha: 0.3)),
                     ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 12),
-            ],
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.07),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.archive_outlined, size: 16, color: AppColors.primary),
-                  const SizedBox(width: 8),
-                  const Expanded(
-                    child: Text(
-                      'The group will be moved to the Archive tab and can be restored.',
-                      style: TextStyle(fontSize: 12, color: AppColors.primary),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.warning_amber_rounded, color: AppColors.error, size: 22),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Warning: This group has ${group.students.length} student(s). They will be unassigned from this group.',
+                            style: const TextStyle(color: AppColors.error, fontSize: 13, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
+                  const SizedBox(height: 12),
                 ],
-              ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.07),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.archive_outlined, size: 16, color: AppColors.primary),
+                      const SizedBox(width: 8),
+                      const Expanded(
+                        child: Text(
+                          'The group will be moved to the Archive tab and can be restored.',
+                          style: TextStyle(fontSize: 12, color: AppColors.primary),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
         actions: [
           TextButton(
@@ -712,12 +722,17 @@ class _GroupsScreenState extends State<GroupsScreen> with SingleTickerProviderSt
         backgroundColor: AppColors.background,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Text('Rename Group', style: TextStyle(fontWeight: FontWeight.bold)),
-        content: TextField(
-          controller: nameController,
-          autofocus: true,
-          decoration: const InputDecoration(
-            labelText: 'New Group Name',
-            border: OutlineInputBorder(),
+        content: SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 500),
+            child: TextField(
+              controller: nameController,
+              autofocus: true,
+              decoration: const InputDecoration(
+                labelText: 'New Group Name',
+                border: OutlineInputBorder(),
+              ),
+            ),
           ),
         ),
         actions: [
@@ -832,11 +847,13 @@ class _GroupsScreenState extends State<GroupsScreen> with SingleTickerProviderSt
         backgroundColor: AppColors.background,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text('Assign ${student.name} to Group', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: matchingGroups.isEmpty
-              ? Text('No active groups found for level: $studentLevelId')
-              : ListView.builder(
+        content: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 500),
+          child: SizedBox(
+            width: double.maxFinite,
+            child: matchingGroups.isEmpty
+                ? Text('No active groups found for level: $studentLevelId')
+                : ListView.builder(
                   shrinkWrap: true,
                   itemCount: matchingGroups.length,
                   itemBuilder: (context, index) {
@@ -871,6 +888,7 @@ class _GroupsScreenState extends State<GroupsScreen> with SingleTickerProviderSt
                     );
                   },
                 ),
+          ),
         ),
         actions: [
           TextButton(

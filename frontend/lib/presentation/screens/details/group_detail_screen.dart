@@ -13,11 +13,14 @@ import 'package:intl/intl.dart';
 import '../../../theme/app_theme.dart';
 import '../../widgets/empty_state.dart';
 import '../../../data/models/curriculum_model.dart';
+import '../../../data/repositories/curriculum_repository.dart';
 import '../../../data/models/group_model.dart';
 import '../../../data/models/user_model.dart';
 import '../../../logic/controllers/group_detail_controller.dart';
 import '../../../di/service_locator.dart';
 import 'package:frontend/l10n/app_localizations.dart';
+import '../../widgets/location_picker.dart';
+import '../../../utils/jerusalem_locations.dart';
 
 class GroupDetailScreen extends StatefulWidget {
   final String id;
@@ -64,13 +67,19 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.background,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        insetPadding: EdgeInsets.fromLTRB(24, 24, 24, MediaQuery.of(ctx).viewInsets.bottom + 24),
         title: const Text('Rename Group', style: TextStyle(fontWeight: FontWeight.bold)),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          decoration: const InputDecoration(
-            labelText: 'Group Name',
-            border: OutlineInputBorder(),
+        content: SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 500),
+            child: TextField(
+              controller: controller,
+              autofocus: true,
+              decoration: const InputDecoration(
+                labelText: 'Group Name',
+                border: OutlineInputBorder(),
+              ),
+            ),
           ),
         ),
         actions: [
@@ -112,55 +121,69 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
     showDialog(
       context: context,
       builder: (ctx) {
-        final availableLevels = _controller.levels
-            .where((l) => !_controller.group.levelIds.contains(l.id))
-            .toList();
+        return FutureBuilder<List<LevelModel>>(
+          future: getIt<CurriculumRepository>().getLevels(),
+          builder: (_, snap) {
+            if (snap.connectionState != ConnectionState.done) {
+              return const AlertDialog(
+                backgroundColor: AppColors.background,
+                content: SizedBox(height: 80, child: Center(child: CircularProgressIndicator())),
+              );
+            }
+            final availableLevels = (snap.data ?? [])
+                .where((l) => !_controller.group.levelIds.contains(l.id))
+                .toList();
 
-        return AlertDialog(
-          backgroundColor: AppColors.background,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Text('Add Level to Group', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-          content: SizedBox(
-            width: double.maxFinite,
-            child: availableLevels.isEmpty
-                ? const Text('All available levels are already added to this group.', style: TextStyle(color: AppColors.mutedForeground))
-                : ListView.builder(
-                    shrinkWrap: true,
-                    itemCount: availableLevels.length,
-                    itemBuilder: (context, index) {
-                      final lvl = availableLevels[index];
-                      return ListTile(
-                        title: Text(lvl.name, style: const TextStyle(fontWeight: FontWeight.w600)),
-                        trailing: ElevatedButton(
-                          onPressed: () async {
-                            Navigator.pop(ctx);
-                            try {
-                              await _controller.addLevelToGroup(lvl.id);
-                              if (mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text('Level "${lvl.name}" added to group.')),
-                                );
-                              }
-                            } catch (e) {
-                              if (mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text('Failed: $e'), backgroundColor: AppColors.error),
-                                );
-                              }
-                            }
-                          },
-                          child: const Text('Add'),
-                        ),
-                      );
-                    },
-                  ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel', style: TextStyle(color: AppColors.mutedForeground)),
-            ),
-          ],
+            return AlertDialog(
+              backgroundColor: AppColors.background,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              title: const Text('Add Level to Group', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+              content: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 500),
+                child: SizedBox(
+                  width: double.maxFinite,
+                  child: availableLevels.isEmpty
+                      ? const Text('All available levels are already added to this group.', style: TextStyle(color: AppColors.mutedForeground))
+                      : ListView.builder(
+                          shrinkWrap: true,
+                          itemCount: availableLevels.length,
+                          itemBuilder: (context, index) {
+                          final lvl = availableLevels[index];
+                          return ListTile(
+                            title: Text(lvl.name, style: const TextStyle(fontWeight: FontWeight.w600)),
+                            trailing: ElevatedButton(
+                              onPressed: () async {
+                                Navigator.pop(ctx);
+                                try {
+                                  await _controller.addLevelToGroup(lvl.id);
+                                  if (mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(content: Text('Level "${lvl.name}" added to group.')),
+                                    );
+                                  }
+                                } catch (e) {
+                                  if (mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(content: Text('Failed: $e'), backgroundColor: AppColors.error),
+                                    );
+                                  }
+                                }
+                              },
+                              child: const Text('Add'),
+                            ),
+                          );
+                        },
+                      ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Cancel', style: TextStyle(color: AppColors.mutedForeground)),
+                ),
+              ],
+            );
+          },
         );
       },
     );
@@ -176,10 +199,12 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
         backgroundColor: AppColors.background,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text('Transfer ${student.name}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-        content: SizedBox(
-          width: double.maxFinite,
-          height: 300,
-          child: FutureBuilder<List<GroupModel>>(
+        content: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 500),
+          child: SizedBox(
+            width: double.maxFinite,
+            height: 300,
+            child: FutureBuilder<List<GroupModel>>(
             future: _controller.getTransferTargetGroups(studentLevelId),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
@@ -223,14 +248,15 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
             },
           ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel', style: TextStyle(color: AppColors.mutedForeground)),
-          ),
-        ],
       ),
-    );
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(ctx),
+          child: const Text('Cancel', style: TextStyle(color: AppColors.mutedForeground)),
+        ),
+      ],
+    ),
+  );
   }
 
   void _showAddInstructorDialog() {
@@ -246,10 +272,12 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
               backgroundColor: AppColors.background,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
               title: Text(AppLocalizations.of(context)!.addInstructor, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-              content: SizedBox(
-                width: double.maxFinite,
-                height: 400,
-                child: Column(
+              content: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 500),
+                child: SizedBox(
+                  width: double.maxFinite,
+                  height: 400,
+                  child: Column(
                   children: [
                     _buildDialogSearchBar(
                       onChanged: _controller.setAvailableInstructorsSearch,
@@ -281,6 +309,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                             ),
                     ),
                   ],
+                  ),
                 ),
               ),
               actions: [
@@ -318,10 +347,12 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
               backgroundColor: AppColors.background,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
               title: Text(l10n.addStudent, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-              content: SizedBox(
-                width: double.maxFinite,
-                height: 460,
-                child: Column(
+              content: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 500),
+                child: SizedBox(
+                  width: double.maxFinite,
+                  height: 460,
+                  child: Column(
                   children: [
                     // Create New Student card
                     GestureDetector(
@@ -418,6 +449,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                             ),
                     ),
                   ],
+                  ),
                 ),
               ),
               actions: [
@@ -439,10 +471,15 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                             backgroundColor: AppColors.background,
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                             title: const Text('Confirm Transfer', style: TextStyle(fontWeight: FontWeight.bold)),
-                            content: Text(
-                              'The following student(s) are already in other groups:\n'
-                              '${preAssignedStudents.map((s) => '• ${s.name} (in ${_controller.getGroupName(s.groupId) ?? "Unknown"})').join('\n')}\n\n'
-                              'Adding them to this group will automatically transfer them. Proceed?'
+                            content: SingleChildScrollView(
+                              child: ConstrainedBox(
+                                constraints: const BoxConstraints(maxWidth: 500),
+                                child: Text(
+                                  'The following student(s) are already in other groups:\n'
+                                  '${preAssignedStudents.map((s) => '• ${s.name} (in ${_controller.getGroupName(s.groupId) ?? "Unknown"})').join('\n')}\n\n'
+                                  'Adding them to this group will automatically transfer them. Proceed?'
+                                ),
+                              ),
                             ),
                             actions: [
                               TextButton(
@@ -493,6 +530,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
 
   void _showCreateStudentDialog() {
     final rows = [_CreateStudentRow()];
+    final batchUsernames = <String>{};
     String selectedLevel = _controller.levels.isNotEmpty ? _controller.levels.first.id : '';
     bool isCreating = false;
 
@@ -529,41 +567,42 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
           return AlertDialog(
             backgroundColor: AppColors.background,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            insetPadding: EdgeInsets.fromLTRB(24, 24, 24, MediaQuery.of(context).viewInsets.bottom + 24),
             title: Row(children: [
               Icon(Icons.group_add, color: AppColors.primary, size: 22),
               const SizedBox(width: 10),
               Text(l10n.bulkCreateTitle, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
             ]),
-            content: SizedBox(
-              width: double.maxFinite,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+            content: SingleChildScrollView(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 500),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
                   Text(
                     l10n.assignToLevel,
                     style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.mutedForeground),
                   ),
                   const SizedBox(height: 8),
-                  Row(
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
                     children: _controller.levels.map((l) {
                       final sel = selectedLevel == l.id;
-                      return Padding(
-                        padding: const EdgeInsetsDirectional.only(end: 8),
-                        child: GestureDetector(
-                          onTap: isCreating ? null : () => setDialogState(() => selectedLevel = l.id),
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 120),
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                            decoration: BoxDecoration(
-                              color: sel ? AppColors.primary : AppColors.white,
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(color: sel ? AppColors.primary : AppColors.border),
-                            ),
-                            child: Text(
-                              l.name,
-                              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: sel ? Colors.white : AppColors.mutedForeground),
-                            ),
+                      return GestureDetector(
+                        onTap: isCreating ? null : () => setDialogState(() => selectedLevel = l.id),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 120),
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: sel ? AppColors.primary : AppColors.white,
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: sel ? AppColors.primary : AppColors.border),
+                          ),
+                          child: Text(
+                            l.name,
+                            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: sel ? Colors.white : AppColors.mutedForeground),
                           ),
                         ),
                       );
@@ -582,7 +621,9 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                             row: row,
                             canRemove: rows.length > 1,
                             enabled: !isCreating,
+                            batchUsernames: batchUsernames,
                             onRemove: () => setDialogState(() {
+                              batchUsernames.remove(row.usernameCtrl.text);
                               row.dispose();
                               rows.removeAt(i);
                             }),
@@ -609,11 +650,13 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                 ],
               ),
             ),
-            actions: [
-              TextButton(
-                onPressed: isCreating ? null : () {
-                  for (final row in rows) { row.dispose(); }
-                  Navigator.pop(ctx);
+          ),
+          actions: [
+            TextButton(
+              onPressed: isCreating ? null : () {
+                for (final row in rows) { row.dispose(); }
+                batchUsernames.clear();
+                Navigator.pop(ctx);
                 },
                 child: Text(l10n.cancelButton, style: TextStyle(color: AppColors.mutedForeground)),
               ),
@@ -644,11 +687,15 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                         row.nameCtrl.text.trim(),
                         selectedLevel,
                         username: row.usernameCtrl.text.trim(),
-                        pinCode: row.pin, // use the PIN shown in the form
+                        pinCode: row.pin,
+                        gender: row.gender,
+                        dateOfBirth: row.dateOfBirth,
+                        location: row.location?.en,
                       );
                       createdUsers.add(user);
                     }
                     for (final row in rows) { row.dispose(); }
+                    batchUsernames.clear();
                     if (ctx.mounted) Navigator.pop(ctx);
                     if (mounted && createdUsers.isNotEmpty) {
                       _showCredentialsDialog(createdUsers);
@@ -688,6 +735,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
     required _CreateStudentRow row,
     required bool canRemove,
     required bool enabled,
+    required Set<String> batchUsernames,
     required VoidCallback onRemove,
     required VoidCallback onChange,
   }) {
@@ -710,7 +758,17 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                 child: TextField(
                   controller: row.nameCtrl,
                   enabled: enabled,
-                  onChanged: (_) => onChange(),
+                  onChanged: (val) async {
+                    onChange();
+                    final parts = val.trim().toLowerCase().split(' ');
+                    final first = parts.first.replaceAll(RegExp(r'[^a-z]'), '');
+                    if (first.isEmpty) return;
+                    batchUsernames.remove(row.usernameCtrl.text);
+                    final resolved = await _resolveUniqueUsername(val, batchUsernames);
+                    batchUsernames.add(resolved);
+                    row.usernameCtrl.text = resolved;
+                    onChange();
+                  },
                   decoration: InputDecoration(
                     labelText: l10n.fullNameLabel,
                     isDense: true,
@@ -744,6 +802,60 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                 ),
               ],
             ],
+          ),
+          const SizedBox(height: 8),
+          // Gender Selector
+          const Text('Gender', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
+          const SizedBox(height: 6),
+          _buildGenderSelector(
+            selectedGender: row.gender,
+            onChanged: (val) {
+              row.gender = val;
+              onChange();
+            },
+          ),
+          const SizedBox(height: 8),
+          // Date of Birth Field
+          _buildDateOfBirthField(
+            selectedDob: row.dateOfBirth,
+            onTap: () async {
+              final picked = await showDialog<DateTime>(
+                context: context,
+                builder: (BuildContext context) {
+                  return AlertDialog(
+                    title: const Text('Select Year of Birth'),
+                    content: SizedBox(
+                      width: 300,
+                      height: 300,
+                      child: YearPicker(
+                        firstDate: DateTime(1940),
+                        lastDate: DateTime.now(),
+                        selectedDate: row.dateOfBirth ?? DateTime(2000),
+                        onChanged: (DateTime dateTime) {
+                          Navigator.pop(context, dateTime);
+                        },
+                      ),
+                    ),
+                  );
+                },
+              );
+              if (picked != null) {
+                row.dateOfBirth = DateTime(picked.year, 1, 1);
+                onChange();
+              }
+            },
+          ),
+          const SizedBox(height: 8),
+          // Location Field
+          _buildLocationField(
+            selectedLocation: row.location,
+            onTap: () async {
+              final loc = await showLocationPicker(context);
+              if (loc != null) {
+                row.location = loc;
+                onChange();
+              }
+            },
           ),
           const SizedBox(height: 8),
           // Username
@@ -844,14 +956,16 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
               ),
             ],
           ),
-          content: SizedBox(
-            width: double.maxFinite,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Important: Save the PIN below. For security reasons, it will not be shown again.',
+          content: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 500),
+            child: SizedBox(
+              width: double.maxFinite,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Important: Save the PIN below. For security reasons, it will not be shown again.',
                   style: TextStyle(fontSize: 13, color: AppColors.mutedForeground, fontWeight: FontWeight.w500),
                 ),
                 const SizedBox(height: 16),
@@ -917,7 +1031,8 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                     },
                   ),
                 ),
-              ],
+                ],
+              ),
             ),
           ),
           actions: [
@@ -947,7 +1062,12 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
         backgroundColor: AppColors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text(l10n.resetPinConfirm, style: const TextStyle(fontWeight: FontWeight.bold)),
-        content: Text(l10n.resetPinConfirmDesc(student.name)),
+        content: SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 500),
+            child: Text(l10n.resetPinConfirmDesc(student.name)),
+          ),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
@@ -985,29 +1105,34 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
           backgroundColor: AppColors.white,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           contentPadding: const EdgeInsets.all(28),
-          content: Column(mainAxisSize: MainAxisSize.min, children: [
-            Container(
-              width: 50, height: 50,
-              decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.15), shape: BoxShape.circle),
-              child: const Icon(Icons.lock_reset, size: 28, color: AppColors.accentDark),
+          content: SingleChildScrollView(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 500),
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                Container(
+                  width: 50, height: 50,
+                  decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.15), shape: BoxShape.circle),
+                  child: const Icon(Icons.lock_reset, size: 28, color: AppColors.accentDark),
+                ),
+                const SizedBox(height: 14),
+                Text(AppLocalizations.of(context)!.pinResetTitle, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 6),
+                Text(AppLocalizations.of(context)!.newPinForStudent(student.name), style: const TextStyle(fontSize: 13, color: AppColors.mutedForeground)),
+                const SizedBox(height: 14),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  decoration: BoxDecoration(color: AppColors.background, borderRadius: BorderRadius.circular(12), border: Border.all(color: AppColors.border)),
+                  child: Text(newPin, style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: AppColors.primaryDark, letterSpacing: 6)),
+                ),
+                const SizedBox(height: 18),
+                SizedBox(width: double.infinity, child: ElevatedButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                  child: Text(AppLocalizations.of(context)!.doneButton, style: const TextStyle(fontWeight: FontWeight.bold)),
+                )),
+              ]),
             ),
-            const SizedBox(height: 14),
-            Text(AppLocalizations.of(context)!.pinResetTitle, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 6),
-            Text(AppLocalizations.of(context)!.newPinForStudent(student.name), style: const TextStyle(fontSize: 13, color: AppColors.mutedForeground)),
-            const SizedBox(height: 14),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              decoration: BoxDecoration(color: AppColors.background, borderRadius: BorderRadius.circular(12), border: Border.all(color: AppColors.border)),
-              child: Text(newPin, style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: AppColors.primaryDark, letterSpacing: 6)),
-            ),
-            const SizedBox(height: 18),
-            SizedBox(width: double.infinity, child: ElevatedButton(
-              onPressed: () => Navigator.pop(ctx),
-              style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-              child: Text(AppLocalizations.of(context)!.doneButton, style: const TextStyle(fontWeight: FontWeight.bold)),
-            )),
-          ]),
+          ),
         ),
       );
     } catch (e) {
@@ -1021,6 +1146,109 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
         ),
       );
     }
+  }
+
+  Future<String> _resolveUniqueUsername(String fullName, Set<String> batchUsernames) async {
+    final parts = fullName.trim().toLowerCase().split(' ');
+    final first = parts.first.replaceAll(RegExp(r'[^a-z]'), '');
+    final last = parts.length > 1
+        ? parts.last.replaceAll(RegExp(r'[^a-z]'), '')
+        : '';
+    if (first.isEmpty) return '';
+
+    for (int i = 1; i <= last.length; i++) {
+      final candidate = '$first.${last.substring(0, i)}';
+      if (!batchUsernames.contains(candidate) && !(await _controller.usernameExists(candidate))) return candidate;
+    }
+
+    final base = '$first.$last';
+    int n = 1;
+    while (batchUsernames.contains('$base$n') || await _controller.usernameExists('$base$n')) { n++; }
+    return '$base$n';
+  }
+
+  Widget _buildLocationField({
+    required JerusalemLocation? selectedLocation,
+    required VoidCallback onTap,
+    String? hint,
+  }) {
+    final langCode = Localizations.localeOf(context).languageCode;
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+        decoration: BoxDecoration(
+          border: Border.all(color: AppColors.border),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                selectedLocation != null
+                    ? selectedLocation.name(langCode)
+                    : hint ?? 'Location (optional)',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: selectedLocation != null ? AppColors.text : AppColors.mutedForeground,
+                ),
+              ),
+            ),
+            const Icon(Icons.location_on_outlined, size: 18, color: AppColors.mutedForeground),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDateOfBirthField({
+    required DateTime? selectedDob,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+        decoration: BoxDecoration(
+          border: Border.all(color: AppColors.border),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                selectedDob != null
+                    ? selectedDob.year.toString()
+                    : 'Year of Birth (optional)',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: selectedDob != null ? AppColors.text : AppColors.mutedForeground,
+                ),
+              ),
+            ),
+            const Icon(Icons.calendar_today, size: 16, color: AppColors.mutedForeground),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGenderSelector({
+    required String? selectedGender,
+    required void Function(String) onChanged,
+  }) {
+    return SegmentedButton<String>(
+      segments: const [
+        ButtonSegment(value: 'male', label: Text('Male'), icon: Icon(Icons.male)),
+        ButtonSegment(value: 'female', label: Text('Female'), icon: Icon(Icons.female)),
+      ],
+      selected: {selectedGender ?? 'male'},
+      onSelectionChanged: (val) => onChanged(val.first),
+      style: SegmentedButton.styleFrom(
+        selectedBackgroundColor: AppColors.primary.withValues(alpha: 0.12),
+        selectedForegroundColor: AppColors.primary,
+      ),
+    );
   }
 
   /// Shared search bar widget used inside both Add dialogs.
@@ -1102,7 +1330,12 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                         backgroundColor: AppColors.background,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                         title: Text(AppLocalizations.of(context)!.deleteGroup, style: const TextStyle(fontWeight: FontWeight.bold)),
-                        content: Text(AppLocalizations.of(context)!.deleteGroupConfirm(group.name)),
+                        content: SingleChildScrollView(
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 500),
+                            child: Text(AppLocalizations.of(context)!.deleteGroupConfirm(group.name)),
+                          ),
+                        ),
                         actions: [
                           TextButton(onPressed: () => Navigator.pop(ctx), child: Text(AppLocalizations.of(context)!.cancelButton, style: const TextStyle(color: AppColors.mutedForeground))),
                           ElevatedButton(
@@ -1253,7 +1486,12 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                                             backgroundColor: AppColors.background,
                                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                                             title: const Text('Cannot Remove Level', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.error)),
-                                            content: Text(e.toString().replaceAll('Exception: ', '')),
+                                            content: SingleChildScrollView(
+                                              child: ConstrainedBox(
+                                                constraints: const BoxConstraints(maxWidth: 500),
+                                                child: Text(e.toString().replaceAll('Exception: ', '')),
+                                              ),
+                                            ),
                                             actions: [
                                               TextButton(
                                                 onPressed: () => Navigator.pop(c),
@@ -1572,7 +1810,12 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text(AppLocalizations.of(context)!.deleteStudent, style: TextStyle(fontWeight: FontWeight.bold)),
-        content: Text(AppLocalizations.of(context)!.deleteStudentConfirm(student.name)),
+        content: SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 500),
+            child: Text(AppLocalizations.of(context)!.deleteStudentConfirm(student.name)),
+          ),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
@@ -1622,6 +1865,9 @@ class _CreateStudentRow {
   String pin = _generatePin();
   String? nameError;
   String? usernameError;
+  String gender = 'male';
+  DateTime? dateOfBirth;
+  JerusalemLocation? location;
 
   static String _generatePin() =>
       (100000 + Random().nextInt(900000)).toString();

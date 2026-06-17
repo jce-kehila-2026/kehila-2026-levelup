@@ -10,10 +10,14 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
     }
 
+    function isNotArchived() {
+      return !get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('isArchived', false);
+    }
+
     function isSignedIn()   { return request.auth != null; }
-    function isAdmin()      { return isSignedIn() && role() == 'admin'; }
-    function isInstructor() { return isSignedIn() && role() == 'instructor'; }
-    function isStudent()    { return isSignedIn() && role() == 'student'; }
+    function isAdmin()      { return isSignedIn() && role() == 'admin' && isNotArchived(); }
+    function isInstructor() { return isSignedIn() && role() == 'instructor' && isNotArchived(); }
+    function isStudent()    { return isSignedIn() && role() == 'student' && isNotArchived(); }
     function isStaff()      { return isAdmin() || isInstructor(); }
 
     // ── users ──────────────────────────────────────────────────────────────
@@ -27,16 +31,6 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // ── users_private ──────────────────────────────────────────────────────
-
-    match /users_private/{userId} {
-      allow read:   if isSignedIn() && (request.auth.uid == userId || isStaff());
-      allow create: if isAdmin();
-      allow update: if isAdmin() || 
-                    (isInstructor() && get(/databases/$(database)/documents/users/$(userId)).data.role == 'student') ||
-                    (request.auth.uid == userId);
-      allow delete: if isAdmin();
-    }
 
     // ── groups ─────────────────────────────────────────────────────────────
 

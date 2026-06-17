@@ -169,11 +169,34 @@ class GroupRepository {
   }
 
   /// Restores an archived group back to active.
+  /// Re-assigns all students who are in the group's embed back to this group,
+  /// but only if they are not already assigned to another group.
   Future<void> restoreGroup(String id) async {
-    await _groups.doc(id).update({
+    final group = await getGroupById(id);
+    if (group == null) return;
+
+    final batch = _db.batch();
+
+    final List<GroupStudentEmbed> activeStudents = [];
+    for (final student in group.students) {
+      final studentDoc = await _db.collection('users').doc(student.id).get();
+      final currentGroupId = studentDoc.data()?['groupId'] as String?;
+      if (currentGroupId == null || currentGroupId.isEmpty) {
+        batch.set(_db.collection('users').doc(student.id), {
+          'groupId': id,
+          'levelId': student.level,
+        }, SetOptions(merge: true));
+        activeStudents.add(student);
+      }
+    }
+
+    batch.update(_groups.doc(id), {
       'isArchived': false,
       'archivedAt': FieldValue.delete(),
+      'students': activeStudents.map((s) => s.toMap()).toList(),
     });
+
+    await batch.commit();
   }
 
   /// Permanently deletes a group from Firestore. Only callable from the archive.
