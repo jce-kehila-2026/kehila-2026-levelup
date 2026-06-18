@@ -1291,4 +1291,13 @@ class AppLocalizationsAr extends AppLocalizations {
   String materialLevelLabel(String level) {
     return 'مستوى المادة: $level';
   }
+
+  @override
+  String get peopleAndUsers => 'People & Users';
+
+  @override
+  String get curriculumContent => 'Curriculum & Content';
+
+  @override
+  String get activeToday => 'active today';
 }

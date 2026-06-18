@@ -6,18 +6,19 @@ import '../../../logic/controllers/admin_dashboard_controller.dart';
 import '../../../di/service_locator.dart';
 import 'package:frontend/l10n/app_localizations.dart';
 
-// ── Design tokens — shared with admin_statistics_screen ──────────────────────
+// ── Design tokens — anchored to the platform palette (AppColors) ─────────────
 
-const _kBg            = Color(0xFFF8F9FA);
-const _kPurplePrimary = Color(0xFF663D99);
-const _kDivider       = Color(0xFFE2E8F0);
-const _kTextMuted     = Color(0xFF64748B);
+const _kBg            = AppColors.background;
+const _kPurplePrimary = AppColors.primary;
+const _kDivider       = AppColors.border;
+const _kTextMuted     = AppColors.mutedForeground;
 
+// One soft shadow used by every content card on this screen.
 const _kShadow = BoxShadow(
-  color: Color(0x0A000000),
-  blurRadius: 12,
+  color: Color(0x0D000000), // ≈ 5 % black — matches the rest of the app
+  blurRadius: 8,
   spreadRadius: 0,
-  offset: Offset(0, 4),
+  offset: Offset(0, 2),
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -38,95 +39,141 @@ class AdminDashboard extends StatelessWidget {
 
   // ── Hero banner ─────────────────────────────────────────────────────────────
 
-  Widget _buildHeroBanner(BuildContext context, AppLocalizations l10n) {
+  Widget _buildHeroBanner(
+    BuildContext context,
+    AppLocalizations l10n,
+    int activeToday,
+  ) {
     final dateLabel = DateFormat('EEEE, MMMM d').format(DateTime.now());
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(28),
+      clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [AppColors.primary, AppColors.primaryDark],
+          colors: [
+            AppColors.primary,
+            AppColors.primaryDark,
+            AppColors.primaryDeep,
+          ],
         ),
-        borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: AppColors.primary.withValues(alpha: 0.28),
-            blurRadius: 24,
+            color: AppColors.primary.withValues(alpha: 0.35),
+            blurRadius: 20,
             offset: const Offset(0, 8),
           ),
         ],
       ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
+      child: Stack(
         children: [
-          // Welcome text
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          // Decorative circles — same depth treatment as student/instructor banners
+          PositionedDirectional(
+            end: -20,
+            top: -20,
+            child: Container(
+              width: 100,
+              height: 100,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white.withValues(alpha: 0.06),
+              ),
+            ),
+          ),
+          PositionedDirectional(
+            end: 30,
+            bottom: -15,
+            child: Container(
+              width: 60,
+              height: 60,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white.withValues(alpha: 0.04),
+              ),
+            ),
+          ),
+          // Content
+          Padding(
+            padding: const EdgeInsets.all(28),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                Text(
-                  l10n.welcomeBack,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    color: Colors.white70,
-                    fontWeight: FontWeight.w400,
+                // Welcome text
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        l10n.welcomeBack,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: Colors.white70,
+                          fontWeight: FontWeight.w400,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        l10n.roleAdministrator,
+                        style: const TextStyle(
+                          fontSize: 26,
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                          height: 1.15,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  l10n.roleAdministrator,
-                  style: const TextStyle(
-                    fontSize: 26,
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
-                    height: 1.15,
-                  ),
+                const SizedBox(width: 16),
+                // Date + active-today
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      dateLabel,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Colors.white,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 8,
+                          height: 8,
+                          decoration: const BoxDecoration(
+                            color: AppColors.success,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          '$activeToday ${l10n.activeToday}',
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: Colors.white70,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               ],
             ),
-          ),
-          const SizedBox(width: 16),
-          // Date + status
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                dateLabel,
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: Colors.white,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 8,
-                    height: 8,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFF4ADE80),
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                  const Text(
-                    'System Online',
-                    style: TextStyle(fontSize: 11, color: Colors.white70),
-                  ),
-                ],
-              ),
-            ],
           ),
         ],
       ),
     );
   }
 
-  // ── Section header — matches admin_statistics_screen style ──────────────────
+  // ── Section header ───────────────────────────────────────────────────────────
 
   Widget _buildSectionHeader(String text, {Widget? trailing}) {
     return Row(
@@ -153,81 +200,107 @@ class AdminDashboard extends StatelessWidget {
   }
 
   // ── Platform Overview card ──────────────────────────────────────────────────
+  //
+  // Two modes:
+  //  • Per-stat tap targets (each cell navigates somewhere different) — pass
+  //    items with their own onTap and leave onTapAll null.
+  //  • Single button (whole card navigates to one place) — pass onTapAll; the
+  //    individual cells are not tappable and a chevron hints it's one button.
 
   Widget _buildConsolidatedCard(
     String title,
     IconData headerIcon,
-    List<({String label, String value, VoidCallback onTap})> items,
-  ) {
+    List<({String label, String value, VoidCallback? onTap})> items, {
+    VoidCallback? onTapAll,
+  }) {
+    final bool singleButton = onTapAll != null;
+
     return Container(
       width: double.infinity,
+      clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: AppColors.white,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.border),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        boxShadow: const [_kShadow],
       ),
-      clipBehavior: Clip.antiAlias,
       child: Material(
         color: Colors.transparent,
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: AppColors.accent,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Icon(headerIcon, size: 20, color: Colors.white),
-                  ),
-                  const SizedBox(width: 12),
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.primaryDark,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
-              Row(
-                children: [
-                  for (int i = 0; i < items.length; i++) ...[
-                    if (i > 0)
-                      Container(
-                        width: 1,
-                        height: 44,
-                        color: AppColors.border,
-                        margin: const EdgeInsets.symmetric(horizontal: 4),
+        child: InkWell(
+          onTap: onTapAll,
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: AppColors.accent,
+                        borderRadius: BorderRadius.circular(10),
                       ),
+                      child: Icon(headerIcon, size: 20, color: Colors.white),
+                    ),
+                    const SizedBox(width: 12),
                     Expanded(
-                      child: InkWell(
-                        onTap: items[i].onTap,
-                        borderRadius: BorderRadius.circular(8),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 6),
-                          child: _buildStatColumn(items[i].value, items[i].label),
+                      child: Text(
+                        title,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.primaryDark,
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
+                    if (singleButton)
+                      const Icon(
+                        Icons.chevron_right,
+                        size: 18,
+                        color: AppColors.mutedForeground,
+                      ),
                   ],
-                ],
-              ),
-            ],
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  children: [
+                    for (int i = 0; i < items.length; i++) ...[
+                      if (i > 0)
+                        Container(
+                          width: 1,
+                          height: 44,
+                          color: AppColors.border,
+                          margin:
+                              const EdgeInsets.symmetric(horizontal: 4),
+                        ),
+                      Expanded(
+                        child: singleButton
+                            ? Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 6),
+                                child: _buildStatColumn(
+                                    items[i].value, items[i].label),
+                              )
+                            : InkWell(
+                                onTap: items[i].onTap,
+                                borderRadius: BorderRadius.circular(8),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                      vertical: 6),
+                                  child: _buildStatColumn(
+                                      items[i].value, items[i].label),
+                                ),
+                              ),
+                      ),
+                    ],
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -253,6 +326,8 @@ class AdminDashboard extends StatelessWidget {
             color: AppColors.mutedForeground,
           ),
           textAlign: TextAlign.center,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
         ),
       ],
     );
@@ -289,7 +364,8 @@ class AdminDashboard extends StatelessWidget {
                   // ── Hero banner ────────────────────────────────────────────
                   Padding(
                     padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-                    child: _buildHeroBanner(context, l10n),
+                    child: _buildHeroBanner(
+                        context, l10n, controller.activeToday),
                   ),
                   const SizedBox(height: 32),
 
@@ -304,8 +380,9 @@ class AdminDashboard extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     child: Column(
                       children: [
+                        // People & Users — three separate destinations.
                         _buildConsolidatedCard(
-                          'People & Users',
+                          l10n.peopleAndUsers,
                           Icons.people_rounded,
                           [
                             (label: l10n.statStudents,    value: stats['students']!,    onTap: onNavigateToUsers),
@@ -314,14 +391,16 @@ class AdminDashboard extends StatelessWidget {
                           ],
                         ),
                         const SizedBox(height: 14),
+                        // Curriculum & Content — one button to curriculum.
                         _buildConsolidatedCard(
-                          'Curriculum & Content',
+                          l10n.curriculumContent,
                           Icons.layers_rounded,
                           [
-                            (label: l10n.statLevels,      value: stats['levels']!,      onTap: onNavigateToCurriculum),
-                            (label: l10n.statLessons,     value: stats['lessons']!,     onTap: onNavigateToCurriculum),
-                            (label: l10n.statActiveTasks, value: stats['activeTasks']!, onTap: onNavigateToCurriculum),
+                            (label: l10n.statLevels,      value: stats['levels']!,      onTap: null),
+                            (label: l10n.statLessons,     value: stats['lessons']!,     onTap: null),
+                            (label: l10n.statActiveTasks, value: stats['activeTasks']!, onTap: null),
                           ],
+                          onTapAll: onNavigateToCurriculum,
                         ),
                       ],
                     ),

@@ -455,5 +455,9 @@
   "alreadyAssignedToGroupLevel": "المادة معينة بالفعل لهذه المجموعة والمستوى!",
   "levelLowerError": "لا يمكن تعيين المادة لمستوى مجموعة أقل!",
   "materialAssignedSuccess": "تم تعيين المادة بنجاح!",
-  "materialLevelLabel": "مستوى المادة: {level}"
+  "materialLevelLabel": "مستوى المادة: {level}",
+
+  "peopleAndUsers": "People & Users",
+  "curriculumContent": "Curriculum & Content",
+  "activeToday": "active today"
 }

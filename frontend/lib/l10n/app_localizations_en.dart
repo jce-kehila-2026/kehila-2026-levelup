@@ -1297,4 +1297,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String materialLevelLabel(String level) {
     return 'Material Level: $level';
   }
+
+  @override
+  String get peopleAndUsers => 'People & Users';
+
+  @override
+  String get curriculumContent => 'Curriculum & Content';
+
+  @override
+  String get activeToday => 'active today';
 }

@@ -2367,6 +2367,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Material Level: {level}'**
   String materialLevelLabel(String level);
+
+  /// No description provided for @peopleAndUsers.
+  ///
+  /// In en, this message translates to:
+  /// **'People & Users'**
+  String get peopleAndUsers;
+
+  /// No description provided for @curriculumContent.
+  ///
+  /// In en, this message translates to:
+  /// **'Curriculum & Content'**
+  String get curriculumContent;
+
+  /// No description provided for @activeToday.
+  ///
+  /// In en, this message translates to:
+  /// **'active today'**
+  String get activeToday;
 }
 
 class _AppLocalizationsDelegate

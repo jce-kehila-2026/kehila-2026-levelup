@@ -98,9 +98,9 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.text)),
+                  Text(name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.text), maxLines: 1, overflow: TextOverflow.ellipsis),
                   const SizedBox(height: 2),
-                  Text(email, style: const TextStyle(fontSize: 12, color: AppColors.mutedForeground)),
+                  Text(email, style: const TextStyle(fontSize: 12, color: AppColors.mutedForeground), maxLines: 1, overflow: TextOverflow.ellipsis),
                   Text('SN: $staffNumber', style: const TextStyle(fontSize: 12, color: AppColors.mutedForeground)),
                   if (phone != null && phone.isNotEmpty)
                     Text(phone, style: const TextStyle(fontSize: 12, color: AppColors.mutedForeground)),
@@ -208,9 +208,9 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(student.name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.text)),
+                Text(student.name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.text), maxLines: 1, overflow: TextOverflow.ellipsis),
                 const SizedBox(height: 2),
-                Text('@${student.username ?? '—'}', style: const TextStyle(fontSize: 12, color: AppColors.mutedForeground)),
+                Text('@${student.username ?? '—'}', style: const TextStyle(fontSize: 12, color: AppColors.mutedForeground), maxLines: 1, overflow: TextOverflow.ellipsis),
                 Text('$levelText  •  ${student.studentNumber ?? '#${student.userNumber}'}', style: const TextStyle(fontSize: 12, color: AppColors.mutedForeground)),
               ],
             ),
@@ -287,11 +287,13 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(user.name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.mutedForeground)),
+                  Text(user.name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.mutedForeground), maxLines: 1, overflow: TextOverflow.ellipsis),
                   const SizedBox(height: 2),
                   Text(
                     isInstructor ? (user.email ?? '') : '@${user.username ?? '—'}',
                     style: const TextStyle(fontSize: 12, color: AppColors.mutedForeground),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ],
               ),
@@ -380,7 +382,10 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
             ? user.gender![0].toUpperCase() + user.gender!.substring(1)
             : '—';
 
-        return Padding(
+        return ConstrainedBox(
+          constraints: BoxConstraints(maxHeight: MediaQuery.of(ctx).size.height * 0.9),
+          child: SingleChildScrollView(
+            child: Padding(
           padding: EdgeInsets.fromLTRB(20, 16, 20, MediaQuery.of(ctx).viewInsets.bottom + 32),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -489,6 +494,8 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
               ),
             ],
           ),
+        ),
+        ),
         );
       },
     );
@@ -502,7 +509,7 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
     required List<Widget> children,
   }) {
     return Container(
-      margin: const EdgeInsetsDirectional.only(start: 20, end: 20, bottom: 20),
+      margin: const EdgeInsetsDirectional.only(start: 20, top: 16, end: 20, bottom: 20),
       decoration: BoxDecoration(
         color: AppColors.white,
         borderRadius: BorderRadius.circular(16),

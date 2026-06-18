@@ -36,6 +36,8 @@ class AdminDashboardController extends ChangeNotifier {
   int _groupCount = 0;
   int _levelCount = 0;
   int _lessonCount = 0;
+  int _activeToday = 0;
+  int get activeToday => _activeToday;
 
   StreamSubscription<QuerySnapshot>? _usersSub;
   StreamSubscription<QuerySnapshot>? _groupsSub;
@@ -59,9 +61,24 @@ class AdminDashboardController extends ChangeNotifier {
         _curriculumRepository.getLevels(),
       ]);
       _recentLogs = results[0] as List<AuditLog>;
-      _studentCount = (results[1] as List).length;
-      _instructorCount = (results[2] as List).length;
-      _groupCount = (results[3] as List).length;
+      final students    = results[1] as List;
+      final instructors = results[2] as List;
+      _studentCount    = students.length;
+      _instructorCount = instructors.length;
+      _groupCount      = (results[3] as List).length;
+
+      final today = DateTime.now();
+      int active = 0;
+      for (final u in [...students, ...instructors]) {
+        final la = u.lastActive as DateTime?;
+        if (la != null &&
+            la.year == today.year &&
+            la.month == today.month &&
+            la.day == today.day) {
+          active++;
+        }
+      }
+      _activeToday = active;
       final levels = results[4] as List<LevelModel>;
       _levelCount = levels.length;
       _lessonCount = levels.fold(
