@@ -113,16 +113,20 @@ class _InstructorLayoutState extends State<InstructorLayout> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppColors.background,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => DraggableScrollableSheet(
+        initialChildSize: 0.6,
+        minChildSize: 0.4,
+        maxChildSize: 0.9,
+        expand: false,
+        builder: (_, scrollController) => Container(
+          decoration: const BoxDecoration(
+            color: AppColors.background,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: const Center(child: CircularProgressIndicator()),
+        ),
       ),
-      builder: (ctx) {
-        return const SizedBox(
-          height: 200,
-          child: Center(child: CircularProgressIndicator()),
-        );
-      },
     );
 
     try {
@@ -155,52 +159,57 @@ class _InstructorLayoutState extends State<InstructorLayout> {
       showModalBottomSheet(
         context: context,
         isScrollControlled: true,
-        backgroundColor: AppColors.background,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        builder: (ctx) {
-          return Padding(
-            padding: EdgeInsets.only(
-              bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
-              left: 20,
-              right: 20,
-              top: 16,
+        backgroundColor: Colors.transparent,
+        builder: (ctx) => DraggableScrollableSheet(
+          initialChildSize: 0.6,
+          minChildSize: 0.4,
+          maxChildSize: 0.9,
+          expand: false,
+          builder: (_, scrollController) => Container(
+            decoration: const BoxDecoration(
+              color: AppColors.background,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
             ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(
-                  child: Container(
-                    width: 36,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: AppColors.border,
-                      borderRadius: BorderRadius.circular(2),
+            child: SingleChildScrollView(
+              controller: scrollController,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 36,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: AppColors.border,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
                     ),
-                  ),
+                    const SizedBox(height: 16),
+                    Text(
+                      AppLocalizations.of(context)!.myProfile,
+                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.text),
+                    ),
+                    const SizedBox(height: 16),
+                    _readOnlyField(AppLocalizations.of(context)!.fullNameLabel, name),
+                    const SizedBox(height: 12),
+                    _readOnlyField(AppLocalizations.of(context)!.emailAddressLabel, email),
+                    const SizedBox(height: 12),
+                    _readOnlyField(AppLocalizations.of(context)!.phoneNumberLabel, phone),
+                    const SizedBox(height: 12),
+                    _readOnlyField('Location', location),
+                    const SizedBox(height: 12),
+                    _readOnlyField('Assigned Levels', displayLevels),
+                    const SizedBox(height: 16),
+                  ],
                 ),
-                const SizedBox(height: 16),
-                Text(
-                  AppLocalizations.of(context)!.myProfile,
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.text),
-                ),
-                const SizedBox(height: 16),
-                _readOnlyField(AppLocalizations.of(context)!.fullNameLabel, name),
-                const SizedBox(height: 12),
-                _readOnlyField(AppLocalizations.of(context)!.emailAddressLabel, email),
-                const SizedBox(height: 12),
-                _readOnlyField(AppLocalizations.of(context)!.phoneNumberLabel, phone),
-                const SizedBox(height: 12),
-                _readOnlyField('Location', location),
-                const SizedBox(height: 12),
-                _readOnlyField('Assigned Levels', displayLevels),
-                const SizedBox(height: 16),
-              ],
+              ),
             ),
-          );
-        },
+          ),
+        ),
       );
     } catch (e) {
       if (mounted) {

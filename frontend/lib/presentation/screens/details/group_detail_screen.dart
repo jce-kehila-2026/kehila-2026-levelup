@@ -7,9 +7,11 @@
 library;
 
 import 'dart:math';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
+import 'package:go_router/go_router.dart';
 import '../../../theme/app_theme.dart';
 import '../../widgets/empty_state.dart';
 import '../../../data/models/curriculum_model.dart';
@@ -70,7 +72,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.background,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        insetPadding: EdgeInsets.fromLTRB(24, 24, 24, MediaQuery.of(ctx).viewInsets.bottom + 24),
+        insetPadding: EdgeInsets.fromLTRB(24, 24, 24, kIsWeb ? 24 : MediaQuery.of(ctx).viewInsets.bottom + 24),
         title: const Text('Rename Group', style: TextStyle(fontWeight: FontWeight.bold)),
         content: SingleChildScrollView(
           child: ConstrainedBox(
@@ -570,7 +572,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
           return AlertDialog(
             backgroundColor: AppColors.background,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-            insetPadding: EdgeInsets.fromLTRB(24, 24, 24, MediaQuery.of(context).viewInsets.bottom + 24),
+            insetPadding: EdgeInsets.fromLTRB(24, 24, 24, kIsWeb ? 24 : MediaQuery.of(context).viewInsets.bottom + 24),
             title: Row(children: [
               Icon(Icons.group_add, color: AppColors.primary, size: 22),
               const SizedBox(width: 10),
@@ -612,29 +614,24 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                     }).toList(),
                   ),
                   const SizedBox(height: 14),
-                  ConstrainedBox(
-                    constraints: const BoxConstraints(maxHeight: 300),
-                    child: SingleChildScrollView(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: rows.asMap().entries.map((entry) {
-                          final i = entry.key;
-                          final row = entry.value;
-                          return _buildStudentFormRow(
-                            row: row,
-                            canRemove: rows.length > 1,
-                            enabled: !isCreating,
-                            batchUsernames: batchUsernames,
-                            onRemove: () => setDialogState(() {
-                              batchUsernames.remove(row.usernameCtrl.text);
-                              row.dispose();
-                              rows.removeAt(i);
-                            }),
-                            onChange: () => setDialogState(() {}),
-                          );
-                        }).toList(),
-                      ),
-                    ),
+                  Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: rows.asMap().entries.map((entry) {
+                      final i = entry.key;
+                      final row = entry.value;
+                      return _buildStudentFormRow(
+                        row: row,
+                        canRemove: rows.length > 1,
+                        enabled: !isCreating,
+                        batchUsernames: batchUsernames,
+                        onRemove: () => setDialogState(() {
+                          batchUsernames.remove(row.usernameCtrl.text);
+                          row.dispose();
+                          rows.removeAt(i);
+                        }),
+                        onChange: () => setDialogState(() {}),
+                      );
+                    }).toList(),
                   ),
                   if (!isCreating)
                     Padding(
@@ -1474,6 +1471,22 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                             const SizedBox(width: 6),
                             Text(l10n.createdOnLabel(_formatDate(group.createdAt, locale)), style: const TextStyle(fontSize: 13, color: AppColors.mutedForeground)),
                           ],
+                        ),
+                        const Divider(height: 24, color: AppColors.border),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            onPressed: () => context.push('/group-report/${group.id}'),
+                            icon: const Icon(Icons.assessment_outlined, size: 18),
+                            label: const Text('View Group Report Card', style: TextStyle(fontWeight: FontWeight.bold)),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primary,
+                              foregroundColor: AppColors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              elevation: 0,
+                            ),
+                          ),
                         ),
                       ],
                     ),

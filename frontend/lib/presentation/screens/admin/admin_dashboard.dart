@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import '../../../theme/app_theme.dart';
 import '../../widgets/audit_log_item.dart';
 import '../../../logic/controllers/admin_dashboard_controller.dart';
@@ -141,71 +142,100 @@ class AdminDashboard extends StatelessWidget {
                   // Quick Actions
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: Row(
+                    child: Column(
                       children: [
-                        Expanded(
-                          child: ElevatedButton(
-                            onPressed: onNavigateToCurriculum,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.accent,
-                              foregroundColor: AppColors.text,
-                              padding: const EdgeInsets.symmetric(vertical: 13),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                              elevation: 4,
-                              shadowColor: AppColors.accent.withValues(alpha: 0.35),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: ElevatedButton(
+                                onPressed: onNavigateToCurriculum,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.accent,
+                                  foregroundColor: AppColors.text,
+                                  padding: const EdgeInsets.symmetric(vertical: 13),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                                  elevation: 4,
+                                  shadowColor: AppColors.accent.withValues(alpha: 0.35),
+                                ),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    const Icon(Icons.menu_book, size: 14),
+                                    const SizedBox(width: 5),
+                                    Flexible(child: Text(l10n.navCurriculum, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold))),
+                                  ],
+                                ),
+                              ),
                             ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                const Icon(Icons.menu_book, size: 14),
-                                const SizedBox(width: 5),
-                                Flexible(child: Text(l10n.navCurriculum, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold))),
-                              ],
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: ElevatedButton(
+                                onPressed: onNavigateToUsers,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.primary,
+                                  foregroundColor: AppColors.white,
+                                  padding: const EdgeInsets.symmetric(vertical: 13),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                                  elevation: 4,
+                                  shadowColor: AppColors.primary.withValues(alpha: 0.25),
+                                ),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    const Icon(Icons.people, size: 14),
+                                    const SizedBox(width: 5),
+                                    Flexible(child: Text(l10n.navUsers, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold))),
+                                  ],
+                                ),
+                              ),
                             ),
-                          ),
+                          ],
                         ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: ElevatedButton(
-                            onPressed: onNavigateToUsers,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.primary,
-                              foregroundColor: AppColors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 13),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                              elevation: 4,
-                              shadowColor: AppColors.primary.withValues(alpha: 0.25),
+                        const SizedBox(height: 10),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton(
+                                onPressed: onNavigateToGroups,
+                                style: OutlinedButton.styleFrom(
+                                  backgroundColor: AppColors.white,
+                                  foregroundColor: AppColors.primary,
+                                  side: const BorderSide(color: AppColors.primary, width: 1.5),
+                                  padding: const EdgeInsets.symmetric(vertical: 13),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                                ),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    const Icon(Icons.how_to_reg, size: 14),
+                                    const SizedBox(width: 5),
+                                    Flexible(child: Text(l10n.navGroups, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold))),
+                                  ],
+                                ),
+                              ),
                             ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                const Icon(Icons.people, size: 14),
-                                const SizedBox(width: 5),
-                                Flexible(child: Text(l10n.navUsers, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold))),
-                              ],
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: OutlinedButton(
+                                onPressed: () => context.push('/admin/assignments'),
+                                style: OutlinedButton.styleFrom(
+                                  backgroundColor: AppColors.white,
+                                  foregroundColor: AppColors.primary,
+                                  side: const BorderSide(color: AppColors.primary, width: 1.5),
+                                  padding: const EdgeInsets.symmetric(vertical: 13),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                                ),
+                                child: const Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(Icons.assignment_outlined, size: 14),
+                                    SizedBox(width: 5),
+                                    Flexible(child: Text('Assignments', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold))),
+                                  ],
+                                ),
+                              ),
                             ),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: OutlinedButton(
-                            onPressed: onNavigateToGroups,
-                            style: OutlinedButton.styleFrom(
-                              backgroundColor: AppColors.white,
-                              foregroundColor: AppColors.primary,
-                              side: const BorderSide(color: AppColors.primary, width: 1.5),
-                              padding: const EdgeInsets.symmetric(vertical: 13),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                const Icon(Icons.how_to_reg, size: 14),
-                                const SizedBox(width: 5),
-                                Flexible(child: Text(l10n.navGroups, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold))),
-                              ],
-                            ),
-                          ),
+                          ],
                         ),
                       ],
                     ),

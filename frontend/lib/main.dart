@@ -25,6 +25,8 @@ import 'presentation/screens/details/student_detail_screen.dart';
 import 'presentation/screens/details/student_assignment_detail_screen.dart';
 import 'data/models/assignment_model.dart';
 import 'data/repositories/assignment_repository.dart';
+import 'presentation/screens/instructor/group_report_screen.dart';
+import 'presentation/screens/admin/admin_assignments_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -193,8 +195,8 @@ final GoRouter _router = GoRouter(
 
     // Wrong role trying to access wrong page → redirect
     final allowed = switch (role) {
-      'admin'      => ['/admin', '/assignment', '/group', '/lesson', '/student-detail'],
-      'instructor' => ['/instructor', '/assignment', '/group', '/lesson', '/student-detail'],
+      'admin'      => ['/admin', '/assignment', '/group', '/lesson', '/student-detail', '/group-report'],
+      'instructor' => ['/instructor', '/assignment', '/group', '/lesson', '/student-detail', '/group-report'],
       _            => ['/student', '/student-assignment', '/lesson'],
     };
 
@@ -258,6 +260,18 @@ final GoRouter _router = GoRouter(
         }
         return _AssignmentLoaderScreen(assignmentId: state.pathParameters['id']!);
       },
+    ),
+    GoRoute(
+      path: '/group-report/:id',
+      builder: (context, state) => GroupReportScreen(groupId: state.pathParameters['id']!),
+    ),
+    GoRoute(
+      path: '/admin/assignments',
+      builder: (context, state) => const AdminAssignmentsScreen(),
+    ),
+    GoRoute(
+      path: '/admin/assignment/:id',
+      builder: (context, state) => AssignmentDetailScreen(id: state.pathParameters['id']!, isAdminView: true),
     ),
   ],
 );

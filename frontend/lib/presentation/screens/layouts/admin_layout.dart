@@ -5,12 +5,14 @@ import '../../../theme/app_theme.dart';
 import '../../widgets/locale_toggle_button.dart';
 import '../../../di/service_locator.dart';
 import '../../../logic/helpers/logout_helper.dart';
+import '../../../logic/controllers/admin_statistics_controller.dart';
 import '../../../logic/controllers/curriculum_controller.dart';
 import '../../../logic/controllers/user_controller.dart';
 import '../../../logic/controllers/group_controller.dart';
 import '../../../logic/controllers/audit_log_controller.dart';
 
 import '../admin/admin_dashboard.dart';
+import '../admin/admin_statistics_screen.dart';
 import '../admin/curriculum_screen.dart';
 import '../admin/groups_screen.dart';
 import '../admin/users_screen.dart';
@@ -40,6 +42,7 @@ class _AdminLayoutState extends State<AdminLayout> {
     const UsersScreen(),
     const GroupsScreen(),
     const LogsScreen(),
+    const AdminStatisticsScreen(),
   ];
 
   @override
@@ -52,7 +55,7 @@ class _AdminLayoutState extends State<AdminLayout> {
 
   void _setSearch(String val) {
     final tabParam = GoRouterState.of(context).uri.queryParameters['tab'];
-    final currentIndex = (int.tryParse(tabParam ?? '') ?? 0).clamp(0, 4);
+    final currentIndex = (int.tryParse(tabParam ?? '') ?? 0).clamp(0, 5);
     switch (currentIndex) {
       case 1:
         getIt<CurriculumController>().setSearch(val);
@@ -111,7 +114,7 @@ class _AdminLayoutState extends State<AdminLayout> {
   @override
   Widget build(BuildContext context) {
     final tabParam = GoRouterState.of(context).uri.queryParameters['tab'];
-    final currentIndex = (int.tryParse(tabParam ?? '') ?? 0).clamp(0, 4);
+    final currentIndex = (int.tryParse(tabParam ?? '') ?? 0).clamp(0, 5);
     final bool isWide = _enableResponsiveDesktopLayout && MediaQuery.of(context).size.width > 850;
 
     return Scaffold(
@@ -196,6 +199,7 @@ class _AdminLayoutState extends State<AdminLayout> {
                   selectedIndex: currentIndex,
                   onDestinationSelected: (i) {
                     _closeSearch();
+                    if (i == 5) getIt<AdminStatisticsController>().refresh();
                     context.go('/admin?tab=$i');
                   },
                   backgroundColor: AppColors.white,
@@ -229,6 +233,11 @@ class _AdminLayoutState extends State<AdminLayout> {
                       selectedIcon: const GoldenNavIcon(icon: Icons.list_alt),
                       label: Text(AppLocalizations.of(context)!.navLogs),
                     ),
+                    NavigationRailDestination(
+                      icon: const GoldenNavIcon(icon: Icons.bar_chart, active: false),
+                      selectedIcon: const GoldenNavIcon(icon: Icons.bar_chart),
+                      label: const Text('Stats'),
+                    ),
                   ],
                 ),
                 Container(width: 1, color: AppColors.border),
@@ -259,6 +268,7 @@ class _AdminLayoutState extends State<AdminLayout> {
                 currentIndex: currentIndex,
                 onTap: (i) {
                   _closeSearch();
+                  if (i == 5) getIt<AdminStatisticsController>().refresh();
                   context.go('/admin?tab=$i');
                 },
                 backgroundColor: AppColors.white,
@@ -274,6 +284,7 @@ class _AdminLayoutState extends State<AdminLayout> {
                   BottomNavigationBarItem(icon: const GoldenNavIcon(icon: Icons.people, active: false), activeIcon: const GoldenNavIcon(icon: Icons.people), label: AppLocalizations.of(context)!.navUsers),
                   BottomNavigationBarItem(icon: const GoldenNavIcon(icon: Icons.how_to_reg, active: false), activeIcon: const GoldenNavIcon(icon: Icons.how_to_reg), label: AppLocalizations.of(context)!.navGroups),
                   BottomNavigationBarItem(icon: const GoldenNavIcon(icon: Icons.list_alt, active: false), activeIcon: const GoldenNavIcon(icon: Icons.list_alt), label: AppLocalizations.of(context)!.navLogs),
+                  BottomNavigationBarItem(icon: const GoldenNavIcon(icon: Icons.bar_chart, active: false), activeIcon: const GoldenNavIcon(icon: Icons.bar_chart), label: 'Stats'),
                 ],
               ),
             ),
