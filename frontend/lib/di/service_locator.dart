@@ -15,6 +15,7 @@ import '../data/repositories/notification_repository.dart';
 import '../data/repositories/student_profile_repository.dart';
 import '../data/repositories/submission_repository.dart';
 import '../data/repositories/material_assignment_repository.dart';
+import '../data/repositories/instructor_material_repository.dart';
 
 // Helpers
 import '../logic/helpers/audit_log_helper.dart';
@@ -34,6 +35,7 @@ import '../logic/controllers/instructor_dashboard_controller.dart';
 import '../logic/controllers/instructor_assignment_controller.dart';
 import '../logic/controllers/instructor_group_controller.dart';
 import '../logic/controllers/instructor_log_controller.dart';
+import '../logic/controllers/instructor_material_controller.dart';
 
 // Controllers — Student
 import '../logic/controllers/student_dashboard_controller.dart';
@@ -64,6 +66,7 @@ void setupServiceLocator() {
   getIt.registerLazySingleton<SubmissionRepository>(() => SubmissionRepository());
   getIt.registerLazySingleton<MaterialAssignmentRepository>(() => MaterialAssignmentRepository());
   getIt.registerLazySingleton<AuditLogHelper>(() => AuditLogHelper(getIt<AuditLogRepository>()));
+  getIt.registerLazySingleton<InstructorMaterialRepository>(() => InstructorMaterialRepository());
 
   // ──────────────────────────────────────
   // Logic Tier — Controllers: Auth
@@ -111,6 +114,9 @@ void setupServiceLocator() {
   getIt.registerLazySingleton<InstructorLogController>(
     () => InstructorLogController(getIt<AuditLogRepository>()),
   );
+  getIt.registerLazySingleton<InstructorMaterialController>(
+    () => InstructorMaterialController(getIt<InstructorMaterialRepository>()),
+  );
 
   // ──────────────────────────────────────
   // Logic Tier — Controllers: Student
@@ -152,4 +158,3 @@ void setupServiceLocator() {
     (id, _) => StudentDetailController(id, getIt<StudentProfileRepository>()),
   );
 }
-

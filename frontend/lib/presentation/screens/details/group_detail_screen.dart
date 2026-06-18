@@ -16,11 +16,14 @@ import '../../../data/models/curriculum_model.dart';
 import '../../../data/repositories/curriculum_repository.dart';
 import '../../../data/models/group_model.dart';
 import '../../../data/models/user_model.dart';
+import '../../../data/models/instructor_material_model.dart';
+import '../../../data/repositories/instructor_material_repository.dart';
 import '../../../logic/controllers/group_detail_controller.dart';
 import '../../../di/service_locator.dart';
 import 'package:frontend/l10n/app_localizations.dart';
 import '../../widgets/location_picker.dart';
 import '../../../utils/jerusalem_locations.dart';
+import 'lesson_detail_screen.dart';
 
 class GroupDetailScreen extends StatefulWidget {
   final String id;
@@ -465,7 +468,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                       final preAssignedStudents = _controller.availableStudents
                           .where((s) => _controller.bulkSelectedStudentIds.contains(s.id) && s.groupId != null)
                           .toList();
-                      
+
                       if (preAssignedStudents.isNotEmpty) {
                         final proceed = await showDialog<bool>(
                           context: context,
@@ -1696,6 +1699,9 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                         ],
                       );
                     }),
+
+                  // ── INSTRUCTOR MATERIALS ──
+                  _buildGroupMaterialsSection(group.id),
                 ],
               ),
             ),
@@ -1830,6 +1836,265 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
         ],
       ),
     );
+  }
+
+  // ── Group Materials (instructor_materials) ─────────────────────────────────
+
+  Widget _buildGroupMaterialsSection(String groupId) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 28),
+        _buildSectionHeader('Materials'),
+        FutureBuilder<List<InstructorMaterialModel>>(
+          future: InstructorMaterialRepository().getGroupAllMaterials(groupId),
+          builder: (context, snap) {
+            if (snap.connectionState == ConnectionState.waiting) {
+              return const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                child: Center(
+                  child: CircularProgressIndicator(
+                    color: AppColors.primary,
+                    strokeWidth: 2,
+                  ),
+                ),
+              );
+            }
+            final materials = snap.data ?? [];
+            if (materials.isEmpty) {
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  decoration: BoxDecoration(
+                    color: AppColors.white,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: AppColors.border),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.info_outline, size: 15, color: AppColors.mutedForeground),
+                      SizedBox(width: 8),
+                      Text(
+                        'No materials created for this group yet.',
+                        style: TextStyle(fontSize: 13, color: AppColors.mutedForeground),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }
+
+            // Group materials by levelId
+            final byLevel = <String, List<InstructorMaterialModel>>{};
+            for (final m in materials) {
+              byLevel.putIfAbsent(m.levelId, () => []).add(m);
+            }
+            final l10n = AppLocalizations.of(context)!;
+
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: byLevel.entries.map((entry) {
+                final levelId = entry.key;
+                final levelName = _localizedLevelName(levelId, l10n);
+                final levelMaterials = entry.value;
+
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 24).copyWith(top: 10, bottom: 8),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          levelName,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.primary,
+                            letterSpacing: 0.3,
+                          ),
+                        ),
+                      ),
+                    ),
+                    ListView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      itemCount: levelMaterials.length,
+                      itemBuilder: (context, index) =>
+                          _buildGroupMaterialCard(levelMaterials[index], groupId),
+                    ),
+                  ],
+                );
+              }).toList(),
+            );
+          },
+        ),
+        const SizedBox(height: 12),
+      ],
+    );
+  }
+
+  Widget _buildGroupMaterialCard(InstructorMaterialModel m, String groupId) {
+    final isAdmin = _controller.currentUserRole == UserRole.admin;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.border),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => LessonDetailScreen(instructorMaterial: m),
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            children: [
+              Container(
+                width: 8,
+                height: 8,
+                margin: const EdgeInsets.only(right: 10),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: m.isVisible ? AppColors.success : AppColors.mutedForeground,
+                ),
+              ),
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.auto_stories, size: 18, color: AppColors.primary),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      m.title,
+                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.text),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      m.isVisible ? 'Visible to students' : 'Hidden from students',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: m.isVisible ? AppColors.success : AppColors.mutedForeground,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (isAdmin)
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: Icon(
+                        m.isVisible ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                        size: 18,
+                        color: AppColors.mutedForeground,
+                      ),
+                      tooltip: m.isVisible ? 'Hide from students' : 'Show to students',
+                      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                      padding: EdgeInsets.zero,
+                      onPressed: () async {
+                        try {
+                          await InstructorMaterialRepository().toggleVisibility(m.id, m.isVisible);
+                          if (mounted) setState(() {});
+                        } catch (e) {
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Failed: $e'), backgroundColor: AppColors.error),
+                            );
+                          }
+                        }
+                      },
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.delete_outline, size: 18, color: AppColors.error),
+                      tooltip: 'Delete',
+                      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                      padding: EdgeInsets.zero,
+                      onPressed: () => _confirmDeleteGroupMaterial(m),
+                    ),
+                  ],
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _confirmDeleteGroupMaterial(InstructorMaterialModel m) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.background,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Delete Material', style: TextStyle(fontWeight: FontWeight.bold)),
+        content: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 500),
+          child: Text('Are you sure you want to delete "${m.title}"?'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel', style: TextStyle(color: AppColors.mutedForeground)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.error,
+              foregroundColor: AppColors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Delete', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true || !mounted) return;
+    try {
+      await InstructorMaterialRepository().deleteMaterial(m.id);
+      if (mounted) {
+        setState(() {});
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Material deleted'), behavior: SnackBarBehavior.floating),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed: $e'), backgroundColor: AppColors.error, behavior: SnackBarBehavior.floating),
+        );
+      }
+    }
   }
 
   void _showDeleteStudentConfirmation(UserModel student) {

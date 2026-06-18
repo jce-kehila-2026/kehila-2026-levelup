@@ -25,7 +25,7 @@ service cloud.firestore {
     match /users/{userId} {
       allow read:   if isSignedIn();
       allow create: if isAdmin();
-      allow update: if isAdmin() || 
+      allow update: if isAdmin() ||
                     (isInstructor() && resource.data.role == 'student') ||
                     (request.auth.uid == userId && request.resource.data.role == resource.data.role);
       allow delete: if isAdmin();
@@ -125,6 +125,28 @@ service cloud.firestore {
 
     match /counters/{counterId} {
       allow read, write: if isStaff();
+    }
+
+    // ── instructor_materials ───────────────────────────────────────────────
+
+    match /instructor_materials/{materialId} {
+      // Any signed-in non-archived user can read (students see only
+      // visible ones via the query filter in the repository; security
+      // rules allow the read but the query uses where('isVisible', == true)).
+      allow read: if request.auth != null && isNotArchived();
+
+      // Instructors and admins can create / update their own materials.
+      allow create: if request.auth != null && isNotArchived() &&
+        (role() == 'admin' || role() == 'instructor') &&
+        request.resource.data.instructorId == request.auth.uid;
+
+      allow update: if request.auth != null && isNotArchived() &&
+        (role() == 'admin' ||
+          (role() == 'instructor' && resource.data.instructorId == request.auth.uid));
+
+      // Admins can delete any material; instructors can only delete their own.
+      allow delete: if request.auth != null && isNotArchived() &&
+        (role() == 'admin' || resource.data.instructorId == request.auth.uid);
     }
   }
 }
