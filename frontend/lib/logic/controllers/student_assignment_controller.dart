@@ -130,12 +130,25 @@ class StudentAssignmentController extends ChangeNotifier {
   String get tab => _tab;
   String get search => _search;
 
+  SubmissionModel? getSubmissionForAssignment(String assignmentId) {
+    try {
+      return _studentSubmissions.firstWhere((s) => s.assignmentId == assignmentId);
+    } catch (_) {
+      return null;
+    }
+  }
+
   bool isSubmitted(String assignmentId) {
     return _studentSubmissions.any((s) => s.assignmentId == assignmentId);
   }
 
+  bool isGraded(String assignmentId) {
+    final sub = getSubmissionForAssignment(assignmentId);
+    return sub != null && sub.status != GradeStatus.pending;
+  }
+
   List<AssignmentModel> get pendingAssignments {
-    var list = _allAssignments.where((a) => !isSubmitted(a.id)).toList();
+    var list = _allAssignments.where((a) => !isGraded(a.id)).toList();
     if (_search.isNotEmpty) {
       final term = _search.toLowerCase();
       list = list.where((a) => 
@@ -147,7 +160,7 @@ class StudentAssignmentController extends ChangeNotifier {
   }
 
   List<AssignmentModel> get submittedAssignments {
-    var list = _allAssignments.where((a) => isSubmitted(a.id)).toList();
+    var list = _allAssignments.where((a) => isGraded(a.id)).toList();
     if (_search.isNotEmpty) {
       final term = _search.toLowerCase();
       list = list.where((a) => 
@@ -158,8 +171,8 @@ class StudentAssignmentController extends ChangeNotifier {
     return list;
   }
 
-  int get pendingCount => _allAssignments.where((a) => !isSubmitted(a.id)).length;
-  int get submittedCount => _allAssignments.where((a) => isSubmitted(a.id)).length;
+  int get pendingCount => _allAssignments.where((a) => !isGraded(a.id)).length;
+  int get submittedCount => _allAssignments.where((a) => isGraded(a.id)).length;
   int get pendingReviewCount => _studentSubmissions.where((s) => s.status == GradeStatus.pending).length;
 
   // ── Actions ────────────────────────────

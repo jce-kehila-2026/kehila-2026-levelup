@@ -34,6 +34,10 @@ class StudentProfile {
   final String? pinCode; // e.g., "9575"
   final DateTime? lastActive; // Tracks online status
 
+  // New fields for detailed lookup
+  final String? groupId;
+  final String? levelId;
+
   StudentProfile({
     required this.id,
     required this.name,
@@ -48,6 +52,8 @@ class StudentProfile {
     this.studentNumber,
     this.pinCode,
     this.lastActive,
+    this.groupId,
+    this.levelId,
   });
 
   /// Returns true if the student was active within the last 5 minutes.
@@ -81,6 +87,8 @@ class StudentProfile {
       studentNumber: map['studentNumber'],
       pinCode: map['pinCode'],
       lastActive: _parseDate(map['lastActive']),
+      groupId: map['groupId'],
+      levelId: map['levelId'],
     );
   }
 
@@ -97,6 +105,8 @@ class StudentProfile {
       'studentNumber': studentNumber,
       'pinCode': pinCode,
       'lastActive': lastActive?.toIso8601String(),
+      'groupId': groupId,
+      'levelId': levelId,
     };
   }
 

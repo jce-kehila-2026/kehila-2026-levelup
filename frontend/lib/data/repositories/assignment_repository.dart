@@ -83,7 +83,7 @@ class AssignmentRepository {
   /// reusing the curriculum-generated [id] as the document ID so the
   /// AssignmentDetailScreen can look it up by the same key.
   Future<void> addCentralAssignment(String id, String title,
-      {String? content, String? levelId}) async {
+      {String? content, String? levelId, String? imageUrl, bool isVisible = true}) async {
     final model = AssignmentModel(
       id: id,
       title: title,
@@ -91,6 +91,13 @@ class AssignmentRepository {
       isActive: true,
       pendingCount: 0,
       gradedCount: 0,
+      isVisible: isVisible,
+      imageUrl: imageUrl,
+      totalStudents: 0,
+      submittedCount: 0,
+      correctCount: 0,
+      incorrectCount: 0,
+      curriculumItemId: id,
       searchTags: const [],
       createdAt: DateTime.now(),
       deadline: DateTime.now().add(const Duration(days: 7)),
@@ -112,6 +119,10 @@ class AssignmentRepository {
     String? groupId,
     String? groupName,
     String? levelId,
+    bool isVisible = true,
+    String? imageUrl,
+    int totalStudents = 0,
+    String? curriculumItemId,
   }) async {
     final uid = _auth.currentUser?.uid;
     if (uid == null) {
@@ -128,6 +139,13 @@ class AssignmentRepository {
       levelId: levelId,
       pendingCount: 0,
       gradedCount: 0,
+      isVisible: isVisible,
+      imageUrl: imageUrl,
+      totalStudents: totalStudents,
+      submittedCount: 0,
+      correctCount: 0,
+      incorrectCount: 0,
+      curriculumItemId: curriculumItemId,
       searchTags: const [],
       createdAt: DateTime.now(),
       deadline: deadline ?? DateTime.now().add(const Duration(days: 7)),

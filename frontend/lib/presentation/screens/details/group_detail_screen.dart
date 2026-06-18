@@ -10,6 +10,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
+import 'package:go_router/go_router.dart';
 import '../../../theme/app_theme.dart';
 import '../../widgets/empty_state.dart';
 import '../../../data/models/curriculum_model.dart';
@@ -1471,6 +1472,22 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                             const SizedBox(width: 6),
                             Text(l10n.createdOnLabel(_formatDate(group.createdAt, locale)), style: const TextStyle(fontSize: 13, color: AppColors.mutedForeground)),
                           ],
+                        ),
+                        const Divider(height: 24, color: AppColors.border),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            onPressed: () => context.push('/group-report/${group.id}'),
+                            icon: const Icon(Icons.assessment_outlined, size: 18),
+                            label: const Text('View Group Report Card', style: TextStyle(fontWeight: FontWeight.bold)),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primary,
+                              foregroundColor: AppColors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              elevation: 0,
+                            ),
+                          ),
                         ),
                       ],
                     ),
