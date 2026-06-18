@@ -24,6 +24,7 @@ import '../logic/controllers/auth_controller.dart';
 
 // Controllers — Admin
 import '../logic/controllers/admin_dashboard_controller.dart';
+import '../logic/controllers/admin_statistics_controller.dart';
 import '../logic/controllers/curriculum_controller.dart';
 import '../logic/controllers/user_controller.dart';
 import '../logic/controllers/group_controller.dart';
@@ -94,6 +95,9 @@ void setupServiceLocator() {
   );
   getIt.registerLazySingleton<AuditLogController>(
     () => AuditLogController(getIt<AuditLogRepository>()),
+  );
+  getIt.registerLazySingleton<AdminStatisticsController>(
+    () => AdminStatisticsController(getIt<UserRepository>(), getIt<CurriculumRepository>()),
   );
 
   // ──────────────────────────────────────

@@ -51,13 +51,20 @@ class _InstructorAssignmentsScreenState extends State<InstructorAssignmentsScree
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => Container(
+      builder: (ctx) => DraggableScrollableSheet(
+        initialChildSize: 0.6,
+        minChildSize: 0.4,
+        maxChildSize: 0.9,
+        expand: false,
+        builder: (_, scrollController) => Container(
         padding: const EdgeInsets.all(24),
         decoration: const BoxDecoration(
           color: AppColors.white,
           borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         ),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
+        child: SingleChildScrollView(
+          controller: scrollController,
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
           Container(width: 40, height: 4, decoration: BoxDecoration(color: AppColors.border, borderRadius: BorderRadius.circular(2))),
           const SizedBox(height: 20),
           Text(l10n.createAssignment, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.text)),
@@ -89,6 +96,8 @@ class _InstructorAssignmentsScreenState extends State<InstructorAssignmentsScree
           ),
           const SizedBox(height: 16),
         ]),
+        ),
+        ),
       ),
     );
   }
