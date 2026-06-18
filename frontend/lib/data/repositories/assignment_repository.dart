@@ -83,7 +83,7 @@ class AssignmentRepository {
   /// reusing the curriculum-generated [id] as the document ID so the
   /// AssignmentDetailScreen can look it up by the same key.
   Future<void> addCentralAssignment(String id, String title,
-      {String? content, String? levelId, String? imageUrl, bool isVisible = true}) async {
+      {String? content, String? levelId, String? imageUrl, bool isVisible = true, AssignmentType assignmentType = AssignmentType.text, List<String>? choices, DateTime? deadline}) async {
     final model = AssignmentModel(
       id: id,
       title: title,
@@ -100,9 +100,11 @@ class AssignmentRepository {
       curriculumItemId: id,
       searchTags: const [],
       createdAt: DateTime.now(),
-      deadline: DateTime.now().add(const Duration(days: 7)),
+      deadline: deadline ?? DateTime.now().add(const Duration(days: 7)),
       textContent: content,
       levelId: levelId,
+      assignmentType: assignmentType,
+      choices: choices,
     );
     // Use set() with an explicit ID (not add()) so the curriculum ID is preserved.
     await _col.doc(id).set(model.toMap());

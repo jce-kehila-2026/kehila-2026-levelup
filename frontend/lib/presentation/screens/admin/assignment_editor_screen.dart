@@ -2,11 +2,13 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import '../../../data/models/assignment_model.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart' as quill;
 import 'package:frontend/l10n/app_localizations.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../utils/editor_paste_listener.dart';
 import '../../../theme/app_theme.dart';
 import '../../../data/models/curriculum_model.dart';
@@ -124,6 +126,9 @@ class _AssignmentEditorScreenState extends State<AssignmentEditorScreen> {
   String? _selectedFontFamily;
   String? _selectedFontSize;
   final FocusNode _editorFocusNode = FocusNode();
+  AssignmentType _selectedType = AssignmentType.text;
+  List<TextEditingController> _choiceCtrls = [TextEditingController(), TextEditingController()];
+  DateTime? _selectedDeadline;
 
   static final _quillToolbarConfig = quill.QuillSimpleToolbarConfig(
     multiRowsDisplay: false,
@@ -163,6 +168,22 @@ class _AssignmentEditorScreenState extends State<AssignmentEditorScreen> {
   void initState() {
     super.initState();
     _titleCtrl = TextEditingController(text: widget.item?.title ?? '');
+    if (widget.item != null && widget.itemId != null) {
+      FirebaseFirestore.instance
+          .collection('assignments')
+          .doc(widget.itemId)
+          .get()
+          .then((doc) {
+        if (doc.exists && mounted) {
+          final data = doc.data();
+          if (data != null && data['deadline'] != null) {
+            setState(() {
+              _selectedDeadline = (data['deadline'] as Timestamp).toDate();
+            });
+          }
+        }
+      });
+    }
 
     final clipCfg = quill.QuillControllerConfig(
       clipboardConfig: quill.QuillClipboardConfig(
@@ -187,6 +208,14 @@ class _AssignmentEditorScreenState extends State<AssignmentEditorScreen> {
     }
     _docChangeSub = _quillCtrl.document.changes.listen(_onDocumentChange);
     _pasteListener = addImagePasteListener(_quillCtrl);
+    _selectedType = widget.item?.assignmentType == 'multipleChoice'
+        ? AssignmentType.multipleChoice
+        : AssignmentType.text;
+    if (widget.item?.choices != null && widget.item!.choices!.isNotEmpty) {
+      _choiceCtrls = widget.item!.choices!.map((c) => TextEditingController(text: c)).toList();
+    } else {
+      _choiceCtrls = [TextEditingController(), TextEditingController()];
+    }
   }
 
   @override
@@ -196,6 +225,9 @@ class _AssignmentEditorScreenState extends State<AssignmentEditorScreen> {
     _docChangeSub?.cancel();
     _titleCtrl.dispose();
     _quillCtrl.dispose();
+    for (final c in _choiceCtrls) {
+      c.dispose();
+    }
     super.dispose();
   }
 
@@ -260,9 +292,48 @@ class _AssignmentEditorScreenState extends State<AssignmentEditorScreen> {
     }
   }
 
+  Future<void> _pickDeadline() async {
+    final pickedDate = await showDatePicker(
+      context: context,
+      initialDate: _selectedDeadline != null && _selectedDeadline!.isAfter(DateTime.now())
+          ? _selectedDeadline!
+          : DateTime.now().add(const Duration(days: 7)),
+      firstDate: DateTime.now(),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+    );
+    if (pickedDate != null && mounted) {
+      final pickedTime = await showTimePicker(
+        context: context,
+        initialTime: _selectedDeadline != null
+            ? TimeOfDay(hour: _selectedDeadline!.hour, minute: _selectedDeadline!.minute)
+            : const TimeOfDay(hour: 23, minute: 59),
+        initialEntryMode: TimePickerEntryMode.inputOnly,
+      );
+      if (pickedTime != null) {
+        setState(() {
+          _selectedDeadline = DateTime(
+            pickedDate.year, pickedDate.month, pickedDate.day,
+            pickedTime.hour, pickedTime.minute,
+          );
+        });
+      }
+    }
+  }
+
   Future<void> _save() async {
     final title = _titleCtrl.text.trim();
     if (title.isEmpty) return;
+
+    List<String> choices = [];
+    if (_selectedType == AssignmentType.multipleChoice) {
+      choices = _choiceCtrls.map((c) => c.text.trim()).where((t) => t.isNotEmpty).toList();
+      if (choices.length < 2) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please provide at least 2 choices for Multiple Choice assignments.'), backgroundColor: AppColors.error),
+        );
+        return;
+      }
+    }
 
     final deltaJson = jsonEncode(_quillCtrl.document.toDelta().toJson());
     try {
@@ -273,6 +344,9 @@ class _AssignmentEditorScreenState extends State<AssignmentEditorScreen> {
           widget.itemId!,
           title,
           deltaJson,
+          assignmentType: _selectedType == AssignmentType.multipleChoice ? 'multipleChoice' : 'text',
+          choices: _selectedType == AssignmentType.multipleChoice ? choices : null,
+          deadline: _selectedDeadline,
         );
       } else {
         await _controller.addAssignment(
@@ -280,6 +354,9 @@ class _AssignmentEditorScreenState extends State<AssignmentEditorScreen> {
           widget.weekId,
           title,
           content: deltaJson,
+          assignmentType: _selectedType == AssignmentType.multipleChoice ? 'multipleChoice' : 'text',
+          choices: _selectedType == AssignmentType.multipleChoice ? choices : null,
+          deadline: _selectedDeadline,
         );
       }
       if (mounted) Navigator.pop(context);
@@ -547,6 +624,166 @@ class _AssignmentEditorScreenState extends State<AssignmentEditorScreen> {
                                     ),
                                   ),
                                 ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+                          // Settings Card
+                          Center(
+                            child: ConstrainedBox(
+                              constraints: const BoxConstraints(maxWidth: 820),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Assignment Settings',
+                                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.grey.shade800),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Container(
+                                    width: double.infinity,
+                                    decoration: BoxDecoration(
+                                      color: AppColors.white,
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(color: AppColors.border),
+                                    ),
+                                    padding: const EdgeInsets.all(16),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        // Assignment Type Toggle
+                                        Container(
+                                          padding: const EdgeInsets.all(4),
+                                          decoration: BoxDecoration(
+                                            color: AppColors.background,
+                                            borderRadius: BorderRadius.circular(10),
+                                          ),
+                                          child: Row(
+                                            children: [
+                                              Expanded(
+                                                child: GestureDetector(
+                                                  onTap: () => setState(() => _selectedType = AssignmentType.text),
+                                                  child: Container(
+                                                    padding: const EdgeInsets.symmetric(vertical: 8),
+                                                    decoration: BoxDecoration(
+                                                      color: _selectedType == AssignmentType.text ? AppColors.white : Colors.transparent,
+                                                      borderRadius: BorderRadius.circular(8),
+                                                      boxShadow: _selectedType == AssignmentType.text
+                                                          ? [BoxShadow(color: Colors.black12, blurRadius: 4, offset: const Offset(0, 2))]
+                                                          : null,
+                                                    ),
+                                                    alignment: Alignment.center,
+                                                    child: Text(
+                                                      l10n.textAnswerType,
+                                                      style: TextStyle(
+                                                        fontSize: 13,
+                                                        fontWeight: FontWeight.bold,
+                                                        color: _selectedType == AssignmentType.text ? AppColors.primary : AppColors.mutedForeground,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                              Expanded(
+                                                child: GestureDetector(
+                                                  onTap: () => setState(() => _selectedType = AssignmentType.multipleChoice),
+                                                  child: Container(
+                                                    padding: const EdgeInsets.symmetric(vertical: 8),
+                                                    decoration: BoxDecoration(
+                                                      color: _selectedType == AssignmentType.multipleChoice ? AppColors.white : Colors.transparent,
+                                                      borderRadius: BorderRadius.circular(8),
+                                                      boxShadow: _selectedType == AssignmentType.multipleChoice
+                                                          ? [BoxShadow(color: Colors.black12, blurRadius: 4, offset: const Offset(0, 2))]
+                                                          : null,
+                                                    ),
+                                                    alignment: Alignment.center,
+                                                    child: Text(
+                                                      l10n.multipleChoiceType,
+                                                      style: TextStyle(
+                                                        fontSize: 13,
+                                                        fontWeight: FontWeight.bold,
+                                                        color: _selectedType == AssignmentType.multipleChoice ? AppColors.primary : AppColors.mutedForeground,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        if (_selectedType == AssignmentType.multipleChoice) ...[
+                                          const SizedBox(height: 16),
+                                          Text(
+                                            'Multiple Choice Options (2 to 4)',
+                                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey.shade600),
+                                          ),
+                                          const SizedBox(height: 8),
+                                          ...List.generate(_choiceCtrls.length, (i) => Padding(
+                                            padding: const EdgeInsets.only(bottom: 8),
+                                            child: Row(
+                                              children: [
+                                                Expanded(
+                                                  child: TextField(
+                                                    controller: _choiceCtrls[i],
+                                                    decoration: InputDecoration(
+                                                      hintText: l10n.hintOptionN((i + 1).toString()),
+                                                      isDense: true,
+                                                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                                                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.border, width: 1.2)),
+                                                      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.primary, width: 1.2)),
+                                                    ),
+                                                  ),
+                                                ),
+                                                if (_choiceCtrls.length > 2)
+                                                  IconButton(
+                                                    icon: const Icon(Icons.remove_circle_outline, color: AppColors.error, size: 20),
+                                                    onPressed: () => setState(() => _choiceCtrls.removeAt(i)),
+                                                  ),
+                                              ],
+                                            ),
+                                          )),
+                                          if (_choiceCtrls.length < 4)
+                                            TextButton.icon(
+                                              onPressed: () => setState(() => _choiceCtrls.add(TextEditingController())),
+                                              icon: const Icon(Icons.add, size: 16),
+                                              label: Text(l10n.addOptionButton),
+                                              style: TextButton.styleFrom(foregroundColor: AppColors.primary, padding: EdgeInsets.zero),
+                                            ),
+                                        ],
+                                        const SizedBox(height: 16),
+                                        // Deadline Picker
+                                        Text(
+                                          'Deadline',
+                                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey.shade600),
+                                        ),
+                                        const SizedBox(height: 6),
+                                        GestureDetector(
+                                          onTap: _pickDeadline,
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                                            decoration: BoxDecoration(
+                                              color: AppColors.background,
+                                              borderRadius: BorderRadius.circular(10),
+                                              border: Border.all(color: _selectedDeadline != null ? AppColors.primary : AppColors.border),
+                                            ),
+                                            child: Row(
+                                              children: [
+                                                Icon(Icons.calendar_today, size: 14, color: _selectedDeadline != null ? AppColors.primary : AppColors.mutedForeground),
+                                                const SizedBox(width: 10),
+                                                Text(
+                                                  _selectedDeadline != null
+                                                      ? '${_selectedDeadline!.day}/${_selectedDeadline!.month}/${_selectedDeadline!.year}  ${_selectedDeadline!.hour}:${_selectedDeadline!.minute.toString().padLeft(2, '0')}'
+                                                      : l10n.selectDeadline,
+                                                  style: TextStyle(fontSize: 13, color: _selectedDeadline != null ? AppColors.text : AppColors.mutedForeground),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ),

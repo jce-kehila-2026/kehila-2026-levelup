@@ -43,8 +43,12 @@ Future<void> performLogout() async {
     try { getIt<StudentProfileController>().cancelSubscriptions(); } catch (_) {}
   }
 
-  // 2. Reset auth controller state
-  try { getIt<AuthController>().reset(); } catch (_) {}
+  // 2. Reset all lazy singletons in GetIt. This completely discards the cached
+  //    instances and states of all controllers and repositories, ensuring that
+  //    when a new user signs in, fresh instances are created with the new credentials.
+  try {
+    await getIt.resetLazySingletons();
+  } catch (_) {}
 
   // 3. Now sign out — no listeners will fire permission-denied reads
   await FirebaseAuth.instance.signOut();

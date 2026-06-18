@@ -189,6 +189,8 @@ class CurriculumRepository {
     String title, {
     String? content,
     String? id,
+    String? assignmentType,
+    List<String>? choices,
   }) async {
     final level = await _fetchLevel(levelId);
     final week = level.weeks.firstWhere((w) => w.id == weekId);
@@ -200,6 +202,8 @@ class CurriculumRepository {
       isActive: true,
       deadlineText: 'No deadline',
       visible: true,
+      assignmentType: assignmentType,
+      choices: choices,
     ));
     await _saveLevel(level);
   }
@@ -226,6 +230,8 @@ class CurriculumRepository {
     String content, {
     String? deltaJson,
     List<Map<String, String>> attachments = const [],
+    String? assignmentType,
+    List<String>? choices,
   }) async {
     final level = await _fetchLevel(levelId);
     final week = level.weeks.firstWhere((w) => w.id == weekId);
@@ -234,6 +240,27 @@ class CurriculumRepository {
     item.content = content;
     if (deltaJson != null) item.deltaJson = deltaJson;
     item.attachments = attachments;
+    if (item.type == CurriculumItemType.assignment) {
+      final updatedItem = CurriculumItem(
+        id: item.id,
+        type: item.type,
+        title: title,
+        content: content,
+        deltaJson: deltaJson ?? item.deltaJson,
+        searchTags: item.searchTags,
+        visible: item.visible,
+        isActive: item.isActive,
+        deadlineText: item.deadlineText,
+        imageUrl: item.imageUrl,
+        attachments: attachments,
+        assignmentType: assignmentType,
+        choices: choices,
+      );
+      final index = week.items.indexOf(item);
+      if (index != -1) {
+        week.items[index] = updatedItem;
+      }
+    }
     await _saveLevel(level);
   }
 
