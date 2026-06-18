@@ -102,6 +102,33 @@ class _StudentAssignmentDetailScreenState extends State<StudentAssignmentDetailS
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    if (widget.assignment.isOverdue)
+                      Container(
+                        width: double.infinity,
+                        margin: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: AppColors.error.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: AppColors.error, width: 1.5),
+                        ),
+                        child: const Row(
+                          children: [
+                            Icon(Icons.error_outline_rounded, color: AppColors.error, size: 20),
+                            SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                'Deadline passed! Submissions are locked.',
+                                style: TextStyle(
+                                  color: AppColors.error,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     // Assignment details & instructions
                     Container(
                       margin: const EdgeInsets.all(20),

@@ -5,6 +5,8 @@ library;
 import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../data/models/curriculum_model.dart';
+import '../../data/models/assignment_model.dart';
+import 'instructor_assignment_controller.dart';
 import '../../data/repositories/curriculum_repository.dart';
 import '../../data/repositories/assignment_repository.dart';
 import '../../data/repositories/user_repository.dart';
@@ -383,12 +385,48 @@ class CurriculumController extends ChangeNotifier {
     );
   }
 
-  Future<void> addAssignment(String levelId, String weekId, String title, {String? content}) async {
+  Future<void> addAssignment(
+    String levelId,
+    String weekId,
+    String title, {
+    String? content,
+    String? assignmentType,
+    List<String>? choices,
+    String? groupId,
+    String? groupName,
+    String? assignedLevelId,
+    DateTime? deadline,
+  }) async {
     if (title.isEmpty) return;
     try {
       final id = 'ca_${DateTime.now().millisecondsSinceEpoch}';
-      await _repository.addAssignment(levelId, weekId, title, content: content, id: id);
-      await _assignmentRepository.addCentralAssignment(id, title, content: content, levelId: levelId);
+      await _repository.addAssignment(levelId, weekId, title, content: content, id: id, assignmentType: assignmentType, choices: choices);
+      await _assignmentRepository.addCentralAssignment(
+        id,
+        title,
+        content: content,
+        levelId: levelId,
+        assignmentType: assignmentType == 'multipleChoice' ? AssignmentType.multipleChoice : AssignmentType.text,
+        choices: choices,
+        deadline: deadline,
+      );
+
+      if (groupId != null && assignedLevelId != null && deadline != null) {
+        final instructorAssignmentController = getIt<InstructorAssignmentController>();
+        await instructorAssignmentController.addAssignment(
+          title,
+          deadline: deadline,
+          textContent: content,
+          type: 'central',
+          assignmentType: assignmentType == 'multipleChoice' ? AssignmentType.multipleChoice : AssignmentType.text,
+          choices: choices,
+          groupId: groupId,
+          groupName: groupName,
+          levelId: assignedLevelId,
+          curriculumItemId: id,
+        );
+      }
+
       _levels = await _repository.getLevels();
       notifyListeners();
       final levelName = _levels.where((l) => l.id == levelId).firstOrNull?.name ?? levelId;
@@ -446,6 +484,12 @@ class CurriculumController extends ChangeNotifier {
     String content, {
     String? deltaJson,
     List<Map<String, String>> attachments = const [],
+    String? assignmentType,
+    List<String>? choices,
+    String? groupId,
+    String? groupName,
+    String? assignedLevelId,
+    DateTime? deadline,
   }) async {
     try {
       await _repository.updateItem(
@@ -456,7 +500,61 @@ class CurriculumController extends ChangeNotifier {
         content,
         deltaJson: deltaJson,
         attachments: attachments,
+        assignmentType: assignmentType,
+        choices: choices,
       );
+      // Update central assignment in assignments collection if it exists
+      final docRef = FirebaseFirestore.instance.collection('assignments').doc(itemId);
+      final docSnap = await docRef.get();
+      if (docSnap.exists) {
+        await docRef.update({
+          'title': title,
+          'content': content,
+          'assignmentType': assignmentType,
+          'choices': choices,
+          if (deadline != null) 'deadline': deadline,
+        });
+      }
+
+      if (groupId != null && assignedLevelId != null && deadline != null) {
+        final instructorAssignmentController = getIt<InstructorAssignmentController>();
+        final querySnap = await FirebaseFirestore.instance
+            .collection('assignments')
+            .where('curriculumItemId', isEqualTo: itemId)
+            .where('groupId', isEqualTo: groupId)
+            .where('levelId', isEqualTo: assignedLevelId)
+            .limit(1)
+            .get();
+
+        if (querySnap.docs.isNotEmpty) {
+          final docId = querySnap.docs.first.id;
+          await instructorAssignmentController.updateContent(
+            docId,
+            title,
+            content,
+            assignmentType == 'multipleChoice' ? AssignmentType.multipleChoice : AssignmentType.text,
+            choices ?? [],
+            groupId: groupId,
+            groupName: groupName,
+            levelId: assignedLevelId,
+          );
+          await instructorAssignmentController.updateDeadline(docId, deadline);
+        } else {
+          await instructorAssignmentController.addAssignment(
+            title,
+            deadline: deadline,
+            textContent: content,
+            type: 'central',
+            assignmentType: assignmentType == 'multipleChoice' ? AssignmentType.multipleChoice : AssignmentType.text,
+            choices: choices,
+            groupId: groupId,
+            groupName: groupName,
+            levelId: assignedLevelId,
+            curriculumItemId: itemId,
+          );
+        }
+      }
+
       _levels = await _repository.getLevels();
       notifyListeners();
       _audit.log(action: 'Updated curriculum item', category: 'curriculum', details: '"$title"');

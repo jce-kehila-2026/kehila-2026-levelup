@@ -1,10 +1,12 @@
 // ignore_for_file: experimental_member_use
 import 'dart:async';
 import 'dart:convert';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart' as quill;
 import 'package:frontend/l10n/app_localizations.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import '../../../utils/editor_paste_listener.dart';
 import '../../../data/models/assignment_model.dart';
 import '../../../data/models/group_model.dart';
@@ -15,6 +17,9 @@ import '../../../logic/controllers/auth_controller.dart';
 import '../../../di/service_locator.dart';
 
 class _ImageEmbedBuilder extends quill.EmbedBuilder {
+  final quill.QuillController controller;
+  _ImageEmbedBuilder({required this.controller});
+
   @override
   String get key => quill.BlockEmbed.imageType;
 
@@ -28,25 +33,71 @@ class _ImageEmbedBuilder extends quill.EmbedBuilder {
         ? Image.memory(
             base64Decode(src.split(',').last),
             fit: BoxFit.contain,
+            width: double.infinity,
             errorBuilder: (_, _, _) => const Icon(Icons.broken_image),
           )
         : Image.network(
             src,
             fit: BoxFit.contain,
+            width: double.infinity,
             errorBuilder: (_, _, _) => const Icon(Icons.broken_image),
           );
-    return SizedBox(
-      width: double.infinity,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        child: ClipRRect(borderRadius: BorderRadius.circular(8), child: img),
+
+    return MouseRegion(
+      cursor: SystemMouseCursors.basic,
+      opaque: true,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () {},
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxHeight: 300),
+                  child: img,
+                ),
+              ),
+              Container(
+                decoration: const BoxDecoration(
+                  color: AppColors.background,
+                  borderRadius: BorderRadius.only(
+                    bottomLeft: Radius.circular(8),
+                    bottomRight: Radius.circular(8),
+                  ),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                child: Row(
+                  children: [
+                    const Icon(Icons.image_outlined, size: 14, color: AppColors.mutedForeground),
+                    const SizedBox(width: 6),
+                    const Expanded(
+                      child: Text('Image', style: TextStyle(fontSize: 12, color: AppColors.mutedForeground)),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.delete_outline, size: 16, color: AppColors.error),
+                      onPressed: () {
+                        final offset = embedContext.node.documentOffset;
+                        controller.document.delete(offset, 1);
+                      },
+                      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                      padding: EdgeInsets.zero,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
 }
 
 class InstructorAssignmentEditorScreen extends StatefulWidget {
-  /// Null → Create mode. type=='central' → Template mode. type=='custom' → Edit mode.
   final AssignmentModel? initialAssignment;
 
   const InstructorAssignmentEditorScreen({super.key, this.initialAssignment});
@@ -68,6 +119,7 @@ class _InstructorAssignmentEditorScreenState extends State<InstructorAssignmentE
   StreamSubscription<quill.DocChange>? _docChangeSub;
   bool _processingImage = false;
   dynamic _pasteListener;
+  bool _isUploadingFile = false;
 
   DateTime? _selectedDeadline;
   AssignmentType _selectedType = AssignmentType.text;
@@ -76,6 +128,39 @@ class _InstructorAssignmentEditorScreenState extends State<InstructorAssignmentE
   GroupModel? _selectedGroup;
   String? _selectedLevel;
   String? _preselectedGroupId;
+
+  String? _selectedFontFamily;
+  String? _selectedFontSize;
+  final FocusNode _editorFocusNode = FocusNode();
+
+  static final _quillToolbarConfig = quill.QuillSimpleToolbarConfig(
+    multiRowsDisplay: false,
+    showBoldButton: true,
+    showItalicButton: true,
+    showUnderLineButton: true,
+    showHeaderStyle: true,
+    showListBullets: true,
+    showListNumbers: true,
+    showDividers: false,
+    showFontFamily: false,
+    showFontSize: false,
+    showBackgroundColorButton: false,
+    showColorButton: false,
+    showClearFormat: false,
+    showAlignmentButtons: true,
+    showJustifyAlignment: false,
+    showIndent: false,
+    showLink: false,
+    showDirection: false,
+    showSearchButton: false,
+    showSubscript: false,
+    showSuperscript: false,
+    showCodeBlock: false,
+    showInlineCode: false,
+    showQuote: false,
+    showStrikeThrough: false,
+    showSmallButton: false,
+  );
 
   static final _imageUrlRegex = RegExp(
     r'^https?://\S+\.(?:jpg|jpeg|png|gif|webp|svg)(\?[^\s]*)?\s*$',
@@ -93,7 +178,6 @@ class _InstructorAssignmentEditorScreenState extends State<InstructorAssignmentE
     });
 
     final a = widget.initialAssignment;
-
     _titleCtrl = TextEditingController(text: a?.title ?? '');
 
     final clipCfg = quill.QuillControllerConfig(
@@ -103,7 +187,6 @@ class _InstructorAssignmentEditorScreenState extends State<InstructorAssignmentE
       ),
     );
 
-    // Try to load existing Quill delta; fall back to plain text or empty
     if (a != null && (a.textContent?.isNotEmpty ?? false)) {
       try {
         _quillCtrl = quill.QuillController(
@@ -112,7 +195,6 @@ class _InstructorAssignmentEditorScreenState extends State<InstructorAssignmentE
           config: clipCfg,
         );
       } catch (_) {
-        // Plain-text content — insert it as a plain paragraph
         final doc = quill.Document();
         doc.insert(0, a.textContent!);
         _quillCtrl = quill.QuillController(
@@ -125,7 +207,6 @@ class _InstructorAssignmentEditorScreenState extends State<InstructorAssignmentE
       _quillCtrl = quill.QuillController.basic(config: clipCfg);
     }
 
-    // Edit mode: pre-fill all editable fields
     if (_isEditMode && a != null) {
       _selectedDeadline = a.deadline;
       _selectedType = a.assignmentType;
@@ -137,12 +218,12 @@ class _InstructorAssignmentEditorScreenState extends State<InstructorAssignmentE
     }
 
     _docChangeSub = _quillCtrl.document.changes.listen(_onDocumentChange);
-
     _pasteListener = addImagePasteListener(_quillCtrl);
   }
 
   @override
   void dispose() {
+    _editorFocusNode.dispose();
     removeImagePasteListener(_pasteListener);
     _docChangeSub?.cancel();
     _titleCtrl.dispose();
@@ -178,53 +259,40 @@ class _InstructorAssignmentEditorScreenState extends State<InstructorAssignmentE
     }
   }
 
-  Widget _buildInsertImageButton() {
-    final l10n = AppLocalizations.of(context)!;
-    return IconButton(
-      tooltip: l10n.insertImageUrlTooltip,
-      icon: const Icon(Icons.image_outlined, size: 20, color: AppColors.primary),
-      onPressed: () async {
-        final urlCtrl = TextEditingController();
-        final confirmed = await showDialog<bool>(
-          context: context,
-          builder: (ctx) => AlertDialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            insetPadding: EdgeInsets.fromLTRB(24, 24, 24, kIsWeb ? 24 : MediaQuery.of(ctx).viewInsets.bottom + 24),
-            title: Text(l10n.insertImageTitle, style: const TextStyle(fontWeight: FontWeight.bold)),
-            content: SingleChildScrollView(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 500),
-                child: TextField(
-                  controller: urlCtrl,
-                  autofocus: true,
-                  decoration: InputDecoration(
-                    hintText: 'https://example.com/image.jpg',
-                    prefixIcon: const Icon(Icons.link, size: 18),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                  ),
-                ),
-              ),
-            ),
-            actions: [
-              TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(l10n.cancelButton)),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: AppColors.white),
-                onPressed: () => Navigator.pop(ctx, true),
-                child: Text(l10n.insertButton),
-              ),
-            ],
-          ),
+  Future<void> _uploadImage() async {
+    try {
+      final result = await FilePicker.pickFiles(type: FileType.image, withData: true);
+      if (result == null || result.files.isEmpty) return;
+      final file = result.files.first;
+      final bytes = file.bytes;
+      if (bytes == null) return;
+
+      setState(() => _isUploadingFile = true);
+
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final storagePath = 'materials/images/${timestamp}_${file.name}';
+      final ref = FirebaseStorage.instance.ref().child(storagePath);
+      await ref.putData(bytes);
+      final downloadUrl = await ref.getDownloadURL();
+
+      final index = _quillCtrl.selection.baseOffset;
+      final safeIndex = index < 0 ? 0 : index;
+      _quillCtrl.document.insert(safeIndex, '\n');
+      _quillCtrl.document.insert(safeIndex + 1, quill.BlockEmbed.image(downloadUrl));
+      _quillCtrl.document.insert(safeIndex + 2, '\n');
+      _quillCtrl.updateSelection(
+        TextSelection.collapsed(offset: safeIndex + 3),
+        quill.ChangeSource.local,
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to upload image: $e'), backgroundColor: AppColors.error),
         );
-        if (confirmed == true && urlCtrl.text.trim().isNotEmpty) {
-          final url = urlCtrl.text.trim();
-          final index = _quillCtrl.selection.baseOffset;
-          final safeIndex = index < 0 ? 0 : index;
-          _quillCtrl.document.insert(safeIndex, '\n');
-          _quillCtrl.document.insert(safeIndex + 1, quill.BlockEmbed.image(url));
-          _quillCtrl.document.insert(safeIndex + 2, '\n');
-        }
-      },
-    );
+      }
+    } finally {
+      if (mounted) setState(() => _isUploadingFile = false);
+    }
   }
 
   Future<void> _pickDeadline() async {
@@ -255,7 +323,7 @@ class _InstructorAssignmentEditorScreenState extends State<InstructorAssignmentE
     }
   }
 
-  void _save() {
+  Future<void> _save() async {
     final title = _titleCtrl.text.trim();
     final l10n = AppLocalizations.of(context)!;
 
@@ -267,15 +335,14 @@ class _InstructorAssignmentEditorScreenState extends State<InstructorAssignmentE
       _showError(l10n.selectDeadline);
       return;
     }
-    
-    // Resolve group to save: either selected or pre-selected
+
     GroupModel? groupToSave = _selectedGroup;
     if (groupToSave == null && _preselectedGroupId != null) {
       try {
         groupToSave = _groupController.myGroups.firstWhere((g) => g.id == _preselectedGroupId);
       } catch (_) {}
     }
-    
+
     if (groupToSave == null) {
       _showError(l10n.chooseGroupHint);
       return;
@@ -297,30 +364,33 @@ class _InstructorAssignmentEditorScreenState extends State<InstructorAssignmentE
     final deltaJson = jsonEncode(_quillCtrl.document.toDelta().toJson());
     final a = widget.initialAssignment;
 
-    if (_isEditMode && a != null) {
-      _controller.updateContent(
-        a.id, title, deltaJson, _selectedType, choices,
-        groupId: groupToSave.id,
-        groupName: groupToSave.name,
-        levelId: _selectedLevel,
-      );
-      if (_selectedDeadline != a.deadline) {
-        _controller.updateDeadline(a.id, _selectedDeadline!);
+    try {
+      if (_isEditMode && a != null) {
+        await _controller.updateContent(
+          a.id, title, deltaJson, _selectedType, choices,
+          groupId: groupToSave.id,
+          groupName: groupToSave.name,
+          levelId: _selectedLevel,
+        );
+        if (_selectedDeadline != a.deadline) {
+          await _controller.updateDeadline(a.id, _selectedDeadline!);
+        }
+      } else {
+        await _controller.addAssignment(
+          title,
+          deadline: _selectedDeadline,
+          textContent: deltaJson,
+          assignmentType: _selectedType,
+          choices: choices,
+          groupId: groupToSave.id,
+          groupName: groupToSave.name,
+          levelId: _selectedLevel,
+        );
       }
-    } else {
-      _controller.addAssignment(
-        title,
-        deadline: _selectedDeadline,
-        textContent: deltaJson,
-        assignmentType: _selectedType,
-        choices: choices,
-        groupId: groupToSave.id,
-        groupName: groupToSave.name,
-        levelId: _selectedLevel,
-      );
+      if (mounted) Navigator.pop(context);
+    } catch (e) {
+      _showError(e.toString().replaceAll('Exception: ', ''));
     }
-
-    Navigator.pop(context);
   }
 
   void _showError(String message) {
@@ -335,7 +405,6 @@ class _InstructorAssignmentEditorScreenState extends State<InstructorAssignmentE
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
 
-    // Lazily resolve pre-selected group once the controller has groups loaded
     GroupModel? resolvedGroup = _selectedGroup;
     if (resolvedGroup == null && _preselectedGroupId != null) {
       try {
@@ -354,264 +423,478 @@ class _InstructorAssignmentEditorScreenState extends State<InstructorAssignmentE
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: AppColors.background,
+        backgroundColor: AppColors.white,
         elevation: 0,
-        iconTheme: const IconThemeData(color: AppColors.text),
+        scrolledUnderElevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.close, color: AppColors.text),
+          icon: const Icon(Icons.close_rounded, color: AppColors.text),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: Row(
-          children: [
-            Container(
-              width: 36, height: 36,
-              decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(10)),
-              child: const Icon(Icons.assignment_outlined, color: AppColors.text, size: 18),
-            ),
-            const SizedBox(width: 12),
-            Expanded(child: Text(
-              _isEditMode ? l10n.editContent : l10n.createAssignment,
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.text),
-            )),
-          ],
+        title: Text(
+          _isEditMode ? l10n.editContent : l10n.createAssignment,
+          style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: AppColors.text),
+          overflow: TextOverflow.ellipsis,
         ),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Divider(height: 1, color: Colors.grey.shade200),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(l10n.cancel, style: const TextStyle(color: AppColors.mutedForeground, fontWeight: FontWeight.w600)),
+          ),
+          const SizedBox(width: 6),
+          Padding(
+            padding: const EdgeInsets.only(right: 16),
+            child: ElevatedButton(
+              onPressed: _isUploadingFile ? null : _save,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: AppColors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                elevation: 0,
+              ),
+              child: Text(
+                _isEditMode ? l10n.saveChanges : l10n.createButton,
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+        ],
       ),
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: Column(
-            children: [
-              const SizedBox(height: 16),
-
-              // Title
-              TextField(
-                controller: _titleCtrl,
-                decoration: InputDecoration(
-                  labelText: l10n.assignmentTitleLabel,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.input, width: 1.5)),
-                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.primary, width: 1.5)),
-                ),
+        child: Column(
+          children: [
+            // Formatting toolbar
+            Container(
+              decoration: BoxDecoration(
+                color: AppColors.white,
+                border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
               ),
-              const SizedBox(height: 12),
-
-              // Quill Toolbar
-              Container(
-                height: 52,
-                decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(10), border: Border.all(color: AppColors.border)),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: quill.QuillSimpleToolbar(
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 900),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                        child: Row(
+                          children: [
+                            // Font family dropdown
+                            SizedBox(
+                              width: 100,
+                              child: DropdownButton<String>(
+                                value: _selectedFontFamily,
+                                hint: const Text('Font', style: TextStyle(fontSize: 12)),
+                                underline: const SizedBox(),
+                                isExpanded: true,
+                                style: const TextStyle(fontSize: 12, color: AppColors.text),
+                                items: const [
+                                  DropdownMenuItem(value: 'IBM Plex Sans Arabic', child: Text('IBM Plex', style: TextStyle(fontSize: 12))),
+                                  DropdownMenuItem(value: 'Roboto', child: Text('Roboto', style: TextStyle(fontSize: 12))),
+                                  DropdownMenuItem(value: 'Lato', child: Text('Lato', style: TextStyle(fontSize: 12))),
+                                  DropdownMenuItem(value: 'Merriweather', child: Text('Merriweather', style: TextStyle(fontSize: 12))),
+                                  DropdownMenuItem(value: 'Playfair Display', child: Text('Playfair', style: TextStyle(fontSize: 12))),
+                                  DropdownMenuItem(value: 'Courier Prime', child: Text('Courier', style: TextStyle(fontSize: 12))),
+                                ],
+                                onChanged: (font) {
+                                  setState(() => _selectedFontFamily = font);
+                                  if (font != null) {
+                                    _quillCtrl.formatSelection(
+                                      quill.Attribute.fromKeyValue(quill.Attribute.font.key, font),
+                                    );
+                                  }
+                                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                                    if (mounted) _editorFocusNode.requestFocus();
+                                  });
+                                },
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            const SizedBox(height: 20, child: VerticalDivider(width: 1, color: AppColors.border)),
+                            const SizedBox(width: 8),
+                            // Font size dropdown
+                            SizedBox(
+                              width: 70,
+                              child: DropdownButton<String>(
+                                value: _selectedFontSize,
+                                hint: const Text('Size', style: TextStyle(fontSize: 12)),
+                                underline: const SizedBox(),
+                                isExpanded: true,
+                                style: const TextStyle(fontSize: 12, color: AppColors.text),
+                                items: ['12', '14', '16', '18', '20', '24', '28', '32', '36']
+                                    .map((s) => DropdownMenuItem(value: s, child: Text(s, style: const TextStyle(fontSize: 12))))
+                                    .toList(),
+                                onChanged: (size) {
+                                  setState(() => _selectedFontSize = size);
+                                  if (size != null) {
+                                    _quillCtrl.formatSelection(
+                                      quill.Attribute.fromKeyValue(quill.Attribute.size.key, size),
+                                    );
+                                  }
+                                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                                    if (mounted) _editorFocusNode.requestFocus();
+                                  });
+                                },
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Divider(height: 1, color: AppColors.border),
+                      quill.QuillSimpleToolbar(
                         controller: _quillCtrl,
-                        config: const quill.QuillSimpleToolbarConfig(
-                          multiRowsDisplay: false,
-                          showBoldButton: true, showItalicButton: true, showUnderLineButton: true,
-                          showHeaderStyle: true, showListBullets: true, showListNumbers: true,
-                          showDividers: false, showFontFamily: false, showFontSize: false,
-                          showBackgroundColorButton: false, showColorButton: false, showClearFormat: false,
-                          showAlignmentButtons: true, showIndent: false, showLink: false,
-                          showDirection: true,
-                          showSearchButton: false, showSubscript: false, showSuperscript: false,
-                          showCodeBlock: false, showInlineCode: false, showQuote: false,
-                          showStrikeThrough: false, showSmallButton: false,
+                        config: _quillToolbarConfig,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            // Attach toolbar
+            Container(
+              height: 48,
+              decoration: BoxDecoration(
+                color: AppColors.white,
+                border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
+              ),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(maxWidth: kIsWeb ? 900 : double.infinity),
+                  child: _isUploadingFile
+                      ? const Center(
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
+                              ),
+                              SizedBox(width: 8),
+                              Text('Uploading...', style: TextStyle(color: AppColors.mutedForeground, fontSize: 12)),
+                            ],
+                          ),
+                        )
+                      : Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            Expanded(
+                              child: TextButton.icon(
+                                icon: const Icon(Icons.image_outlined, size: 16, color: AppColors.primary),
+                                label: const Text('Upload Image', style: TextStyle(color: AppColors.primary, fontSize: 12, fontWeight: FontWeight.w500)),
+                                style: TextButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                ),
+                                onPressed: _uploadImage,
+                              ),
+                            ),
+                          ],
                         ),
-                      ),
-                    ),
-                    _buildInsertImageButton(),
-                  ],
                 ),
               ),
-              const SizedBox(height: 8),
+            ),
+            // Scrollable area for document and settings
+            Expanded(
+              child: SingleChildScrollView(
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 900),
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(horizontal: kIsWeb ? 20 : 16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const SizedBox(height: 20),
+                          // Title input
+                          TextField(
+                            controller: _titleCtrl,
+                            maxLines: 2,
+                            minLines: 1,
+                            style: TextStyle(
+                              fontSize: kIsWeb ? 24 : 20,
+                              fontWeight: FontWeight.w500,
+                              color: AppColors.text,
+                            ),
+                            decoration: InputDecoration(
+                              hintText: 'Assignment title...',
+                              hintStyle: TextStyle(
+                                fontSize: kIsWeb ? 24 : 20,
+                                fontWeight: FontWeight.w300,
+                                color: AppColors.mutedForeground.withValues(alpha: 0.6),
+                              ),
+                              border: InputBorder.none,
+                              enabledBorder: InputBorder.none,
+                              focusedBorder: InputBorder.none,
+                              contentPadding: EdgeInsets.zero,
+                            ),
+                          ),
+                          const Divider(color: AppColors.border, height: 28),
+                          // White doc card
+                          Center(
+                            child: ConstrainedBox(
+                              constraints: const BoxConstraints(maxWidth: 820),
+                              child: Container(
+                                width: double.infinity,
+                                decoration: BoxDecoration(
+                                  color: AppColors.white,
+                                  borderRadius: BorderRadius.circular(kIsWeb ? 12 : 8),
+                                  border: Border.all(color: AppColors.border),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(alpha: 0.06),
+                                      blurRadius: 12,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                padding: EdgeInsets.all(kIsWeb ? 32 : 20),
+                                child: IntrinsicHeight(
+                                  child: ConstrainedBox(
+                                    constraints: const BoxConstraints(minHeight: 300),
+                                    child: quill.QuillEditor.basic(
+                                      focusNode: _editorFocusNode,
+                                      controller: _quillCtrl,
+                                      config: quill.QuillEditorConfig(
+                                        scrollable: false,
+                                        expands: false,
+                                        embedBuilders: [
+                                          _ImageEmbedBuilder(controller: _quillCtrl),
+                                        ],
+                                        placeholder: l10n.hintAssignmentInstructions,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+                          
+                          // Settings Card
+                          Text(
+                            'Assignment Settings',
+                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.grey.shade800),
+                          ),
+                          const SizedBox(height: 8),
+                          Container(
+                            width: double.infinity,
+                            decoration: BoxDecoration(
+                              color: AppColors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: AppColors.border),
+                            ),
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // Assignment Type Toggle
+                                Container(
+                                  padding: const EdgeInsets.all(4),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.background,
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Expanded(
+                                        child: GestureDetector(
+                                          onTap: () => setState(() => _selectedType = AssignmentType.text),
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(vertical: 8),
+                                            decoration: BoxDecoration(
+                                              color: _selectedType == AssignmentType.text ? AppColors.white : Colors.transparent,
+                                              borderRadius: BorderRadius.circular(8),
+                                              boxShadow: _selectedType == AssignmentType.text
+                                                  ? [BoxShadow(color: Colors.black12, blurRadius: 4, offset: const Offset(0, 2))]
+                                                  : null,
+                                            ),
+                                            alignment: Alignment.center,
+                                            child: Text(
+                                              l10n.textAnswerType,
+                                              style: TextStyle(
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.bold,
+                                                color: _selectedType == AssignmentType.text ? AppColors.primary : AppColors.mutedForeground,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      Expanded(
+                                        child: GestureDetector(
+                                          onTap: () => setState(() => _selectedType = AssignmentType.multipleChoice),
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(vertical: 8),
+                                            decoration: BoxDecoration(
+                                              color: _selectedType == AssignmentType.multipleChoice ? AppColors.white : Colors.transparent,
+                                              borderRadius: BorderRadius.circular(8),
+                                              boxShadow: _selectedType == AssignmentType.multipleChoice
+                                                  ? [BoxShadow(color: Colors.black12, blurRadius: 4, offset: const Offset(0, 2))]
+                                                  : null,
+                                            ),
+                                            alignment: Alignment.center,
+                                            child: Text(
+                                              l10n.multipleChoiceType,
+                                              style: TextStyle(
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.bold,
+                                                color: _selectedType == AssignmentType.multipleChoice ? AppColors.primary : AppColors.mutedForeground,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                if (_selectedType == AssignmentType.multipleChoice) ...[
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    'Multiple Choice Options (2 to 4)',
+                                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey.shade600),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  ...List.generate(_choiceCtrls.length, (i) => Padding(
+                                    padding: const EdgeInsets.only(bottom: 8),
+                                    child: Row(
+                                      children: [
+                                        Expanded(
+                                          child: TextField(
+                                            controller: _choiceCtrls[i],
+                                            decoration: InputDecoration(
+                                              hintText: l10n.hintOptionN((i + 1).toString()),
+                                              isDense: true,
+                                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                                              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.border, width: 1.2)),
+                                              focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.primary, width: 1.2)),
+                                            ),
+                                          ),
+                                        ),
+                                        if (_choiceCtrls.length > 2)
+                                          IconButton(
+                                            icon: const Icon(Icons.remove_circle_outline, color: AppColors.error, size: 20),
+                                            onPressed: () => setState(() => _choiceCtrls.removeAt(i)),
+                                          ),
+                                      ],
+                                    ),
+                                  )),
+                                  if (_choiceCtrls.length < 4)
+                                    TextButton.icon(
+                                      onPressed: () => setState(() => _choiceCtrls.add(TextEditingController())),
+                                      icon: const Icon(Icons.add, size: 16),
+                                      label: Text(l10n.addOptionButton),
+                                      style: TextButton.styleFrom(foregroundColor: AppColors.primary, padding: EdgeInsets.zero),
+                                    ),
+                                ],
+                                const SizedBox(height: 16),
 
-              // Quill Editor
-              Expanded(
-                child: Container(
-                  decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: AppColors.input, width: 1.5)),
-                  child: quill.QuillEditor.basic(
-                    controller: _quillCtrl,
-                    config: quill.QuillEditorConfig(
-                      embedBuilders: [_ImageEmbedBuilder()],
-                      placeholder: l10n.hintAssignmentInstructions,
-                      padding: const EdgeInsets.all(14),
+                                // Group Picker
+                                Text(
+                                  'Assign to Group',
+                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey.shade600),
+                                ),
+                                const SizedBox(height: 6),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.background,
+                                    borderRadius: BorderRadius.circular(10),
+                                    border: Border.all(color: AppColors.border),
+                                  ),
+                                  child: DropdownButtonHideUnderline(
+                                    child: DropdownButton<GroupModel>(
+                                      value: resolvedGroup,
+                                      hint: Text(l10n.chooseGroupHint, style: const TextStyle(fontSize: 13, color: AppColors.mutedForeground)),
+                                      isExpanded: true,
+                                      icon: const Icon(Icons.arrow_drop_down, color: AppColors.mutedForeground),
+                                      items: groups.map((g) => DropdownMenuItem(value: g, child: Text(g.name, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)))).toList(),
+                                      onChanged: (val) => setState(() {
+                                        _selectedGroup = val;
+                                        _selectedLevel = null;
+                                      }),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+
+                                // Level Picker
+                                Text(
+                                  'Level within Group',
+                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey.shade600),
+                                ),
+                                const SizedBox(height: 6),
+                                Opacity(
+                                  opacity: resolvedGroup == null ? 0.4 : 1.0,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 14),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.background,
+                                      borderRadius: BorderRadius.circular(10),
+                                      border: Border.all(color: AppColors.border),
+                                    ),
+                                    child: DropdownButtonHideUnderline(
+                                      child: DropdownButton<String>(
+                                        value: _selectedLevel,
+                                        hint: Text(l10n.selectLevelHint, style: const TextStyle(fontSize: 13, color: AppColors.mutedForeground)),
+                                        isExpanded: true,
+                                        icon: const Icon(Icons.arrow_drop_down, color: AppColors.mutedForeground),
+                                        items: levels.map((l) => DropdownMenuItem(
+                                          value: l,
+                                          child: Text(l10n.levelLabel(l.replaceAll('l', '')), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+                                        )).toList(),
+                                        onChanged: resolvedGroup == null ? null : (val) => setState(() => _selectedLevel = val),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+
+                                // Deadline Picker
+                                Text(
+                                  'Deadline',
+                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey.shade600),
+                                ),
+                                const SizedBox(height: 6),
+                                GestureDetector(
+                                  onTap: _pickDeadline,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.background,
+                                      borderRadius: BorderRadius.circular(10),
+                                      border: Border.all(color: _selectedDeadline != null ? AppColors.primary : AppColors.border),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Icon(Icons.calendar_today, size: 14, color: _selectedDeadline != null ? AppColors.primary : AppColors.mutedForeground),
+                                        const SizedBox(width: 10),
+                                        Text(
+                                          _selectedDeadline != null
+                                              ? '${_selectedDeadline!.day}/${_selectedDeadline!.month}/${_selectedDeadline!.year}  ${_selectedDeadline!.hour}:${_selectedDeadline!.minute.toString().padLeft(2, '0')}'
+                                              : l10n.selectDeadline,
+                                          style: TextStyle(fontSize: 13, color: _selectedDeadline != null ? AppColors.text : AppColors.mutedForeground),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 40),
+                        ],
+                      ),
                     ),
                   ),
                 ),
               ),
-              const SizedBox(height: 12),
-
-              // Assignment Type Toggle
-              Container(
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(14), border: Border.all(color: AppColors.border)),
-                child: Row(children: [
-                  Expanded(child: GestureDetector(
-                    onTap: () => setState(() => _selectedType = AssignmentType.text),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 10),
-                      decoration: BoxDecoration(
-                        color: _selectedType == AssignmentType.text ? AppColors.primary : Colors.transparent,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      alignment: Alignment.center,
-                      child: Text(l10n.textAnswerType, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: _selectedType == AssignmentType.text ? AppColors.white : AppColors.mutedForeground)),
-                    ),
-                  )),
-                  Expanded(child: GestureDetector(
-                    onTap: () => setState(() => _selectedType = AssignmentType.multipleChoice),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 10),
-                      decoration: BoxDecoration(
-                        color: _selectedType == AssignmentType.multipleChoice ? AppColors.primary : Colors.transparent,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      alignment: Alignment.center,
-                      child: Text(l10n.multipleChoiceType, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: _selectedType == AssignmentType.multipleChoice ? AppColors.white : AppColors.mutedForeground)),
-                    ),
-                  )),
-                ]),
-              ),
-
-              // MCQ Choices (only when Multiple Choice selected)
-              if (_selectedType == AssignmentType.multipleChoice) ...[
-                const SizedBox(height: 8),
-                ...List.generate(_choiceCtrls.length, (i) => Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Row(children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _choiceCtrls[i],
-                        decoration: InputDecoration(
-                          hintText: l10n.hintOptionN((i + 1).toString()),
-                          isDense: true,
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.input, width: 1.2)),
-                          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.primary, width: 1.2)),
-                        ),
-                      ),
-                    ),
-                    if (_choiceCtrls.length > 2)
-                      IconButton(
-                        icon: const Icon(Icons.remove_circle_outline, color: AppColors.error, size: 20),
-                        onPressed: () => setState(() => _choiceCtrls.removeAt(i)),
-                      ),
-                  ]),
-                )),
-                if (_choiceCtrls.length < 4)
-                  Align(
-                    alignment: AlignmentDirectional.centerStart,
-                    child: TextButton.icon(
-                      onPressed: () => setState(() => _choiceCtrls.add(TextEditingController())),
-                      icon: const Icon(Icons.add, size: 16),
-                      label: Text(l10n.addOptionButton),
-                      style: TextButton.styleFrom(foregroundColor: AppColors.primary, padding: EdgeInsets.zero),
-                    ),
-                  ),
-              ],
-              const SizedBox(height: 8),
-
-              // Group Dropdown
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14),
-                decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: AppColors.border)),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<GroupModel>(
-                    value: resolvedGroup,
-                    hint: Text(l10n.chooseGroupHint, style: const TextStyle(fontSize: 14, color: AppColors.mutedForeground)),
-                    isExpanded: true,
-                    icon: const Icon(Icons.arrow_drop_down, color: AppColors.mutedForeground),
-                    items: groups.map((g) => DropdownMenuItem(value: g, child: Text(g.name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)))).toList(),
-                    onChanged: (val) => setState(() {
-                      _selectedGroup = val;
-                      _selectedLevel = null;
-                    }),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
-
-              // Level Dropdown
-              Opacity(
-                opacity: resolvedGroup == null ? 0.4 : 1.0,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14),
-                  decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: AppColors.border)),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<String>(
-                      value: _selectedLevel,
-                      hint: Text(l10n.selectLevelHint, style: const TextStyle(fontSize: 14, color: AppColors.mutedForeground)),
-                      isExpanded: true,
-                      icon: const Icon(Icons.arrow_drop_down, color: AppColors.mutedForeground),
-                      items: levels.map((l) => DropdownMenuItem(
-                        value: l,
-                        child: Text(l10n.levelLabel(l.replaceAll('l', '')), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
-                      )).toList(),
-                      onChanged: resolvedGroup == null ? null : (val) => setState(() => _selectedLevel = val),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
-
-              // Deadline Picker
-              GestureDetector(
-                onTap: _pickDeadline,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-                  decoration: BoxDecoration(
-                    color: AppColors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: _selectedDeadline != null ? AppColors.primary : AppColors.input, width: 1.5),
-                  ),
-                  child: Row(children: [
-                    Icon(Icons.calendar_today, size: 16, color: _selectedDeadline != null ? AppColors.primary : AppColors.mutedForeground),
-                    const SizedBox(width: 10),
-                    Text(
-                      _selectedDeadline != null
-                          ? '${_selectedDeadline!.day}/${_selectedDeadline!.month}/${_selectedDeadline!.year}  ${_selectedDeadline!.hour}:${_selectedDeadline!.minute.toString().padLeft(2, '0')}'
-                          : l10n.selectDeadline,
-                      style: TextStyle(fontSize: 14, color: _selectedDeadline != null ? AppColors.text : AppColors.mutedForeground),
-                    ),
-                  ]),
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // Action Buttons
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => Navigator.pop(context),
-                      style: OutlinedButton.styleFrom(
-                        side: const BorderSide(color: AppColors.border),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      ),
-                      child: Text(l10n.cancel, style: const TextStyle(color: AppColors.mutedForeground, fontWeight: FontWeight.w600)),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: _save,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: AppColors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      ),
-                      child: Text(
-                        _isEditMode ? l10n.saveChanges : l10n.createButton,
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

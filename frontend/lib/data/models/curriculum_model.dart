@@ -17,6 +17,10 @@ class CurriculumItem {
   String? deltaJson;
   List<Map<String, String>> attachments;
 
+  // New fields for Central Assignments MCQ support
+  final String? assignmentType; // 'text' or 'multipleChoice'
+  final List<String>? choices;
+
   CurriculumItem({
     this.id = '',
     required this.type,
@@ -29,6 +33,8 @@ class CurriculumItem {
     this.imageUrl,
     this.deltaJson,
     this.attachments = const [],
+    this.assignmentType,
+    this.choices,
   });
 
   factory CurriculumItem.fromMap(Map<String, dynamic> map) {
@@ -50,6 +56,8 @@ class CurriculumItem {
           : (map['attachmentPath'] != null
               ? [{'path': map['attachmentPath'] as String, 'name': map['attachmentName'] as String? ?? '', 'type': map['attachmentType'] as String? ?? 'pdf'}]
               : []),
+      assignmentType: map['assignmentType'],
+      choices: map['choices'] != null ? List<String>.from(map['choices']) : null,
     );
   }
 
@@ -66,6 +74,8 @@ class CurriculumItem {
       'imageUrl': imageUrl,
       'deltaJson': deltaJson,
       'attachments': attachments.map((a) => a).toList(),
+      'assignmentType': assignmentType,
+      'choices': choices,
     };
   }
 }

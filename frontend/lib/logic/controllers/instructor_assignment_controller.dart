@@ -104,22 +104,41 @@ class InstructorAssignmentController extends ChangeNotifier {
     String? groupId,
     String? groupName,
     String? levelId,
+    String? curriculumItemId,
+    String? imageUrl,
   }) async {
     if (title.isEmpty) return;
     
-    // Check for active duplicates (same group, same level, and same title)
-    final isDuplicate = _allAssignments.any((a) =>
-        a.title.toLowerCase().trim() == title.toLowerCase().trim() &&
-        a.groupId == groupId &&
-        a.levelId == levelId &&
-        a.isActive);
-    if (isDuplicate) {
-      throw Exception('This assignment is already active for this level in this group.');
+    // Check for central assignment duplicate in Firestore
+    if (type == 'central' && curriculumItemId != null) {
+      final querySnap = await FirebaseFirestore.instance
+          .collection('assignments')
+          .where('curriculumItemId', isEqualTo: curriculumItemId)
+          .where('groupId', isEqualTo: groupId)
+          .where('levelId', isEqualTo: levelId)
+          .limit(1)
+          .get();
+      if (querySnap.docs.isNotEmpty) {
+        throw Exception('This assignment is already assigned to this group and level.');
+      }
     }
 
     _isLoading = true;
     notifyListeners();
     try {
+      // Fetch total students in this group + level combination
+      int totalStudents = 0;
+      if (groupId != null && levelId != null) {
+        final studentSnap = await FirebaseFirestore.instance
+            .collection('users')
+            .where('role', isEqualTo: 'student')
+            .where('groupId', isEqualTo: groupId)
+            .where('levelId', isEqualTo: levelId)
+            .where('isArchived', isEqualTo: false)
+            .get();
+        totalStudents = studentSnap.docs.length;
+      }
+
       final assignmentId = await _repository.addInstructorAssignment(
         title,
         deadline: deadline,
@@ -130,6 +149,9 @@ class InstructorAssignmentController extends ChangeNotifier {
         groupId: groupId,
         groupName: groupName,
         levelId: levelId,
+        curriculumItemId: curriculumItemId,
+        imageUrl: imageUrl,
+        totalStudents: totalStudents,
       );
       _allAssignments = await _repository.getInstructorAssignments();
 
@@ -161,6 +183,7 @@ class InstructorAssignmentController extends ChangeNotifier {
       );
     } catch (e) {
       debugPrint('InstructorAssignmentController.addAssignment error/notify: $e');
+      rethrow;
     } finally {
       _isLoading = false;
       notifyListeners();

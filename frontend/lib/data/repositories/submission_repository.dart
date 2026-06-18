@@ -66,7 +66,7 @@ class SubmissionRepository {
   }
 
   /// Adds a new text-based submission and bumps the parent assignment's
-  /// pendingCount by 1. [textContent] is stored as the 'answer' field.
+  /// pendingCount and submittedCount by 1. [textContent] is stored as the 'answer' field.
   Future<void> addSubmission({
     required String assignmentId,
     required String studentId,
@@ -87,6 +87,7 @@ class SubmissionRepository {
     batch.set(newDoc, model.toMap());
     batch.update(_assignments.doc(assignmentId), {
       'pendingCount': FieldValue.increment(1),
+      'submittedCount': FieldValue.increment(1),
     });
     await batch.commit();
   }
@@ -130,19 +131,46 @@ class SubmissionRepository {
       });
 
       // Only move the counters when crossing the pending -> graded boundary.
-      if (assignmentId != null && wasPending && nowGraded) {
-        txn.update(_assignments.doc(assignmentId), {
-          'pendingCount': FieldValue.increment(-1),
-          'gradedCount': FieldValue.increment(1),
-        });
-      } else if (assignmentId != null && !wasPending && !nowGraded) {
-        // Graded -> pending (instructor undid a grade).
-        txn.update(_assignments.doc(assignmentId), {
-          'pendingCount': FieldValue.increment(1),
-          'gradedCount': FieldValue.increment(-1),
-        });
+      if (assignmentId != null) {
+        final Map<String, dynamic> updates = {};
+
+        // 1. Update pendingCount and gradedCount
+        if (wasPending && nowGraded) {
+          updates['pendingCount'] = FieldValue.increment(-1);
+          updates['gradedCount'] = FieldValue.increment(1);
+        } else if (!wasPending && !nowGraded) {
+          // Graded -> pending (instructor undid a grade).
+          updates['pendingCount'] = FieldValue.increment(1);
+          updates['gradedCount'] = FieldValue.increment(-1);
+        }
+
+        // 2. Update correctCount and incorrectCount
+        if (oldStatusStr == 'pending') {
+          if (status == GradeStatus.correct) {
+            updates['correctCount'] = FieldValue.increment(1);
+          } else if (status == GradeStatus.incorrect) {
+            updates['incorrectCount'] = FieldValue.increment(1);
+          }
+        } else if (oldStatusStr == 'correct') {
+          if (status == GradeStatus.incorrect) {
+            updates['correctCount'] = FieldValue.increment(-1);
+            updates['incorrectCount'] = FieldValue.increment(1);
+          } else if (status == GradeStatus.pending) {
+            updates['correctCount'] = FieldValue.increment(-1);
+          }
+        } else if (oldStatusStr == 'incorrect') {
+          if (status == GradeStatus.correct) {
+            updates['incorrectCount'] = FieldValue.increment(-1);
+            updates['correctCount'] = FieldValue.increment(1);
+          } else if (status == GradeStatus.pending) {
+            updates['incorrectCount'] = FieldValue.increment(-1);
+          }
+        }
+
+        if (updates.isNotEmpty) {
+          txn.update(_assignments.doc(assignmentId), updates);
+        }
       }
-      // graded -> graded (correct<->incorrect): no counter change.
     });
   }
 }

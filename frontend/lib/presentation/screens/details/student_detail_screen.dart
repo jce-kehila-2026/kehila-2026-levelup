@@ -95,6 +95,16 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
     );
   }
 
+  Widget _buildStatRow(String label, String value, {Color? color}) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label, style: const TextStyle(fontSize: 13, color: AppColors.text, fontWeight: FontWeight.w500)),
+        Text(value, style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: color ?? AppColors.text)),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
@@ -115,7 +125,7 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
               icon: const Icon(Icons.arrow_back, color: AppColors.text),
               onPressed: () => Navigator.of(context).pop(),
             ),
-            title: Text(AppLocalizations.of(context)!.studentDetails, style: TextStyle(color: AppColors.text, fontSize: 16, fontWeight: FontWeight.bold)),
+            title: Text(AppLocalizations.of(context)!.studentDetails, style: const TextStyle(color: AppColors.text, fontSize: 16, fontWeight: FontWeight.bold)),
             centerTitle: true,
             bottom: PreferredSize(
               preferredSize: const Size.fromHeight(1),
@@ -179,10 +189,7 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
                     ),
                   ),
 
-                  // Stats row — three aggregated counters from StudentProfile:
-                  //   submissions = total work submitted (pending + graded)
-                  //   graded      = subset that has received an instructor grade
-                  //   correct     = subset graded as GradeStatus.correct
+                  // Stats row
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 11).copyWith(bottom: 24),
                     child: Row(
@@ -190,6 +197,45 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
                         _buildStatBox(AppLocalizations.of(context)!.statSubmissionsLabel, profile.submissions.toString()),
                         _buildStatBox(AppLocalizations.of(context)!.statGradedLabel, profile.graded.toString()),
                         _buildStatBox(AppLocalizations.of(context)!.statCorrectLabel, profile.correct.toString()),
+                      ],
+                    ),
+                  ),
+
+                  // Assignment Statistics Header
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20).copyWith(bottom: 12),
+                    child: Row(
+                      children: [
+                        Container(width: 3, height: 18, decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(2))),
+                        const SizedBox(width: 10),
+                        Text('Assignment Statistics', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.primaryDark, letterSpacing: 0.6)),
+                      ],
+                    ),
+                  ),
+
+                  // Assignment Stats Card
+                  Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 16).copyWith(bottom: 20),
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: AppColors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: AppColors.border),
+                      boxShadow: [
+                        BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 3)),
+                      ],
+                    ),
+                    child: Column(
+                      children: [
+                        _buildStatRow('Total Assignments', '${_controller.totalAssignments}'),
+                        const Divider(height: 20, color: AppColors.border),
+                        _buildStatRow('Correct Submissions', '${_controller.correctCount} (${_controller.correctPercent.toStringAsFixed(1)}%)', color: AppColors.success),
+                        const Divider(height: 20, color: AppColors.border),
+                        _buildStatRow('Incorrect Submissions', '${_controller.incorrectCount} (${_controller.incorrectPercent.toStringAsFixed(1)}%)', color: AppColors.error),
+                        const Divider(height: 20, color: AppColors.border),
+                        _buildStatRow('Pending Review', '${_controller.pendingCount}', color: AppColors.warning),
+                        const Divider(height: 20, color: AppColors.border),
+                        _buildStatRow('Not Submitted', '${_controller.notSubmittedCount}', color: Colors.grey.shade600),
                       ],
                     ),
                   ),

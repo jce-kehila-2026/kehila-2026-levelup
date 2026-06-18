@@ -10,6 +10,7 @@ class AssignmentCard extends StatelessWidget {
   final bool isActive;
   final String deadlineText;
   final bool isOverdue;
+  final DateTime? deadline;
   final int pendingCount;
   final int gradedCount;
   final VoidCallback? onPress;
@@ -29,6 +30,7 @@ class AssignmentCard extends StatelessWidget {
     required this.isActive,
     required this.deadlineText,
     required this.isOverdue,
+    this.deadline,
     this.pendingCount = 0,
     this.gradedCount = 0,
     this.onPress,
@@ -111,10 +113,23 @@ class AssignmentCard extends StatelessWidget {
                               ),
                               const SizedBox(width: 8),
                               Flexible(
-                                child: BadgeWidget(
-                                  label: deadlineText,
-                                  variant: isOverdue ? BadgeVariant.error : BadgeVariant.warning,
-                                ),
+                                child: () {
+                                  BadgeVariant variant = BadgeVariant.info;
+                                  if (isOverdue) {
+                                    variant = BadgeVariant.error;
+                                  } else if (deadline != null) {
+                                    final diff = deadline!.difference(DateTime.now());
+                                    if (diff.inHours < 24) {
+                                      variant = BadgeVariant.error;
+                                    } else if (diff.inDays < 3) {
+                                      variant = BadgeVariant.warning;
+                                    }
+                                  }
+                                  return BadgeWidget(
+                                    label: deadlineText,
+                                    variant: variant,
+                                  );
+                                }(),
                               ),
                             ],
                           ),

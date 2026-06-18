@@ -37,8 +37,27 @@ class _InstructorCurriculumScreenState extends State<InstructorCurriculumScreen>
     });
   }
 
+
+
+  int _parseLevelNumber(String id) {
+    final clean = id.toLowerCase().replaceAll('l', '').replaceAll('level', '').replaceAll('_', '').trim();
+    return int.tryParse(clean) ?? 0;
+  }
+
+  int getHighestAssignedLevelNumber() {
+    if (_assignedLevelIds.isEmpty) return 0;
+    int highest = 0;
+    for (final id in _assignedLevelIds) {
+      final num = _parseLevelNumber(id);
+      if (num > highest) highest = num;
+    }
+    return highest;
+  }
+
   @override
   Widget build(BuildContext context) {
+    final maxLevelNum = getHighestAssignedLevelNumber();
+
     return ListenableBuilder(
       listenable: _controller,
       builder: (context, _) {
@@ -46,9 +65,12 @@ class _InstructorCurriculumScreenState extends State<InstructorCurriculumScreen>
           return const Scaffold(body: Center(child: CircularProgressIndicator()));
         }
 
-        // Only levels this instructor is assigned to, with only visible items.
+        // Only levels this instructor is assigned to OR lower level number <= maxLevelNum.
         final levels = _controller.levels
-            .where((l) => _assignedLevelIds.contains(l.id))
+            .where((l) {
+              final levelNum = _parseLevelNumber(l.id);
+              return _assignedLevelIds.contains(l.id) || (levelNum <= maxLevelNum && levelNum > 0);
+            })
             .map((l) => LevelModel(
                   id: l.id,
                   name: l.name,
@@ -85,7 +107,10 @@ class _InstructorCurriculumScreenState extends State<InstructorCurriculumScreen>
                 child: _controller.search.isNotEmpty
                   ? (() {
                       final filteredResults = _controller.searchResults
-                          .where((r) => _assignedLevelIds.contains(r.levelId))
+                          .where((r) {
+                            final levelNum = _parseLevelNumber(r.levelId);
+                            return _assignedLevelIds.contains(r.levelId) || (levelNum <= maxLevelNum && levelNum > 0);
+                          })
                           .toList();
                       if (filteredResults.isEmpty) {
                         return EmptyState(icon: Icons.search_off, title: AppLocalizations.of(context)!.noResults, subtitle: AppLocalizations.of(context)!.tryDifferentKeyword);
@@ -220,8 +245,8 @@ class _InstructorCurriculumScreenState extends State<InstructorCurriculumScreen>
               }),
               if (week.items.isEmpty)
                 Padding(
-                  padding: EdgeInsets.symmetric(vertical: 8),
-                  child: Text(AppLocalizations.of(context)!.noItemsYet, style: TextStyle(fontSize: 13, fontStyle: FontStyle.italic, color: AppColors.mutedForeground)),
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Text(AppLocalizations.of(context)!.noItemsYet, style: const TextStyle(fontSize: 13, fontStyle: FontStyle.italic, color: AppColors.mutedForeground)),
                 ),
             ]),
           ),
@@ -243,105 +268,171 @@ class _InstructorCurriculumScreenState extends State<InstructorCurriculumScreen>
   void _showAssignAssignmentDialog(CurriculumItem item) {
     GroupModel? selectedGroup;
     LevelModel? selectedLevel;
+    DateTime? selectedDeadline;
 
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          backgroundColor: AppColors.background,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: Text(
-            AppLocalizations.of(context)!.assignTemplateTitle(item.title),
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-          ),
-          content: SingleChildScrollView(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 500),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  DropdownButtonFormField<GroupModel>(
-                    decoration: InputDecoration(
-                      labelText: AppLocalizations.of(context)!.selectGroupStep,
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        builder: (context, setDialogState) {
+          final groupLevels = selectedGroup != null
+              ? (selectedGroup!.levelIds.isNotEmpty ? selectedGroup!.levelIds : selectedGroup!.activeLevels.toList())
+              : <String>[];
+          final dialogLevels = _controller.levels
+              .where((l) => _assignedLevelIds.contains(l.id) && groupLevels.contains(l.id))
+              .toList();
+
+          return AlertDialog(
+            backgroundColor: AppColors.background,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: Text(
+              AppLocalizations.of(context)!.assignTemplateTitle(item.title),
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
+            content: SingleChildScrollView(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 500),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    DropdownButtonFormField<GroupModel>(
+                      decoration: InputDecoration(
+                        labelText: AppLocalizations.of(context)!.selectGroupStep,
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      ),
+                      items: _groupController.myGroups.map((g) => DropdownMenuItem(
+                        value: g,
+                        child: Text(g.name),
+                      )).toList(),
+                      onChanged: (val) => setDialogState(() {
+                        selectedGroup = val;
+                        selectedLevel = null; // reset level when group changes
+                      }),
                     ),
-                    items: _groupController.myGroups.map((g) => DropdownMenuItem(
-                      value: g,
-                      child: Text(g.name),
-                    )).toList(),
-                    onChanged: (val) => setDialogState(() => selectedGroup = val),
-                  ),
-                  const SizedBox(height: 12),
-                  DropdownButtonFormField<LevelModel>(
-                    initialValue: selectedLevel,
-                    decoration: InputDecoration(
-                      labelText: AppLocalizations.of(context)!.selectLevelHint,
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<LevelModel>(
+                      value: selectedLevel,
+                      decoration: InputDecoration(
+                        labelText: AppLocalizations.of(context)!.selectLevelHint,
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      ),
+                      items: dialogLevels.map((l) => DropdownMenuItem(
+                        value: l,
+                        child: Text(l.name),
+                      )).toList(),
+                      onChanged: selectedGroup == null ? null : (val) => setDialogState(() => selectedLevel = val),
                     ),
-                    items: _controller.levels
-                        .where((l) => _assignedLevelIds.contains(l.id))
-                        .map((l) => DropdownMenuItem(
-                      value: l,
-                      child: Text(l.name),
-                    )).toList(),
-                    onChanged: (val) => setDialogState(() => selectedLevel = val),
-                  ),
-                ],
+                    const SizedBox(height: 16),
+                    // Deadline Picker
+                    InkWell(
+                      onTap: () async {
+                        final date = await showDatePicker(
+                          context: context,
+                          initialDate: DateTime.now().add(const Duration(days: 7)),
+                          firstDate: DateTime.now(),
+                          lastDate: DateTime.now().add(const Duration(days: 365)),
+                        );
+                        if (date != null) {
+                          if (!context.mounted) return;
+                          final time = await showTimePicker(
+                            context: context,
+                            initialTime: const TimeOfDay(hour: 23, minute: 59),
+                          );
+                          if (time != null) {
+                            setDialogState(() {
+                              selectedDeadline = DateTime(
+                                date.year, date.month, date.day,
+                                time.hour, time.minute,
+                              );
+                            });
+                          }
+                        }
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                        decoration: BoxDecoration(
+                          color: AppColors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: selectedDeadline != null ? AppColors.primary : AppColors.border, width: 1.5),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.calendar_today, size: 16, color: selectedDeadline != null ? AppColors.primary : AppColors.mutedForeground),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                selectedDeadline != null
+                                    ? 'Deadline: ${selectedDeadline!.day}/${selectedDeadline!.month}/${selectedDeadline!.year}  ${selectedDeadline!.hour}:${selectedDeadline!.minute.toString().padLeft(2, '0')}'
+                                    : 'Select Deadline',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: selectedDeadline != null ? AppColors.text : AppColors.mutedForeground,
+                                  fontWeight: selectedDeadline != null ? FontWeight.bold : FontWeight.normal,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: Text(AppLocalizations.of(context)!.cancelButton, style: const TextStyle(color: AppColors.mutedForeground)),
-            ),
-            ElevatedButton(
-              onPressed: (selectedGroup == null || selectedLevel == null) ? null : () async {
-                final messenger = ScaffoldMessenger.of(context);
-                final l10n = AppLocalizations.of(context)!;
-                final groupName = selectedGroup!.name;
-                final levelName = selectedLevel!.name;
-                Navigator.pop(ctx);
-                try {
-                  await _assignmentController.addAssignment(
-                    item.title,
-                    type: 'central',
-                    groupId: selectedGroup!.id,
-                    groupName: groupName,
-                    levelId: selectedLevel!.id,
-                    textContent: item.content,
-                  );
-                  if (mounted) {
-                    messenger.showSnackBar(
-                      SnackBar(
-                        content: Text(l10n.assignmentAssignedToGroupLevel(item.title, groupName, levelName)),
-                        behavior: SnackBarBehavior.floating,
-                      ),
-                    );
-                  }
-                } catch (e) {
-                  if (mounted) {
-                    messenger.showSnackBar(
-                      SnackBar(
-                        content: Text(l10n.assignmentAlreadyAssignedGroupLevel(item.title, groupName, levelName)),
-                        backgroundColor: AppColors.error,
-                        behavior: SnackBarBehavior.floating,
-                      ),
-                    );
-                  }
-                }
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: AppColors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: Text(AppLocalizations.of(context)!.cancelButton, style: const TextStyle(color: AppColors.mutedForeground)),
               ),
-              child: Text(AppLocalizations.of(context)!.assign, style: const TextStyle(fontWeight: FontWeight.bold)),
-            ),
-          ],
-        ),
+              ElevatedButton(
+                onPressed: (selectedGroup == null || selectedLevel == null || selectedDeadline == null) ? null : () async {
+                  final messenger = ScaffoldMessenger.of(context);
+                  final l10n = AppLocalizations.of(context)!;
+                  final groupName = selectedGroup!.name;
+                  final levelName = selectedLevel!.name;
+                  Navigator.pop(ctx);
+                  try {
+                    await _assignmentController.addAssignment(
+                      item.title,
+                      type: 'central',
+                      groupId: selectedGroup!.id,
+                      groupName: groupName,
+                      levelId: selectedLevel!.id,
+                      textContent: item.content,
+                      deadline: selectedDeadline,
+                      curriculumItemId: item.id,
+                    );
+                    if (mounted) {
+                      messenger.showSnackBar(
+                        SnackBar(
+                          content: Text(l10n.assignmentAssignedToGroupLevel(item.title, groupName, levelName)),
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    if (mounted) {
+                      messenger.showSnackBar(
+                        SnackBar(
+                          content: Text(e.toString().replaceAll('Exception: ', '')),
+                          backgroundColor: AppColors.error,
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    }
+                  }
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: AppColors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                child: Text(AppLocalizations.of(context)!.assign, style: const TextStyle(fontWeight: FontWeight.bold)),
+              ),
+            ],
+          );
+        },
       ),
     );
   }}

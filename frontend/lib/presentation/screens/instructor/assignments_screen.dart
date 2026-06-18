@@ -420,7 +420,7 @@ class _InstructorAssignmentsScreenState extends State<InstructorAssignmentsScree
                           final a = assignments[index];
                           return AssignmentCard(
                             title: a.title, type: a.type, isActive: a.isActive, isOverdue: a.isOverdue,
-                            deadlineText: a.deadlineText, groupName: a.groupName, pendingCount: a.pendingCount, gradedCount: a.gradedCount,
+                            deadlineText: a.deadlineText, deadline: a.deadline, groupName: a.groupName, pendingCount: a.pendingCount, gradedCount: a.gradedCount,
                             onPress: () => context.push('/assignment/${a.id}'),
                             trailing: PopupMenuButton<String>(
                               icon: const Icon(Icons.more_vert, size: 20, color: AppColors.mutedForeground),
