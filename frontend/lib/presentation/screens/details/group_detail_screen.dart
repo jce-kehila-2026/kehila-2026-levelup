@@ -7,6 +7,7 @@
 library;
 
 import 'dart:math';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
@@ -67,7 +68,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.background,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        insetPadding: EdgeInsets.fromLTRB(24, 24, 24, MediaQuery.of(ctx).viewInsets.bottom + 24),
+        insetPadding: EdgeInsets.fromLTRB(24, 24, 24, kIsWeb ? 24 : MediaQuery.of(ctx).viewInsets.bottom + 24),
         title: const Text('Rename Group', style: TextStyle(fontWeight: FontWeight.bold)),
         content: SingleChildScrollView(
           child: ConstrainedBox(
@@ -567,7 +568,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
           return AlertDialog(
             backgroundColor: AppColors.background,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-            insetPadding: EdgeInsets.fromLTRB(24, 24, 24, MediaQuery.of(context).viewInsets.bottom + 24),
+            insetPadding: EdgeInsets.fromLTRB(24, 24, 24, kIsWeb ? 24 : MediaQuery.of(context).viewInsets.bottom + 24),
             title: Row(children: [
               Icon(Icons.group_add, color: AppColors.primary, size: 22),
               const SizedBox(width: 10),
@@ -609,29 +610,24 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                     }).toList(),
                   ),
                   const SizedBox(height: 14),
-                  ConstrainedBox(
-                    constraints: const BoxConstraints(maxHeight: 300),
-                    child: SingleChildScrollView(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: rows.asMap().entries.map((entry) {
-                          final i = entry.key;
-                          final row = entry.value;
-                          return _buildStudentFormRow(
-                            row: row,
-                            canRemove: rows.length > 1,
-                            enabled: !isCreating,
-                            batchUsernames: batchUsernames,
-                            onRemove: () => setDialogState(() {
-                              batchUsernames.remove(row.usernameCtrl.text);
-                              row.dispose();
-                              rows.removeAt(i);
-                            }),
-                            onChange: () => setDialogState(() {}),
-                          );
-                        }).toList(),
-                      ),
-                    ),
+                  Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: rows.asMap().entries.map((entry) {
+                      final i = entry.key;
+                      final row = entry.value;
+                      return _buildStudentFormRow(
+                        row: row,
+                        canRemove: rows.length > 1,
+                        enabled: !isCreating,
+                        batchUsernames: batchUsernames,
+                        onRemove: () => setDialogState(() {
+                          batchUsernames.remove(row.usernameCtrl.text);
+                          row.dispose();
+                          rows.removeAt(i);
+                        }),
+                        onChange: () => setDialogState(() {}),
+                      );
+                    }).toList(),
                   ),
                   if (!isCreating)
                     Padding(

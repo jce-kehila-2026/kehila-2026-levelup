@@ -47,18 +47,23 @@ class _AssignmentDetailScreenState extends State<AssignmentDetailScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => StatefulBuilder(
-        builder: (context, setSheetState) {
-          final l10n = AppLocalizations.of(context)!;
-          return Padding(
-          padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
-          child: Container(
+      builder: (ctx) => DraggableScrollableSheet(
+        initialChildSize: 0.6,
+        minChildSize: 0.4,
+        maxChildSize: 0.9,
+        expand: false,
+        builder: (_, scrollController) => StatefulBuilder(
+          builder: (context, setSheetState) {
+            final l10n = AppLocalizations.of(context)!;
+            return Container(
             padding: const EdgeInsets.all(24),
             decoration: const BoxDecoration(
               color: AppColors.white,
               borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
             ),
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
+            child: SingleChildScrollView(
+              controller: scrollController,
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
               Container(width: 40, height: 4, decoration: BoxDecoration(color: AppColors.border, borderRadius: BorderRadius.circular(2))),
               const SizedBox(height: 20),
               // Title
@@ -119,6 +124,7 @@ class _AssignmentDetailScreenState extends State<AssignmentDetailScreen> {
         );
         },
       ),
+    ),
     );
   }
 

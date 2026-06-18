@@ -1,6 +1,7 @@
 // ignore_for_file: experimental_member_use
 import 'dart:async';
 import 'dart:convert';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart' as quill;
 import 'package:frontend/l10n/app_localizations.dart';
@@ -147,14 +148,20 @@ class _AssignmentEditorScreenState extends State<AssignmentEditorScreen> {
           context: context,
           builder: (ctx) => AlertDialog(
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            insetPadding: EdgeInsets.fromLTRB(24, 24, 24, kIsWeb ? 24 : MediaQuery.of(ctx).viewInsets.bottom + 24),
             title: const Text('Insert Image', style: TextStyle(fontWeight: FontWeight.bold)),
-            content: TextField(
-              controller: urlCtrl,
-              autofocus: true,
-              decoration: InputDecoration(
-                hintText: 'https://example.com/image.jpg',
-                prefixIcon: const Icon(Icons.link, size: 18),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+            content: SingleChildScrollView(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 500),
+                child: TextField(
+                  controller: urlCtrl,
+                  autofocus: true,
+                  decoration: InputDecoration(
+                    hintText: 'https://example.com/image.jpg',
+                    prefixIcon: const Icon(Icons.link, size: 18),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                ),
               ),
             ),
             actions: [
