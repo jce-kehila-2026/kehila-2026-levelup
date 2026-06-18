@@ -7,6 +7,7 @@
 library;
 
 import 'dart:math';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
@@ -67,7 +68,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.background,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        insetPadding: EdgeInsets.fromLTRB(24, 24, 24, MediaQuery.of(ctx).viewInsets.bottom + 24),
+        insetPadding: EdgeInsets.fromLTRB(24, 24, 24, kIsWeb ? 24 : MediaQuery.of(ctx).viewInsets.bottom + 24),
         title: const Text('Rename Group', style: TextStyle(fontWeight: FontWeight.bold)),
         content: SingleChildScrollView(
           child: ConstrainedBox(
@@ -567,7 +568,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
           return AlertDialog(
             backgroundColor: AppColors.background,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-            insetPadding: EdgeInsets.fromLTRB(24, 24, 24, MediaQuery.of(context).viewInsets.bottom + 24),
+            insetPadding: EdgeInsets.fromLTRB(24, 24, 24, kIsWeb ? 24 : MediaQuery.of(context).viewInsets.bottom + 24),
             title: Row(children: [
               Icon(Icons.group_add, color: AppColors.primary, size: 22),
               const SizedBox(width: 10),

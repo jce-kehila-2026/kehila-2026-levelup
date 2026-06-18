@@ -6,6 +6,7 @@
 /// ✅ Zero business logic — via GroupController
 library;
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -68,7 +69,7 @@ class _GroupsScreenState extends State<GroupsScreen> with SingleTickerProviderSt
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.background,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        insetPadding: EdgeInsets.fromLTRB(24, 24, 24, MediaQuery.of(ctx).viewInsets.bottom + 24),
+        insetPadding: EdgeInsets.fromLTRB(24, 24, 24, kIsWeb ? 24 : MediaQuery.of(ctx).viewInsets.bottom + 24),
         title: const Row(
           children: [
             Icon(Icons.group_add, color: AppColors.primary, size: 22),
@@ -309,20 +310,30 @@ class _GroupsScreenState extends State<GroupsScreen> with SingleTickerProviderSt
   void _showArchivedGroupDetails(GroupModel group, int position) {
     showModalBottomSheet(
       context: context,
-      shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       isScrollControlled: true,
-      backgroundColor: AppColors.background,
-      builder: (ctx) {
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => DraggableScrollableSheet(
+        initialChildSize: 0.6,
+        minChildSize: 0.4,
+        maxChildSize: 0.9,
+        expand: false,
+        builder: (_, scrollController) {
         final archivedDate = group.archivedAt != null
             ? 'Archived on: ${DateFormat('MMM d, y').format(group.archivedAt!)}'
             : 'Archived on: —';
-        return Padding(
-          padding: EdgeInsets.fromLTRB(20, 16, 20, MediaQuery.of(ctx).viewInsets.bottom + 32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+        return Container(
+            decoration: const BoxDecoration(
+              color: AppColors.background,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            ),
+            child: SingleChildScrollView(
+              controller: scrollController,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
               Center(
                 child: Container(
                   width: 40,
@@ -429,8 +440,11 @@ class _GroupsScreenState extends State<GroupsScreen> with SingleTickerProviderSt
               ),
             ],
           ),
-        );
-      },
+              ),
+            ),
+          );
+        },
+      ),
     );
   }
 
@@ -722,7 +736,7 @@ class _GroupsScreenState extends State<GroupsScreen> with SingleTickerProviderSt
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.background,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        insetPadding: EdgeInsets.fromLTRB(24, 24, 24, MediaQuery.of(ctx).viewInsets.bottom + 24),
+        insetPadding: EdgeInsets.fromLTRB(24, 24, 24, kIsWeb ? 24 : MediaQuery.of(ctx).viewInsets.bottom + 24),
         title: const Text('Rename Group', style: TextStyle(fontWeight: FontWeight.bold)),
         content: SingleChildScrollView(
           child: ConstrainedBox(

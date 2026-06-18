@@ -7,6 +7,7 @@
 library;
 
 import 'dart:math';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:frontend/l10n/app_localizations.dart';
@@ -351,10 +352,14 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
     final isInstructor = user.role == UserRole.instructor;
     showModalBottomSheet(
       context: context,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       isScrollControlled: true,
-      backgroundColor: AppColors.background,
-      builder: (ctx) {
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => DraggableScrollableSheet(
+        initialChildSize: 0.6,
+        minChildSize: 0.4,
+        maxChildSize: 0.9,
+        expand: false,
+        builder: (_, scrollController) {
         final archivedDateStr = user.createdAt != null
             ? 'Archived on: ${DateFormat('MMM d, y').format(user.createdAt!)}'
             : 'Archived on: —';
@@ -380,12 +385,19 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
             ? user.gender![0].toUpperCase() + user.gender!.substring(1)
             : '—';
 
-        return Padding(
-          padding: EdgeInsets.fromLTRB(20, 16, 20, MediaQuery.of(ctx).viewInsets.bottom + 32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+        return Container(
+            decoration: const BoxDecoration(
+              color: AppColors.background,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            ),
+            child: SingleChildScrollView(
+              controller: scrollController,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
               Center(
                 child: Container(
                   width: 40, height: 4,
@@ -489,8 +501,11 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
               ),
             ],
           ),
-        );
-      },
+              ),
+            ),
+          );
+        },
+      ),
     );
   }
 
@@ -704,7 +719,7 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
             final isEmailValid = email.isNotEmpty && _emailRegex.hasMatch(email);
 
             return Padding(
-              padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+              padding: EdgeInsets.only(bottom: kIsWeb ? 0 : MediaQuery.of(context).viewInsets.bottom),
               child: AlertDialog(
               backgroundColor: AppColors.background,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
@@ -972,7 +987,7 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return Padding(
-              padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+              padding: EdgeInsets.only(bottom: kIsWeb ? 0 : MediaQuery.of(context).viewInsets.bottom),
               child: AlertDialog(
               backgroundColor: AppColors.background,
               shape: RoundedRectangleBorder(
@@ -1442,7 +1457,7 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
       barrierDismissible: false,
       builder: (ctx) {
         return Padding(
-          padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+          padding: EdgeInsets.only(bottom: kIsWeb ? 0 : MediaQuery.of(ctx).viewInsets.bottom),
           child: AlertDialog(
           backgroundColor: AppColors.white,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
@@ -1583,7 +1598,7 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
         return StatefulBuilder(
           builder: (ctx, setDialogState) {
             return Padding(
-              padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+              padding: EdgeInsets.only(bottom: kIsWeb ? 0 : MediaQuery.of(ctx).viewInsets.bottom),
               child: AlertDialog(
               backgroundColor: AppColors.background,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
@@ -1794,7 +1809,7 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
         return StatefulBuilder(
           builder: (ctx, setDialogState) {
             return Padding(
-              padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+              padding: EdgeInsets.only(bottom: kIsWeb ? 0 : MediaQuery.of(ctx).viewInsets.bottom),
               child: AlertDialog(
               backgroundColor: AppColors.background,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
@@ -1880,7 +1895,7 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
     showDialog(
       context: context,
       builder: (ctx) => Padding(
-        padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+        padding: EdgeInsets.only(bottom: kIsWeb ? 0 : MediaQuery.of(ctx).viewInsets.bottom),
         child: AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
@@ -1929,7 +1944,7 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
       context: context,
       builder: (ctx) {
         return Padding(
-          padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+          padding: EdgeInsets.only(bottom: kIsWeb ? 0 : MediaQuery.of(ctx).viewInsets.bottom),
           child: AlertDialog(
           backgroundColor: AppColors.background,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),

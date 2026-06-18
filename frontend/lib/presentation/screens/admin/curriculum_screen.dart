@@ -15,6 +15,7 @@
 // ignore_for_file: experimental_member_use
 library;
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:frontend/l10n/app_localizations.dart';
@@ -46,7 +47,7 @@ class _CurriculumScreenState extends State<CurriculumScreen> {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: AppColors.background,
-        insetPadding: EdgeInsets.fromLTRB(24, 24, 24, MediaQuery.of(context).viewInsets.bottom + 24),
+        insetPadding: EdgeInsets.fromLTRB(24, 24, 24, kIsWeb ? 24 : MediaQuery.of(context).viewInsets.bottom + 24),
         title: Text(AppLocalizations.of(context)!.addWeekTitle, style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.text)),
         content: SingleChildScrollView(
           child: ConstrainedBox(
@@ -134,7 +135,7 @@ class _CurriculumScreenState extends State<CurriculumScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.background,
-        insetPadding: EdgeInsets.fromLTRB(24, 24, 24, MediaQuery.of(ctx).viewInsets.bottom + 24),
+        insetPadding: EdgeInsets.fromLTRB(24, 24, 24, kIsWeb ? 24 : MediaQuery.of(ctx).viewInsets.bottom + 24),
         title: const Text('Edit Level', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.text)),
         content: SingleChildScrollView(
           child: ConstrainedBox(
@@ -185,7 +186,7 @@ class _CurriculumScreenState extends State<CurriculumScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.background,
-        insetPadding: EdgeInsets.fromLTRB(24, 24, 24, MediaQuery.of(ctx).viewInsets.bottom + 24),
+        insetPadding: EdgeInsets.fromLTRB(24, 24, 24, kIsWeb ? 24 : MediaQuery.of(ctx).viewInsets.bottom + 24),
         title: const Text('Edit Week', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.text)),
         content: SingleChildScrollView(
           child: ConstrainedBox(
@@ -264,7 +265,7 @@ class _CurriculumScreenState extends State<CurriculumScreen> {
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.background,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        insetPadding: EdgeInsets.fromLTRB(24, 24, 24, MediaQuery.of(ctx).viewInsets.bottom + 24),
+        insetPadding: EdgeInsets.fromLTRB(24, 24, 24, kIsWeb ? 24 : MediaQuery.of(ctx).viewInsets.bottom + 24),
         title: Text(
           AppLocalizations.of(ctx)!.addLevelTitle,
           style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.text),
