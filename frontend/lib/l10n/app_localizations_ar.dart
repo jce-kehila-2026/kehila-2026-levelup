@@ -1293,11 +1293,14 @@ class AppLocalizationsAr extends AppLocalizations {
   }
 
   @override
-  String get peopleAndUsers => 'People & Users';
+  String get peopleAndUsers => 'الأشخاص والمستخدمون';
 
   @override
-  String get curriculumContent => 'Curriculum & Content';
+  String get curriculumContent => 'المنهج والمحتوى';
 
   @override
-  String get activeToday => 'active today';
+  String get activeToday => 'نشط اليوم';
+
+  @override
+  String get statTotal => 'المجموع';
 }

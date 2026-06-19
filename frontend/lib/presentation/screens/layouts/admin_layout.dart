@@ -13,6 +13,7 @@ import '../../../logic/controllers/audit_log_controller.dart';
 
 import '../admin/admin_dashboard.dart';
 import '../admin/admin_statistics_screen.dart';
+import '../admin/admin_assignments_screen.dart';
 import '../admin/curriculum_screen.dart';
 import '../admin/groups_screen.dart';
 import '../admin/users_screen.dart';
@@ -43,6 +44,7 @@ class _AdminLayoutState extends State<AdminLayout> {
     const GroupsScreen(),
     const LogsScreen(),
     const AdminStatisticsScreen(),
+    const AdminAssignmentsScreen(),
   ];
 
   @override
@@ -55,7 +57,7 @@ class _AdminLayoutState extends State<AdminLayout> {
 
   void _setSearch(String val) {
     final tabParam = GoRouterState.of(context).uri.queryParameters['tab'];
-    final currentIndex = (int.tryParse(tabParam ?? '') ?? 0).clamp(0, 5);
+    final currentIndex = (int.tryParse(tabParam ?? '') ?? 0).clamp(0, 6);
     switch (currentIndex) {
       case 1:
         getIt<CurriculumController>().setSearch(val);
@@ -114,7 +116,7 @@ class _AdminLayoutState extends State<AdminLayout> {
   @override
   Widget build(BuildContext context) {
     final tabParam = GoRouterState.of(context).uri.queryParameters['tab'];
-    final currentIndex = (int.tryParse(tabParam ?? '') ?? 0).clamp(0, 5);
+    final currentIndex = (int.tryParse(tabParam ?? '') ?? 0).clamp(0, 6);
     final bool isWide = _enableResponsiveDesktopLayout && MediaQuery.of(context).size.width > 850;
 
     return Scaffold(
@@ -245,6 +247,11 @@ class _AdminLayoutState extends State<AdminLayout> {
                         selectedIcon: const GoldenNavIcon(icon: Icons.bar_chart_rounded),
                         label: const Text('Stats'),
                       ),
+                      NavigationRailDestination(
+                        icon: const GoldenNavIcon(icon: Icons.assignment_rounded, active: false),
+                        selectedIcon: const GoldenNavIcon(icon: Icons.assignment_rounded),
+                        label: Text(AppLocalizations.of(context)!.assignmentsTitle),
+                      ),
                     ],
                   ),
                 ),
@@ -293,6 +300,7 @@ class _AdminLayoutState extends State<AdminLayout> {
                   BottomNavigationBarItem(icon: const GoldenNavIcon(icon: Icons.how_to_reg, active: false), activeIcon: const GoldenNavIcon(icon: Icons.how_to_reg), label: AppLocalizations.of(context)!.navGroups),
                   BottomNavigationBarItem(icon: const GoldenNavIcon(icon: Icons.list_alt, active: false), activeIcon: const GoldenNavIcon(icon: Icons.list_alt), label: AppLocalizations.of(context)!.navLogs),
                   BottomNavigationBarItem(icon: const GoldenNavIcon(icon: Icons.bar_chart_rounded, active: false), activeIcon: const GoldenNavIcon(icon: Icons.bar_chart_rounded), label: 'Stats'),
+                  BottomNavigationBarItem(icon: const GoldenNavIcon(icon: Icons.assignment_rounded, active: false), activeIcon: const GoldenNavIcon(icon: Icons.assignment_rounded), label: AppLocalizations.of(context)!.assignmentsTitle),
                 ],
               ),
             ),

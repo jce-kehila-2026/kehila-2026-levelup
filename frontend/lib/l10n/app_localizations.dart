@@ -2385,6 +2385,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'active today'**
   String get activeToday;
+
+  /// No description provided for @statTotal.
+  ///
+  /// In en, this message translates to:
+  /// **'Total'**
+  String get statTotal;
 }
 
 class _AppLocalizationsDelegate

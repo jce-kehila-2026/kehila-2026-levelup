@@ -1306,4 +1306,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get activeToday => 'active today';
+
+  @override
+  String get statTotal => 'Total';
 }

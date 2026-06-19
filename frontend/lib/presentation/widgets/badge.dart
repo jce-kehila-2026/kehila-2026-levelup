@@ -8,6 +8,7 @@ enum BadgeVariant {
   warning,
   info,
   muted,
+  primary,
 }
 
 class BadgeWidget extends StatelessWidget {
@@ -34,6 +35,8 @@ class BadgeWidget extends StatelessWidget {
         return AppColors.info;
       case BadgeVariant.muted:
         return const Color(0xFFe5e2ec);
+      case BadgeVariant.primary:
+        return AppColors.primary;
     }
   }
 

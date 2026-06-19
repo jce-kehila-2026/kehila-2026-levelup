@@ -457,7 +457,8 @@
   "materialAssignedSuccess": "تم تعيين المادة بنجاح!",
   "materialLevelLabel": "مستوى المادة: {level}",
 
-  "peopleAndUsers": "People & Users",
-  "curriculumContent": "Curriculum & Content",
-  "activeToday": "active today"
+  "peopleAndUsers": "الأشخاص والمستخدمون",
+  "curriculumContent": "المنهج والمحتوى",
+  "activeToday": "نشط اليوم",
+  "statTotal": "المجموع"
 }

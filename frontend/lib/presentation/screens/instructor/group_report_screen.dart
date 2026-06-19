@@ -149,10 +149,10 @@ class _GroupReportScreenState extends State<GroupReportScreen> {
                       child: const Row(
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         children: [
-                          Row(children: [Text('✅', style: TextStyle(fontSize: 14)), SizedBox(width: 4), Text('Correct', style: TextStyle(fontSize: 12, color: AppColors.mutedForeground))]),
-                          Row(children: [Text('❌', style: TextStyle(fontSize: 14)), SizedBox(width: 4), Text('Incorrect', style: TextStyle(fontSize: 12, color: AppColors.mutedForeground))]),
-                          Row(children: [Text('⏳', style: TextStyle(fontSize: 14)), SizedBox(width: 4), Text('Pending', style: TextStyle(fontSize: 12, color: AppColors.mutedForeground))]),
-                          Row(children: [Text('➖', style: TextStyle(fontSize: 14)), SizedBox(width: 4), Text('Missing', style: TextStyle(fontSize: 12, color: AppColors.mutedForeground))]),
+                          Row(children: [Icon(Icons.check_circle, size: 15, color: AppColors.success), SizedBox(width: 4), Text('Correct', style: TextStyle(fontSize: 12, color: AppColors.mutedForeground))]),
+                          Row(children: [Icon(Icons.cancel, size: 15, color: AppColors.error), SizedBox(width: 4), Text('Incorrect', style: TextStyle(fontSize: 12, color: AppColors.mutedForeground))]),
+                          Row(children: [Icon(Icons.hourglass_empty, size: 15, color: AppColors.warning), SizedBox(width: 4), Text('Pending', style: TextStyle(fontSize: 12, color: AppColors.mutedForeground))]),
+                          Row(children: [Icon(Icons.remove, size: 15, color: AppColors.mutedForeground), SizedBox(width: 4), Text('Missing', style: TextStyle(fontSize: 12, color: AppColors.mutedForeground))]),
                         ],
                       ),
                     ),
@@ -255,28 +255,28 @@ class _GroupReportScreenState extends State<GroupReportScreen> {
                                     ),
                                     DataCell(Text('$correct', style: const TextStyle(color: AppColors.success, fontWeight: FontWeight.bold))),
                                     DataCell(Text('$incorrect', style: const TextStyle(color: AppColors.error, fontWeight: FontWeight.bold))),
-                                    DataCell(Text('$pending', style: const TextStyle(color: Colors.amber, fontWeight: FontWeight.bold))),
+                                    DataCell(Text('$pending', style: const TextStyle(color: AppColors.warning, fontWeight: FontWeight.bold))),
                                     ..._assignments.map((a) {
                                       final isAssignedToLevel = a['levelId'] == null ||
                                           a['levelId'].isEmpty ||
                                           a['levelId'] == studentLevelId;
 
                                       if (!isAssignedToLevel) {
-                                        return const DataCell(Center(child: Text('➖', style: TextStyle(color: Colors.grey))));
+                                        return const DataCell(Center(child: Icon(Icons.remove, size: 16, color: AppColors.mutedForeground)));
                                       }
 
                                       final sub = _getSubmission(a['id'], studentId);
                                       if (sub == null) {
-                                        return const DataCell(Center(child: Text('➖', style: TextStyle(color: Colors.grey))));
+                                        return const DataCell(Center(child: Icon(Icons.remove, size: 16, color: AppColors.mutedForeground)));
                                       }
 
                                       final status = sub['status'] as String? ?? 'pending';
                                       if (status == 'correct') {
-                                        return const DataCell(Center(child: Text('✅')));
+                                        return const DataCell(Center(child: Icon(Icons.check_circle, size: 16, color: AppColors.success)));
                                       } else if (status == 'incorrect') {
-                                        return const DataCell(Center(child: Text('❌')));
+                                        return const DataCell(Center(child: Icon(Icons.cancel, size: 16, color: AppColors.error)));
                                       } else {
-                                        return const DataCell(Center(child: Text('⏳')));
+                                        return const DataCell(Center(child: Icon(Icons.hourglass_empty, size: 16, color: AppColors.warning)));
                                       }
                                     }),
                                   ],

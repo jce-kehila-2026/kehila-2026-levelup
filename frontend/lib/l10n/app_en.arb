@@ -745,5 +745,6 @@
 
   "peopleAndUsers": "People & Users",
   "curriculumContent": "Curriculum & Content",
-  "activeToday": "active today"
+  "activeToday": "active today",
+  "statTotal": "Total"
 }

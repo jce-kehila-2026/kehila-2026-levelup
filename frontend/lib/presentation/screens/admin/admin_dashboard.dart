@@ -230,7 +230,7 @@ class AdminDashboard extends StatelessWidget {
         child: InkWell(
           onTap: onTapAll,
           child: Padding(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.fromLTRB(20, 10, 20, 10),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -266,7 +266,7 @@ class AdminDashboard extends StatelessWidget {
                       ),
                   ],
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 14),
                 Row(
                   children: [
                     for (int i = 0; i < items.length; i++) ...[
@@ -370,113 +370,21 @@ class AdminDashboard extends StatelessWidget {
                   ),
                   const SizedBox(height: 32),
 
-                  // ── Platform Overview ──────────────────────────────────────
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     child: Column(
                       children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: ElevatedButton(
-                                onPressed: onNavigateToCurriculum,
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppColors.accent,
-                                  foregroundColor: AppColors.text,
-                                  padding: const EdgeInsets.symmetric(vertical: 13),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                                  elevation: 4,
-                                  shadowColor: AppColors.accent.withValues(alpha: 0.35),
-                                ),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    const Icon(Icons.menu_book, size: 14),
-                                    const SizedBox(width: 5),
-                                    Flexible(child: Text(l10n.navCurriculum, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold))),
-                                  ],
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: ElevatedButton(
-                                onPressed: onNavigateToUsers,
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppColors.primary,
-                                  foregroundColor: AppColors.white,
-                                  padding: const EdgeInsets.symmetric(vertical: 13),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                                  elevation: 4,
-                                  shadowColor: AppColors.primary.withValues(alpha: 0.25),
-                                ),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    const Icon(Icons.people, size: 14),
-                                    const SizedBox(width: 5),
-                                    Flexible(child: Text(l10n.navUsers, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold))),
-                                  ],
-                                ),
-                              ),
-                            ),
+                        // Curriculum & Content — one button to curriculum.
+                        _buildConsolidatedCard(
+                          l10n.curriculumContent,
+                          Icons.layers_rounded,
+                          [
+                            (label: l10n.statLevels,      value: stats['levels']!,      onTap: null),
+                            (label: l10n.statLessons,     value: stats['lessons']!,     onTap: null),
                           ],
+                          onTapAll: onNavigateToCurriculum,
                         ),
-                        const SizedBox(height: 10),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: OutlinedButton(
-                                onPressed: onNavigateToGroups,
-                                style: OutlinedButton.styleFrom(
-                                  backgroundColor: AppColors.white,
-                                  foregroundColor: AppColors.primary,
-                                  side: const BorderSide(color: AppColors.primary, width: 1.5),
-                                  padding: const EdgeInsets.symmetric(vertical: 13),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                                ),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    const Icon(Icons.how_to_reg, size: 14),
-                                    const SizedBox(width: 5),
-                                    Flexible(child: Text(l10n.navGroups, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold))),
-                                  ],
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: OutlinedButton(
-                                onPressed: () => context.push('/admin/assignments'),
-                                style: OutlinedButton.styleFrom(
-                                  backgroundColor: AppColors.white,
-                                  foregroundColor: AppColors.primary,
-                                  side: const BorderSide(color: AppColors.primary, width: 1.5),
-                                  padding: const EdgeInsets.symmetric(vertical: 13),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                                ),
-                                child: const Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(Icons.assignment_outlined, size: 14),
-                                    SizedBox(width: 5),
-                                    Flexible(child: Text('Assignments', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold))),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: Column(
-                      children: [
+                        const SizedBox(height: 14),
                         // People & Users — three separate destinations.
                         _buildConsolidatedCard(
                           l10n.peopleAndUsers,
@@ -488,16 +396,16 @@ class AdminDashboard extends StatelessWidget {
                           ],
                         ),
                         const SizedBox(height: 14),
-                        // Curriculum & Content — one button to curriculum.
+                        // Assignments — one button to the assignments page.
                         _buildConsolidatedCard(
-                          l10n.curriculumContent,
-                          Icons.layers_rounded,
+                          l10n.assignmentsTitle,
+                          Icons.assignment_rounded,
                           [
-                            (label: l10n.statLevels,      value: stats['levels']!,      onTap: null),
-                            (label: l10n.statLessons,     value: stats['lessons']!,     onTap: null),
-                            (label: l10n.statActiveTasks, value: stats['activeTasks']!, onTap: null),
+                            (label: l10n.statTotal,         value: stats['totalAssignments']!, onTap: null),
+                            (label: l10n.statusActive,      value: stats['activeTasks']!,      onTap: null),
+                            (label: l10n.statPendingReview, value: stats['pendingReview']!,    onTap: null),
                           ],
-                          onTapAll: onNavigateToCurriculum,
+                          onTapAll: () => context.go('/admin?tab=6'),
                         ),
                       ],
                     ),
