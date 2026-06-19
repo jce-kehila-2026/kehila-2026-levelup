@@ -339,7 +339,7 @@ class AdminStatisticsScreen extends StatelessWidget {
     );
   }
 
-  // ── Card header (title + subtitle) ────────────────────────────────────────
+  // ── Card header (title + subtitle + optional avg note) ────────────────────
 
   Widget _cardHeader(String title, {String? subtitle, String? note}) {
     return Column(
@@ -545,12 +545,11 @@ class AdminStatisticsScreen extends StatelessWidget {
             final val = e.value;
             final label = labelMapper != null ? labelMapper(key) : key;
             final isMuted = key == 'Not set' || key == 'Other';
-            // Same hue everywhere — depth comes from opacity scaled to the value.
+            // Same hue — depth via opacity scaled to the value.
             final double alpha = (maxVal > 0 ? 0.40 + 0.60 * (val / maxVal) : 1.0)
                 .clamp(0.40, 1.0)
                 .toDouble();
-            final color =
-                isMuted ? _mutedBar : baseColor.withValues(alpha: alpha);
+            final color = isMuted ? _mutedBar : baseColor.withValues(alpha: alpha);
             return _barRow(
               label: label,
               value: val,

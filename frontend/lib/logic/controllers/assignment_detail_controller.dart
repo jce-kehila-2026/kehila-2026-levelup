@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../data/models/assignment_model.dart';
 import '../../data/models/submission_model.dart';
 import '../../data/models/user_model.dart';
@@ -73,6 +74,35 @@ class AssignmentDetailController extends ChangeNotifier {
   String get answer => _answer;
   List<SubmissionModel> get submissions => _submissions;
 
+  bool get canGrade {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    // Admins cannot grade (Feature 7)
+    if (isAdminRole) return false;
+    // Current instructor's UID must match the assignment's instructor ID
+    return uid != null && uid == assignment.instructorId;
+  }
+
+  List<UserModel> get groupLevelStudents {
+    if (assignment.groupId == null || assignment.levelId == null) return [];
+    return _students.where((s) =>
+        s.role == UserRole.student &&
+        s.groupId == assignment.groupId &&
+        s.levelId == assignment.levelId &&
+        !s.isArchived).toList();
+  }
+
+  List<UserModel> get notSubmittedStudents {
+    final submittedStudentIds = _submissions.map((s) => s.studentId).toSet();
+    return groupLevelStudents.where((s) => !submittedStudentIds.contains(s.id)).toList();
+  }
+
+  int get totalStudentsCount => groupLevelStudents.length;
+  int get submittedCount => _submissions.length;
+  int get notSubmittedCount => notSubmittedStudents.length;
+  int get correctCount => _submissions.where((s) => s.status == GradeStatus.correct).length;
+  int get incorrectCount => _submissions.where((s) => s.status == GradeStatus.incorrect).length;
+  int get pendingCount => _submissions.where((s) => s.status == GradeStatus.pending).length;
+
   String get levelName {
     if (assignment.levelId == null) return '';
     try {
@@ -120,6 +150,10 @@ class AssignmentDetailController extends ChangeNotifier {
 
   /// Grade a submission with status and optional feedback.
   Future<void> gradeSubmission(String submissionId, GradeStatus status, String? feedback) async {
+    if (!canGrade) {
+      throw Exception('You are not authorized to grade this assignment.');
+    }
+
     await _submissionRepository.gradeSubmission(submissionId, status, feedback);
     _submissions = await _submissionRepository.getSubmissionsByAssignment(assignmentId);
     notifyListeners();

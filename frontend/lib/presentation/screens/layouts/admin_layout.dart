@@ -5,18 +5,18 @@ import '../../../theme/app_theme.dart';
 import '../../widgets/locale_toggle_button.dart';
 import '../../../di/service_locator.dart';
 import '../../../logic/helpers/logout_helper.dart';
+import '../../../logic/controllers/admin_statistics_controller.dart';
 import '../../../logic/controllers/curriculum_controller.dart';
 import '../../../logic/controllers/user_controller.dart';
 import '../../../logic/controllers/group_controller.dart';
 import '../../../logic/controllers/audit_log_controller.dart';
 
 import '../admin/admin_dashboard.dart';
+import '../admin/admin_statistics_screen.dart';
 import '../admin/curriculum_screen.dart';
 import '../admin/groups_screen.dart';
 import '../admin/users_screen.dart';
 import '../admin/logs_screen.dart';
-import '../admin/admin_statistics_screen.dart';
-import '../../../logic/controllers/admin_statistics_controller.dart';
 import '../../widgets/golden_nav_icon.dart';
 
 

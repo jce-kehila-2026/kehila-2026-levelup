@@ -1,6 +1,7 @@
 // ignore_for_file: experimental_member_use
 import 'dart:async';
 import 'dart:convert';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart' as quill;
@@ -8,7 +9,9 @@ import 'package:frontend/l10n/app_localizations.dart';
 import '../../../utils/editor_paste_listener.dart';
 import '../../../theme/app_theme.dart';
 import '../../../data/models/curriculum_model.dart';
+import '../../../data/models/instructor_material_model.dart';
 import '../../../logic/controllers/curriculum_controller.dart';
+import '../../../logic/controllers/instructor_material_controller.dart';
 import '../../../di/service_locator.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
@@ -251,17 +254,31 @@ class _PdfEmbedBuilder extends quill.EmbedBuilder {
 // ── Screen ────────────────────────────────────────────────────────────────────
 
 class MaterialEditorScreen extends StatefulWidget {
+  // ── Admin curriculum mode (original) ──
   final String levelId;
   final String weekId;
   final String? itemId;
   final CurriculumItem? item;
 
+  // ── Instructor material mode ──
+  final bool isInstructorMaterial;
+  final String? instructorMaterialId;
+  final InstructorMaterialModel? instructorMaterial;
+  final String? groupId;
+  final String? materialLevelId;
+
   const MaterialEditorScreen({
     super.key,
-    required this.levelId,
-    required this.weekId,
+    this.levelId = '',
+    this.weekId = '',
     this.itemId,
     this.item,
+    // Instructor-material params
+    this.isInstructorMaterial = false,
+    this.instructorMaterialId,
+    this.instructorMaterial,
+    this.groupId,
+    this.materialLevelId,
   });
 
   @override
@@ -269,7 +286,11 @@ class MaterialEditorScreen extends StatefulWidget {
 }
 
 class _MaterialEditorScreenState extends State<MaterialEditorScreen> {
-  final CurriculumController _controller = getIt<CurriculumController>();
+  // Controllers
+  final CurriculumController _curriculumController = getIt<CurriculumController>();
+  final InstructorMaterialController _materialController =
+      getIt<InstructorMaterialController>();
+
   late TextEditingController _titleCtrl;
   late quill.QuillController _quillCtrl;
   StreamSubscription<quill.DocChange>? _docChangeSub;
@@ -317,11 +338,29 @@ class _MaterialEditorScreenState extends State<MaterialEditorScreen> {
     caseSensitive: false,
   );
 
+  // ── Init / dispose ────────────────────────────────────────────────────────
+
   @override
   void initState() {
     super.initState();
-    _titleCtrl = TextEditingController(text: widget.item?.title ?? '');
-    _attachments = List<Map<String, String>>.from(widget.item?.attachments ?? []);
+
+    // Pre-fill from whichever source is active.
+    final existingTitle = widget.isInstructorMaterial
+        ? (widget.instructorMaterial?.title ?? '')
+        : (widget.item?.title ?? '');
+
+    final existingContent = widget.isInstructorMaterial
+        ? (widget.instructorMaterial?.deltaJson ??
+            widget.instructorMaterial?.content)
+        : (widget.item?.content ?? widget.item?.deltaJson);
+
+    final existingAttachments = widget.isInstructorMaterial
+        ? List<Map<String, String>>.from(
+            widget.instructorMaterial?.attachments ?? [])
+        : List<Map<String, String>>.from(widget.item?.attachments ?? []);
+
+    _titleCtrl = TextEditingController(text: existingTitle);
+    _attachments = existingAttachments;
 
     final clipCfg = quill.QuillControllerConfig(
       clipboardConfig: quill.QuillClipboardConfig(
@@ -330,10 +369,9 @@ class _MaterialEditorScreenState extends State<MaterialEditorScreen> {
       ),
     );
 
-    final raw = widget.item?.content ?? widget.item?.deltaJson;
-    if (raw != null && raw.isNotEmpty) {
+    if (existingContent != null && existingContent.isNotEmpty) {
       try {
-        final ops = _sanitizeOps(jsonDecode(raw) as List);
+        final ops = _sanitizeOps(jsonDecode(existingContent) as List);
         _quillCtrl = quill.QuillController(
           document: quill.Document.fromJson(ops),
           selection: const TextSelection.collapsed(offset: 0),
@@ -345,6 +383,7 @@ class _MaterialEditorScreenState extends State<MaterialEditorScreen> {
     } else {
       _quillCtrl = quill.QuillController.basic(config: clipCfg);
     }
+
     _docChangeSub = _quillCtrl.document.changes.listen(_onDocumentChange);
     _pasteListener = addImagePasteListener(_quillCtrl);
   }
@@ -376,6 +415,8 @@ class _MaterialEditorScreenState extends State<MaterialEditorScreen> {
     super.dispose();
   }
 
+  // ── Document change listener ──────────────────────────────────────────────
+
   void _onDocumentChange(quill.DocChange change) {
     if (_processingImage || change.source != quill.ChangeSource.local) return;
     int offset = 0;
@@ -400,6 +441,8 @@ class _MaterialEditorScreenState extends State<MaterialEditorScreen> {
       }
     }
   }
+
+  // ── File uploads ──────────────────────────────────────────────────────────
 
   Future<void> _uploadImage() async {
     try {
@@ -446,7 +489,18 @@ class _MaterialEditorScreenState extends State<MaterialEditorScreen> {
       if (bytes == null) throw Exception('Could not read file bytes.');
 
       final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final storagePath = 'materials/pdfs/${widget.levelId}_${widget.weekId}_$timestamp.pdf';
+
+      // Use a different storage path for instructor materials.
+      final String storagePath;
+      if (widget.isInstructorMaterial) {
+        final gId = widget.groupId ?? 'unknown';
+        final lId = widget.materialLevelId ?? 'unknown';
+        storagePath = 'materials/instructor_pdfs/${gId}_${lId}_$timestamp.pdf';
+      } else {
+        storagePath =
+            'materials/pdfs/${widget.levelId}_${widget.weekId}_$timestamp.pdf';
+      }
+
       await FirebaseStorage.instance.ref().child(storagePath).putData(bytes);
 
       setState(() {
@@ -485,10 +539,21 @@ class _MaterialEditorScreenState extends State<MaterialEditorScreen> {
     );
   }
 
+  // ── Save ──────────────────────────────────────────────────────────────────
+
   Future<void> _save() async {
     final title = _titleCtrl.text.trim();
-    if (title.isEmpty) return;
+    if (title.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Title is required'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
 
+    // Collect only PDFs still present in the document.
     final presentFilenames = <String>{};
     for (final op in _quillCtrl.document.toDelta().operations) {
       if (op.isInsert && op.data is Map) {
@@ -503,43 +568,91 @@ class _MaterialEditorScreenState extends State<MaterialEditorScreen> {
         .toList();
 
     final deltaJson = jsonEncode(_quillCtrl.document.toDelta().toJson());
+
     try {
-      if (widget.item != null) {
-        await _controller.updateItem(
-          widget.levelId,
-          widget.weekId,
-          widget.itemId!,
-          title,
-          deltaJson,
-          deltaJson: deltaJson,
-          attachments: activeAttachments,
-        );
+      if (widget.isInstructorMaterial) {
+        await _saveInstructorMaterial(title, deltaJson, activeAttachments);
       } else {
-        await _controller.addMaterial(
-          widget.levelId,
-          widget.weekId,
-          title,
-          content: deltaJson,
-          deltaJson: deltaJson,
-          attachments: activeAttachments,
-        );
+        await _saveCurriculumMaterial(title, deltaJson, activeAttachments);
       }
-      if (mounted) Navigator.pop(context);
+      if (mounted) Navigator.pop(context, true);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to save: $e'), backgroundColor: AppColors.error),
+          SnackBar(
+              content: Text('Failed to save: $e'),
+              backgroundColor: AppColors.error),
         );
       }
     }
   }
 
+  Future<void> _saveInstructorMaterial(
+    String title,
+    String deltaJson,
+    List<Map<String, String>> attachments,
+  ) async {
+    final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
+    final groupId = widget.groupId ?? '';
+    final levelId = widget.materialLevelId ?? '';
 
+    if (widget.instructorMaterialId != null) {
+      // Edit existing
+      await _materialController.updateMaterial(
+        widget.instructorMaterialId!,
+        title,
+        deltaJson,
+        attachments,
+        instructorId: uid,
+      );
+    } else {
+      // Create new
+      await _materialController.addMaterial(
+        title: title,
+        deltaJson: deltaJson,
+        attachments: attachments,
+        instructorId: uid,
+        groupId: groupId,
+        levelId: levelId,
+      );
+    }
+  }
+
+  Future<void> _saveCurriculumMaterial(
+    String title,
+    String deltaJson,
+    List<Map<String, String>> attachments,
+  ) async {
+    if (widget.item != null) {
+      await _curriculumController.updateItem(
+        widget.levelId,
+        widget.weekId,
+        widget.itemId!,
+        title,
+        deltaJson,
+        deltaJson: deltaJson,
+        attachments: attachments,
+      );
+    } else {
+      await _curriculumController.addMaterial(
+        widget.levelId,
+        widget.weekId,
+        title,
+        content: deltaJson,
+        deltaJson: deltaJson,
+        attachments: attachments,
+      );
+    }
+  }
+
+  // ── Build ─────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final isEdit = widget.item != null;
+    final isEdit = widget.isInstructorMaterial
+        ? widget.instructorMaterialId != null
+        : widget.item != null;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -553,7 +666,8 @@ class _MaterialEditorScreenState extends State<MaterialEditorScreen> {
         ),
         title: Text(
           isEdit ? 'Edit Material' : l10n.addMaterialTitle,
-          style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: AppColors.text),
+          style: const TextStyle(
+              fontSize: 17, fontWeight: FontWeight.bold, color: AppColors.text),
           overflow: TextOverflow.ellipsis,
         ),
         bottom: PreferredSize(
@@ -563,7 +677,10 @@ class _MaterialEditorScreenState extends State<MaterialEditorScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text(l10n.cancel, style: const TextStyle(color: AppColors.mutedForeground, fontWeight: FontWeight.w600)),
+            child: Text(l10n.cancel,
+                style: const TextStyle(
+                    color: AppColors.mutedForeground,
+                    fontWeight: FontWeight.w600)),
           ),
           const SizedBox(width: 6),
           Padding(
@@ -573,13 +690,16 @@ class _MaterialEditorScreenState extends State<MaterialEditorScreen> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
                 foregroundColor: AppColors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8)),
                 elevation: 0,
               ),
               child: Text(
                 isEdit ? 'Save' : l10n.add,
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                style: const TextStyle(
+                    fontWeight: FontWeight.bold, fontSize: 13),
               ),
             ),
           ),
@@ -593,7 +713,8 @@ class _MaterialEditorScreenState extends State<MaterialEditorScreen> {
             Container(
               decoration: BoxDecoration(
                 color: AppColors.white,
-                border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
+                border:
+                    Border(bottom: BorderSide(color: Colors.grey.shade200)),
               ),
               child: Center(
                 child: ConstrainedBox(
@@ -602,7 +723,8 @@ class _MaterialEditorScreenState extends State<MaterialEditorScreen> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 4),
                         child: Row(
                           children: [
                             // Font family dropdown
@@ -610,55 +732,100 @@ class _MaterialEditorScreenState extends State<MaterialEditorScreen> {
                               width: 100,
                               child: DropdownButton<String>(
                                 value: _selectedFontFamily,
-                                hint: const Text('Font', style: TextStyle(fontSize: 12)),
+                                hint: const Text('Font',
+                                    style: TextStyle(fontSize: 12)),
                                 underline: const SizedBox(),
                                 isExpanded: true,
-                                style: const TextStyle(fontSize: 12, color: AppColors.text),
+                                style: const TextStyle(
+                                    fontSize: 12, color: AppColors.text),
                                 items: [
-                                  DropdownMenuItem(value: 'IBM Plex Sans Arabic', child: Text('IBM Plex', style: TextStyle(fontSize: 12))),
-                                  DropdownMenuItem(value: 'Roboto', child: Text('Roboto', style: TextStyle(fontSize: 12))),
-                                  DropdownMenuItem(value: 'Lato', child: Text('Lato', style: TextStyle(fontSize: 12))),
-                                  DropdownMenuItem(value: 'Merriweather', child: Text('Merriweather', style: TextStyle(fontSize: 12))),
-                                  DropdownMenuItem(value: 'Playfair Display', child: Text('Playfair', style: TextStyle(fontSize: 12))),
-                                  DropdownMenuItem(value: 'Courier Prime', child: Text('Courier', style: TextStyle(fontSize: 12))),
+                                  DropdownMenuItem(
+                                      value: 'IBM Plex Sans Arabic',
+                                      child: Text('IBM Plex',
+                                          style: TextStyle(fontSize: 12))),
+                                  DropdownMenuItem(
+                                      value: 'Roboto',
+                                      child: Text('Roboto',
+                                          style: TextStyle(fontSize: 12))),
+                                  DropdownMenuItem(
+                                      value: 'Lato',
+                                      child: Text('Lato',
+                                          style: TextStyle(fontSize: 12))),
+                                  DropdownMenuItem(
+                                      value: 'Merriweather',
+                                      child: Text('Merriweather',
+                                          style: TextStyle(fontSize: 12))),
+                                  DropdownMenuItem(
+                                      value: 'Playfair Display',
+                                      child: Text('Playfair',
+                                          style: TextStyle(fontSize: 12))),
+                                  DropdownMenuItem(
+                                      value: 'Courier Prime',
+                                      child: Text('Courier',
+                                          style: TextStyle(fontSize: 12))),
                                 ],
                                 onChanged: (font) {
                                   setState(() => _selectedFontFamily = font);
                                   if (font != null) {
                                     _quillCtrl.formatSelection(
-                                      quill.Attribute.fromKeyValue(quill.Attribute.font.key, font),
+                                      quill.Attribute.fromKeyValue(
+                                          quill.Attribute.font.key, font),
                                     );
                                   }
-                                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                                    if (mounted) _editorFocusNode.requestFocus();
+                                  WidgetsBinding.instance
+                                      .addPostFrameCallback((_) {
+                                    if (mounted)
+                                      _editorFocusNode.requestFocus();
                                   });
                                 },
                               ),
                             ),
                             const SizedBox(width: 8),
-                            const SizedBox(height: 20, child: VerticalDivider(width: 1, color: AppColors.border)),
+                            const SizedBox(
+                                height: 20,
+                                child: VerticalDivider(
+                                    width: 1, color: AppColors.border)),
                             const SizedBox(width: 8),
                             // Font size dropdown
                             SizedBox(
                               width: 70,
                               child: DropdownButton<String>(
                                 value: _selectedFontSize,
-                                hint: const Text('Size', style: TextStyle(fontSize: 12)),
+                                hint: const Text('Size',
+                                    style: TextStyle(fontSize: 12)),
                                 underline: const SizedBox(),
                                 isExpanded: true,
-                                style: const TextStyle(fontSize: 12, color: AppColors.text),
-                                items: ['12', '14', '16', '18', '20', '24', '28', '32', '36']
-                                    .map((s) => DropdownMenuItem(value: s, child: Text(s, style: const TextStyle(fontSize: 12))))
+                                style: const TextStyle(
+                                    fontSize: 12, color: AppColors.text),
+                                items: [
+                                  '12',
+                                  '14',
+                                  '16',
+                                  '18',
+                                  '20',
+                                  '24',
+                                  '28',
+                                  '32',
+                                  '36'
+                                ]
+                                    .map((s) => DropdownMenuItem(
+                                        value: s,
+                                        child: Text(s,
+                                            style: const TextStyle(
+                                                fontSize: 12))))
                                     .toList(),
                                 onChanged: (size) {
                                   setState(() => _selectedFontSize = size);
                                   if (size != null) {
                                     _quillCtrl.formatSelection(
-                                      quill.Attribute.fromKeyValue(quill.Attribute.size.key, size),
+                                      quill.Attribute.fromKeyValue(
+                                          quill.Attribute.size.key, size),
                                     );
                                   }
-                                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                                    if (mounted) _editorFocusNode.requestFocus();
+                                  WidgetsBinding.instance
+                                      .addPostFrameCallback((_) {
+                                    if (mounted)
+                                      _editorFocusNode.requestFocus();
                                   });
                                 },
                               ),
@@ -681,11 +848,13 @@ class _MaterialEditorScreenState extends State<MaterialEditorScreen> {
               height: 48,
               decoration: BoxDecoration(
                 color: AppColors.white,
-                border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
+                border: Border(
+                    bottom: BorderSide(color: Colors.grey.shade200)),
               ),
               child: Center(
                 child: ConstrainedBox(
-                  constraints: BoxConstraints(maxWidth: kIsWeb ? 900 : double.infinity),
+                  constraints: BoxConstraints(
+                      maxWidth: kIsWeb ? 900 : double.infinity),
                   child: _isUploadingFile
                       ? const Center(
                           child: Row(
@@ -694,10 +863,15 @@ class _MaterialEditorScreenState extends State<MaterialEditorScreen> {
                               SizedBox(
                                 width: 16,
                                 height: 16,
-                                child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: AppColors.primary),
                               ),
                               SizedBox(width: 8),
-                              Text('Uploading...', style: TextStyle(color: AppColors.mutedForeground, fontSize: 12)),
+                              Text('Uploading...',
+                                  style: TextStyle(
+                                      color: AppColors.mutedForeground,
+                                      fontSize: 12)),
                             ],
                           ),
                         )
@@ -706,21 +880,36 @@ class _MaterialEditorScreenState extends State<MaterialEditorScreen> {
                           children: [
                             Expanded(
                               child: TextButton.icon(
-                                icon: const Icon(Icons.image_outlined, size: 16, color: AppColors.primary),
-                                label: const Text('Image', style: TextStyle(color: AppColors.primary, fontSize: 12, fontWeight: FontWeight.w500)),
+                                icon: const Icon(Icons.image_outlined,
+                                    size: 16, color: AppColors.primary),
+                                label: const Text('Image',
+                                    style: TextStyle(
+                                        color: AppColors.primary,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w500)),
                                 style: TextButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 16, vertical: 12),
                                 ),
                                 onPressed: _uploadImage,
                               ),
                             ),
-                            const VerticalDivider(width: 1, color: AppColors.border),
+                            const VerticalDivider(
+                                width: 1, color: AppColors.border),
                             Expanded(
                               child: TextButton.icon(
-                                icon: const Icon(Icons.picture_as_pdf_outlined, size: 16, color: AppColors.primary),
-                                label: const Text('PDF', style: TextStyle(color: AppColors.primary, fontSize: 12, fontWeight: FontWeight.w500)),
+                                icon: const Icon(
+                                    Icons.picture_as_pdf_outlined,
+                                    size: 16,
+                                    color: AppColors.primary),
+                                label: const Text('PDF',
+                                    style: TextStyle(
+                                        color: AppColors.primary,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w500)),
                                 style: TextButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 16, vertical: 12),
                                 ),
                                 onPressed: _uploadPdf,
                               ),
@@ -737,7 +926,8 @@ class _MaterialEditorScreenState extends State<MaterialEditorScreen> {
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 900),
                     child: Padding(
-                      padding: EdgeInsets.symmetric(horizontal: kIsWeb ? 20 : 16),
+                      padding: EdgeInsets.symmetric(
+                          horizontal: kIsWeb ? 20 : 16),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -757,7 +947,8 @@ class _MaterialEditorScreenState extends State<MaterialEditorScreen> {
                               hintStyle: TextStyle(
                                 fontSize: kIsWeb ? 24 : 20,
                                 fontWeight: FontWeight.w300,
-                                color: AppColors.mutedForeground.withValues(alpha: 0.6),
+                                color: AppColors.mutedForeground
+                                    .withValues(alpha: 0.6),
                               ),
                               border: InputBorder.none,
                               enabledBorder: InputBorder.none,
@@ -765,20 +956,25 @@ class _MaterialEditorScreenState extends State<MaterialEditorScreen> {
                               contentPadding: EdgeInsets.zero,
                             ),
                           ),
-                          const Divider(color: AppColors.border, height: 28),
+                          const Divider(
+                              color: AppColors.border, height: 28),
                           // White doc card
                           Center(
                             child: ConstrainedBox(
-                              constraints: const BoxConstraints(maxWidth: 820),
+                              constraints:
+                                  const BoxConstraints(maxWidth: 820),
                               child: Container(
                                 width: double.infinity,
                                 decoration: BoxDecoration(
                                   color: AppColors.white,
-                                  borderRadius: BorderRadius.circular(kIsWeb ? 12 : 8),
-                                  border: Border.all(color: AppColors.border),
+                                  borderRadius: BorderRadius.circular(
+                                      kIsWeb ? 12 : 8),
+                                  border:
+                                      Border.all(color: AppColors.border),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: Colors.black.withValues(alpha: 0.06),
+                                      color: Colors.black
+                                          .withValues(alpha: 0.06),
                                       blurRadius: 12,
                                       offset: const Offset(0, 2),
                                     ),
@@ -787,7 +983,8 @@ class _MaterialEditorScreenState extends State<MaterialEditorScreen> {
                                 padding: EdgeInsets.all(kIsWeb ? 32 : 20),
                                 child: IntrinsicHeight(
                                   child: ConstrainedBox(
-                                    constraints: const BoxConstraints(minHeight: 400),
+                                    constraints: const BoxConstraints(
+                                        minHeight: 400),
                                     child: quill.QuillEditor.basic(
                                       focusNode: _editorFocusNode,
                                       controller: _quillCtrl,
@@ -795,20 +992,30 @@ class _MaterialEditorScreenState extends State<MaterialEditorScreen> {
                                         scrollable: false,
                                         expands: false,
                                         embedBuilders: [
-                                          _ImageEmbedBuilder(controller: _quillCtrl),
+                                          _ImageEmbedBuilder(
+                                              controller: _quillCtrl),
                                           _PdfEmbedBuilder(
                                             controller: _quillCtrl,
                                             attachments: _attachments,
                                             onOpenViewer: _openPdfViewer,
                                           ),
                                         ],
-                                        placeholder: isEdit ? 'Edit material content…' : 'Write material content here…',
+                                        placeholder: isEdit
+                                            ? 'Edit material content…'
+                                            : 'Write material content here…',
                                         customStyleBuilder: (attribute) {
-                                          if (attribute.key == quill.Attribute.font.key && attribute.value != null) {
+                                          if (attribute.key ==
+                                                  quill.Attribute.font
+                                                      .key &&
+                                              attribute.value != null) {
                                             try {
-                                              return GoogleFonts.getFont(attribute.value as String);
+                                              return GoogleFonts.getFont(
+                                                  attribute.value
+                                                      as String);
                                             } catch (_) {
-                                              return TextStyle(fontFamily: attribute.value as String);
+                                              return TextStyle(
+                                                  fontFamily: attribute
+                                                      .value as String);
                                             }
                                           }
                                           return const TextStyle();

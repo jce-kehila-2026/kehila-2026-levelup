@@ -78,6 +78,8 @@ class StudentProfileRepository {
               ? (data['lastActive'] as Timestamp).toDate()
               : DateTime.tryParse(data['lastActive'].toString()))
           : null,
+      groupId: groupId,
+      levelId: data['levelId'] as String?,
     );
   }
 }

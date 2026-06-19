@@ -92,6 +92,15 @@ class AssignmentModel {
   int pendingCount;
   int gradedCount;
 
+  // New fields for Assignment System Specification
+  final bool isVisible;        // admin can show/hide central assignments
+  final String? imageUrl;      // optional image uploaded to Firebase Storage
+  final int totalStudents;     // total students in the assigned group+level
+  final int submittedCount;    // how many submitted
+  final int correctCount;      // how many graded correct
+  final int incorrectCount;    // how many graded incorrect
+  final String? curriculumItemId; // original curriculum item id for central assignments
+
   /// Search tags for segmented-array Firestore queries.
   final List<String> searchTags;
 
@@ -121,6 +130,13 @@ class AssignmentModel {
     this.levelId,
     this.pendingCount = 0,
     this.gradedCount = 0,
+    this.isVisible = true,
+    this.imageUrl,
+    this.totalStudents = 0,
+    this.submittedCount = 0,
+    this.correctCount = 0,
+    this.incorrectCount = 0,
+    this.curriculumItemId,
     this.searchTags = const [],
     required this.createdAt,
     required this.deadline,
@@ -165,6 +181,13 @@ class AssignmentModel {
       levelId: map['levelId'],
       pendingCount: map['pendingCount']?.toInt() ?? 0,
       gradedCount: map['gradedCount']?.toInt() ?? 0,
+      isVisible: map['isVisible'] ?? true,
+      imageUrl: map['imageUrl'],
+      totalStudents: map['totalStudents']?.toInt() ?? 0,
+      submittedCount: map['submittedCount']?.toInt() ?? 0,
+      correctCount: map['correctCount']?.toInt() ?? 0,
+      incorrectCount: map['incorrectCount']?.toInt() ?? 0,
+      curriculumItemId: map['curriculumItemId'],
       searchTags: List<String>.from(map['searchTags'] ?? []),
       createdAt: createdAtVal,
       deadline: deadlineVal,
@@ -190,6 +213,13 @@ class AssignmentModel {
       'createdAt': createdAt.toIso8601String(),
       'assignmentType': assignmentType.name,
       'choices': choices,
+      'isVisible': isVisible,
+      'imageUrl': imageUrl,
+      'totalStudents': totalStudents,
+      'submittedCount': submittedCount,
+      'correctCount': correctCount,
+      'incorrectCount': incorrectCount,
+      'curriculumItemId': curriculumItemId,
     };
   }
 }
