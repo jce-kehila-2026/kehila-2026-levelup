@@ -87,6 +87,9 @@ void setupServiceLocator() {
       getIt<CurriculumRepository>(),
     ),
   );
+  getIt.registerLazySingleton<AdminStatisticsController>(
+    () => AdminStatisticsController(getIt<UserRepository>(), getIt<CurriculumRepository>()),
+  );
   getIt.registerLazySingleton<CurriculumController>(
     () => CurriculumController(getIt<CurriculumRepository>(), getIt<AssignmentRepository>(), getIt<UserRepository>(), getIt<AuditLogHelper>()),
   );
@@ -98,9 +101,6 @@ void setupServiceLocator() {
   );
   getIt.registerLazySingleton<AuditLogController>(
     () => AuditLogController(getIt<AuditLogRepository>()),
-  );
-  getIt.registerLazySingleton<AdminStatisticsController>(
-    () => AdminStatisticsController(getIt<UserRepository>(), getIt<CurriculumRepository>()),
   );
 
   // ──────────────────────────────────────

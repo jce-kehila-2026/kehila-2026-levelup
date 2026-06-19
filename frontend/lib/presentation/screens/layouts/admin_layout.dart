@@ -195,50 +195,58 @@ class _AdminLayoutState extends State<AdminLayout> {
       body: isWide
           ? Row(
               children: [
-                NavigationRail(
-                  selectedIndex: currentIndex,
-                  onDestinationSelected: (i) {
-                    _closeSearch();
-                    if (i == 5) getIt<AdminStatisticsController>().refresh();
-                    context.go('/admin?tab=$i');
-                  },
-                  backgroundColor: AppColors.white,
-                  selectedLabelTextStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 11, color: AppColors.primary),
-                  unselectedLabelTextStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 11, color: AppColors.mutedForeground),
-                  indicatorColor: AppColors.secondary,
-                  labelType: NavigationRailLabelType.all,
-                  destinations: [
-                    NavigationRailDestination(
-                      icon: const GoldenNavIcon(icon: Icons.home, active: false),
-                      selectedIcon: const GoldenNavIcon(icon: Icons.home),
-                      label: Text(AppLocalizations.of(context)!.navHome),
-                    ),
-                    NavigationRailDestination(
-                      icon: const GoldenNavIcon(icon: Icons.menu_book, active: false),
-                      selectedIcon: const GoldenNavIcon(icon: Icons.menu_book),
-                      label: Text(AppLocalizations.of(context)!.navCurriculum),
-                    ),
-                    NavigationRailDestination(
-                      icon: const GoldenNavIcon(icon: Icons.people, active: false),
-                      selectedIcon: const GoldenNavIcon(icon: Icons.people),
-                      label: Text(AppLocalizations.of(context)!.navUsers),
-                    ),
-                    NavigationRailDestination(
-                      icon: const GoldenNavIcon(icon: Icons.how_to_reg, active: false),
-                      selectedIcon: const GoldenNavIcon(icon: Icons.how_to_reg),
-                      label: Text(AppLocalizations.of(context)!.navGroups),
-                    ),
-                    NavigationRailDestination(
-                      icon: const GoldenNavIcon(icon: Icons.list_alt, active: false),
-                      selectedIcon: const GoldenNavIcon(icon: Icons.list_alt),
-                      label: Text(AppLocalizations.of(context)!.navLogs),
-                    ),
-                    NavigationRailDestination(
-                      icon: const GoldenNavIcon(icon: Icons.bar_chart, active: false),
-                      selectedIcon: const GoldenNavIcon(icon: Icons.bar_chart),
-                      label: const Text('Stats'),
-                    ),
-                  ],
+                Theme(
+                  data: Theme.of(context).copyWith(
+                    hoverColor: Colors.transparent,
+                    highlightColor: Colors.transparent,
+                    splashColor: Colors.transparent,
+                    splashFactory: NoSplash.splashFactory,
+                  ),
+                  child: NavigationRail(
+                    selectedIndex: currentIndex,
+                    onDestinationSelected: (i) {
+                      _closeSearch();
+                      if (i == 5) getIt<AdminStatisticsController>().refresh();
+                      context.go('/admin?tab=$i');
+                    },
+                    backgroundColor: AppColors.white,
+                    selectedLabelTextStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 11, color: AppColors.primary),
+                    unselectedLabelTextStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 11, color: AppColors.mutedForeground),
+                    indicatorColor: AppColors.secondary,
+                    labelType: NavigationRailLabelType.all,
+                    destinations: [
+                      NavigationRailDestination(
+                        icon: const GoldenNavIcon(icon: Icons.home, active: false),
+                        selectedIcon: const GoldenNavIcon(icon: Icons.home),
+                        label: Text(AppLocalizations.of(context)!.navHome),
+                      ),
+                      NavigationRailDestination(
+                        icon: const GoldenNavIcon(icon: Icons.menu_book, active: false),
+                        selectedIcon: const GoldenNavIcon(icon: Icons.menu_book),
+                        label: Text(AppLocalizations.of(context)!.navCurriculum),
+                      ),
+                      NavigationRailDestination(
+                        icon: const GoldenNavIcon(icon: Icons.people, active: false),
+                        selectedIcon: const GoldenNavIcon(icon: Icons.people),
+                        label: Text(AppLocalizations.of(context)!.navUsers),
+                      ),
+                      NavigationRailDestination(
+                        icon: const GoldenNavIcon(icon: Icons.how_to_reg, active: false),
+                        selectedIcon: const GoldenNavIcon(icon: Icons.how_to_reg),
+                        label: Text(AppLocalizations.of(context)!.navGroups),
+                      ),
+                      NavigationRailDestination(
+                        icon: const GoldenNavIcon(icon: Icons.list_alt, active: false),
+                        selectedIcon: const GoldenNavIcon(icon: Icons.list_alt),
+                        label: Text(AppLocalizations.of(context)!.navLogs),
+                      ),
+                      NavigationRailDestination(
+                        icon: const GoldenNavIcon(icon: Icons.bar_chart_rounded, active: false),
+                        selectedIcon: const GoldenNavIcon(icon: Icons.bar_chart_rounded),
+                        label: const Text('Stats'),
+                      ),
+                    ],
+                  ),
                 ),
                 Container(width: 1, color: AppColors.border),
                 Expanded(
@@ -284,7 +292,7 @@ class _AdminLayoutState extends State<AdminLayout> {
                   BottomNavigationBarItem(icon: const GoldenNavIcon(icon: Icons.people, active: false), activeIcon: const GoldenNavIcon(icon: Icons.people), label: AppLocalizations.of(context)!.navUsers),
                   BottomNavigationBarItem(icon: const GoldenNavIcon(icon: Icons.how_to_reg, active: false), activeIcon: const GoldenNavIcon(icon: Icons.how_to_reg), label: AppLocalizations.of(context)!.navGroups),
                   BottomNavigationBarItem(icon: const GoldenNavIcon(icon: Icons.list_alt, active: false), activeIcon: const GoldenNavIcon(icon: Icons.list_alt), label: AppLocalizations.of(context)!.navLogs),
-                  BottomNavigationBarItem(icon: const GoldenNavIcon(icon: Icons.bar_chart, active: false), activeIcon: const GoldenNavIcon(icon: Icons.bar_chart), label: 'Stats'),
+                  BottomNavigationBarItem(icon: const GoldenNavIcon(icon: Icons.bar_chart_rounded, active: false), activeIcon: const GoldenNavIcon(icon: Icons.bar_chart_rounded), label: 'Stats'),
                 ],
               ),
             ),

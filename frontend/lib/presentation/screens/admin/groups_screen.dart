@@ -599,7 +599,7 @@ class _GroupsScreenState extends State<GroupsScreen> with SingleTickerProviderSt
                                   )
                                 : ListView.builder(
                                     padding: const EdgeInsetsDirectional.only(
-                                        start: 20, end: 20, bottom: 100),
+                                        start: 20, top: 16, end: 20, bottom: 100),
                                     itemCount: groups.length,
                                     itemBuilder: (context, index) {
                                       final group = groups[index];
@@ -686,7 +686,7 @@ class _GroupsScreenState extends State<GroupsScreen> with SingleTickerProviderSt
                                   )
                                 : ListView.builder(
                                     padding: const EdgeInsetsDirectional.only(
-                                        start: 20, end: 20, bottom: 100),
+                                        start: 20, top: 16, end: 20, bottom: 100),
                                     itemCount: archivedGroups.length,
                                     itemBuilder: (context, index) {
                                       final group = archivedGroups[index];
@@ -708,7 +708,7 @@ class _GroupsScreenState extends State<GroupsScreen> with SingleTickerProviderSt
                                     subtitle: 'All students are in groups',
                                   )
                                 : ListView.builder(
-                                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                                    padding: const EdgeInsetsDirectional.only(start: 20, top: 16, end: 20, bottom: 100),
                                     itemCount: unassignedStudents.length,
                                     itemBuilder: (context, index) {
                                       final student = unassignedStudents[index];

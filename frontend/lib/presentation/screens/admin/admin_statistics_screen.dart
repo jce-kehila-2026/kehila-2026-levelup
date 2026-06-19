@@ -7,44 +7,38 @@ import '../../../theme/app_theme.dart';
 // ── Design tokens — 60/30/10 ─────────────────────────────────────────────────
 
 // 60 % — Neutral
-const _bg     = Color(0xFFF8F9FA);   // page background
+const _bg = AppColors.background;        // page background — matches the rest of the app
 // card background is Colors.white (pure white)
 
-// 30 % — Primary purple
-const _purpleDark    = Color(0xFF4C1D95);
-const _purplePrimary = Color(0xFF663D99);
-const _purpleMid     = Color(0xFF8B5CF6);
-const _purpleLight   = Color(0xFFA78BFA);
-const _purplePale    = Color(0xFFEDE9FE);   // icon bg tint
+// 30 % — Primary purple (anchored to AppColors)
+const _purpleDark    = AppColors.primaryDark;    // #422969
+const _purplePrimary = AppColors.primary;        // #663d99
+const _purplePale    = AppColors.secondary;       // icon bg tint (#ede8f5)
 
 // 10 % — Gold accent (bars + female donut ONLY — no yellow text anywhere)
-const _goldDeep   = Color(0xFFD97706);   // Without-Group icon
-const _goldPale   = Color(0xFFFEF3C7);   // Without-Group icon bg
-const _goldBar1   = Color(0xFFEAB308);
-const _goldBar2   = Color(0xFFF59E0B);
-const _goldBar3   = Color(0xFFFCD34D);
-const _goldDonut  = Color(0xFFF59E0B);   // female donut segment
+const _goldDeep   = AppColors.accentDark;         // Without-Group icon (#c9a01f)
+const _goldPale   = Color(0xFFFEF3C7);            // Without-Group icon bg (light tint)
 
 // Typography — dark slate / cool gray (never yellow)
-const _textDark  = Color(0xFF0F172A);   // slate-900: KPI numbers
-const _textMid   = Color(0xFF334155);   // slate-700: card titles + bar labels
-const _textMuted = Color(0xFF64748B);   // slate-500: subtitles + percentages
+const _textDark  = AppColors.text;                // KPI numbers (#1a1a2e)
+const _textMid   = Color(0xFF334155);             // card titles + bar labels (mid slate)
+const _textMuted = AppColors.mutedForeground;     // subtitles + percentages (#7c6f9a)
 
 // Chart internals
 const _trackColor = Color(0xFFF1F5F9);
-const _mutedBar   = Color(0xFFCBD5E1);  // "Not set" / "Other"
-const _divider    = Color(0xFFE2E8F0);
+const _mutedBar   = Color(0xFFCBD5E1);            // "Not set" / "Other"
+const _divider    = AppColors.border;             // #d9d3e8
 
-// Bar color cycling lists
-const _purpleBars = [_purpleDark, _purplePrimary, _purpleMid, _purpleLight];
-const _goldBars   = [_goldBar1, _goldBar2, _goldBar3];
+// Single-hue bars — same platform colors as the rest of the app; depth via opacity
+const _barPurple = AppColors.primary;   // #663d99 — matches the Add Level button
+const _barGold   = AppColors.accent;    // #f0c230
 
 // Single shared card shadow
 const _shadow = BoxShadow(
-  color: Color(0x0A000000), // ≈ 4 % black
-  blurRadius: 12,
+  color: Color(0x0D000000), // ≈ 5 % black — matches the app card shadow
+  blurRadius: 8,
   spreadRadius: 0,
-  offset: Offset(0, 4),
+  offset: Offset(0, 2),
 );
 
 // ── Screen ────────────────────────────────────────────────────────────────────
@@ -144,7 +138,7 @@ class AdminStatisticsScreen extends StatelessWidget {
                                 title: 'By Level',
                                 subtitle: 'Students per curriculum level',
                                 data: ctrl.studentsByLevel,
-                                barColors: _purpleBars,
+                                baseColor: _barPurple,
                                 labelMapper: (k) => ctrl.levelNames[k] ?? k,
                               )
                             : _emptyCard('No level data'),
@@ -155,8 +149,9 @@ class AdminStatisticsScreen extends StatelessWidget {
                             ? _barCard(
                                 title: 'Age Distribution',
                                 subtitle: 'Students by individual age',
+                                note: 'avg ${ctrl.studentAverageAge.toStringAsFixed(1)}',
                                 data: ctrl.studentsByAge,
-                                barColors: _goldBars,
+                                baseColor: _barGold,
                               )
                             : _emptyCard('No age data'),
                       ),
@@ -167,7 +162,7 @@ class AdminStatisticsScreen extends StatelessWidget {
                                 title: 'By Location',
                                 subtitle: 'Top 5 student locations',
                                 data: ctrl.studentsByLocation,
-                                barColors: _purpleBars,
+                                baseColor: _barPurple,
                               )
                             : _emptyCard('No location data'),
                       ),
@@ -213,9 +208,21 @@ class AdminStatisticsScreen extends StatelessWidget {
                                 title: 'By Location',
                                 subtitle: 'Top 5 instructor locations',
                                 data: ctrl.instructorsByLocation,
-                                barColors: _purpleBars,
+                                baseColor: _barPurple,
                               )
                             : _emptyCard('No location data'),
+                      ),
+                      SizedBox(
+                        width: half,
+                        child: ctrl.instructorsByAge.isNotEmpty
+                            ? _barCard(
+                                title: 'Age Distribution',
+                                subtitle: 'Instructors by individual age',
+                                note: 'avg ${ctrl.instructorAverageAge.toStringAsFixed(1)}',
+                                data: ctrl.instructorsByAge,
+                                baseColor: _barGold,
+                              )
+                            : _emptyCard('No age data'),
                       ),
                     ]);
                   }),
@@ -332,27 +339,51 @@ class AdminStatisticsScreen extends StatelessWidget {
     );
   }
 
-  // ── Card header (title + subtitle) ────────────────────────────────────────
+  // ── Card header (title + subtitle + optional avg note) ────────────────────
 
-  Widget _cardHeader(String title, {String? subtitle}) {
+  Widget _cardHeader(String title, {String? subtitle, String? note}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          title,
-          style: const TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w600,
-            color: _textMid,
-          ),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: _textMid,
+                    ),
+                  ),
+                  if (subtitle != null) ...[
+                    const SizedBox(height: 3),
+                    Text(
+                      subtitle,
+                      style: const TextStyle(fontSize: 12, color: _textMuted),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            if (note != null)
+              Padding(
+                padding: const EdgeInsetsDirectional.only(start: 12),
+                child: Text(
+                  note,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: _textMuted,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+          ],
         ),
-        if (subtitle != null) ...[
-          const SizedBox(height: 3),
-          Text(
-            subtitle,
-            style: const TextStyle(fontSize: 12, color: _textMuted),
-          ),
-        ],
         const SizedBox(height: 20),
       ],
     );
@@ -388,10 +419,11 @@ class AdminStatisticsScreen extends StatelessWidget {
 
     Color colorFor(String key) {
       final k = key.toLowerCase();
-      if (k == 'male') return _purpleMid;
-      if (k == 'female') return _goldDonut;
+      if (k == 'male') return _barPurple;
+      if (k == 'female') return _barGold;
+      if (k == 'not set') return _mutedBar;
       final idx = entries.indexWhere((e) => e.key == key).clamp(0, 2);
-      return const [_purpleMid, _goldDonut, _purpleLight][idx];
+      return [_barPurple, _barGold, _barPurple.withValues(alpha: 0.5)][idx];
     }
 
     return _premiumCard(
@@ -425,7 +457,7 @@ class AdminStatisticsScreen extends StatelessWidget {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
-                          '$total',
+                          '${(entries.first.value / total * 100).round()}%',
                           style: const TextStyle(
                             fontSize: 28,
                             fontWeight: FontWeight.w700,
@@ -434,9 +466,9 @@ class AdminStatisticsScreen extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(height: 2),
-                        const Text(
-                          'total',
-                          style: TextStyle(
+                        Text(
+                          _capitalize(entries.first.key),
+                          style: const TextStyle(
                             fontSize: 12,
                             color: _textMuted,
                             fontWeight: FontWeight.w500,
@@ -494,8 +526,9 @@ class AdminStatisticsScreen extends StatelessWidget {
   Widget _barCard({
     required String title,
     String? subtitle,
+    String? note,
     required Map<String, int> data,
-    required List<Color> barColors,
+    required Color baseColor,
     String Function(String)? labelMapper,
   }) {
     final total = data.values.fold(0, (a, b) => a + b);
@@ -506,15 +539,17 @@ class AdminStatisticsScreen extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _cardHeader(title, subtitle: subtitle),
-          ...entries.asMap().entries.map((indexed) {
-            final key = indexed.value.key;
-            final val = indexed.value.value;
+          _cardHeader(title, subtitle: subtitle, note: note),
+          ...entries.map((e) {
+            final key = e.key;
+            final val = e.value;
             final label = labelMapper != null ? labelMapper(key) : key;
             final isMuted = key == 'Not set' || key == 'Other';
-            final color = isMuted
-                ? _mutedBar
-                : barColors[indexed.key % barColors.length];
+            // Same hue — depth via opacity scaled to the value.
+            final double alpha = (maxVal > 0 ? 0.40 + 0.60 * (val / maxVal) : 1.0)
+                .clamp(0.40, 1.0)
+                .toDouble();
+            final color = isMuted ? _mutedBar : baseColor.withValues(alpha: alpha);
             return _barRow(
               label: label,
               value: val,

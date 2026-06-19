@@ -45,6 +45,9 @@ class AdminStatisticsController extends ChangeNotifier {
   Map<String, int> _studentsByLocation = {};
   Map<String, int> get studentsByLocation => _studentsByLocation;
 
+  double _studentAverageAge = 0;
+  double get studentAverageAge => _studentAverageAge;
+
   // Instructors
   int _totalInstructors = 0;
   int get totalInstructors => _totalInstructors;
@@ -54,6 +57,12 @@ class AdminStatisticsController extends ChangeNotifier {
 
   Map<String, int> _instructorsByLocation = {};
   Map<String, int> get instructorsByLocation => _instructorsByLocation;
+
+  Map<String, int> _instructorsByAge = {};
+  Map<String, int> get instructorsByAge => _instructorsByAge;
+
+  double _instructorAverageAge = 0;
+  double get instructorAverageAge => _instructorAverageAge;
 
   Future<void> refresh() => _load();
 
@@ -97,17 +106,8 @@ class AdminStatisticsController extends ChangeNotifier {
       }
       _studentsByLevel = sLevel;
 
-      final ageMap = <int, int>{};
-      for (final s in students) {
-        if (s.dateOfBirth != null) {
-          final age = DateTime.now().year - s.dateOfBirth!.year;
-          ageMap[age] = (ageMap[age] ?? 0) + 1;
-        }
-      }
-      _studentsByAge = {
-        for (final e in (ageMap.entries.toList()..sort((a, b) => a.key.compareTo(b.key))))
-          e.key.toString(): e.value,
-      };
+      _studentsByAge = _byAge(students);
+      _studentAverageAge = _avgAge(students);
 
       _studentsByLocation = _topLocations(students.map((s) => s.location));
 
@@ -122,12 +122,41 @@ class AdminStatisticsController extends ChangeNotifier {
       _instructorsByGender = iGender;
 
       _instructorsByLocation = _topLocations(instructors.map((i) => i.location));
+      _instructorsByAge = _byAge(instructors);
+      _instructorAverageAge = _avgAge(instructors);
     } catch (e) {
       _error = e.toString();
       debugPrint('AdminStatisticsController._load error: $e');
     }
     _isLoading = false;
     notifyListeners();
+  }
+
+  Map<String, int> _byAge(Iterable<UserModel> users) {
+    final ageMap = <int, int>{};
+    for (final u in users) {
+      if (u.dateOfBirth != null) {
+        final age = DateTime.now().year - u.dateOfBirth!.year;
+        ageMap[age] = (ageMap[age] ?? 0) + 1;
+      }
+    }
+    return {
+      for (final e
+          in (ageMap.entries.toList()..sort((a, b) => a.key.compareTo(b.key))))
+        e.key.toString(): e.value,
+    };
+  }
+
+  double _avgAge(Iterable<UserModel> users) {
+    var sum = 0;
+    var count = 0;
+    for (final u in users) {
+      if (u.dateOfBirth != null) {
+        sum += DateTime.now().year - u.dateOfBirth!.year;
+        count++;
+      }
+    }
+    return count > 0 ? sum / count : 0;
   }
 
   Map<String, int> _topLocations(Iterable<String?> locations) {
