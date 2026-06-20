@@ -7,7 +7,6 @@
 library;
 
 import 'dart:math';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:frontend/l10n/app_localizations.dart';
@@ -720,9 +719,7 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
           builder: (context, setDialogState) {
             final isEmailValid = email.isNotEmpty && _emailRegex.hasMatch(email);
 
-            return Padding(
-              padding: EdgeInsets.only(bottom: kIsWeb ? 0 : MediaQuery.of(context).viewInsets.bottom),
-              child: AlertDialog(
+            return AlertDialog(
               backgroundColor: AppColors.background,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
               insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
@@ -952,12 +949,15 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
                   child: Text(AppLocalizations.of(context)!.add, style: const TextStyle(fontWeight: FontWeight.bold)),
                 ),
               ],
-              ),
-            );
-          }
-        );
+              );
+            }
+          );
       },
-    );
+    ).then((_) {
+      Future.delayed(const Duration(milliseconds: 500), () {
+        emailCtrl.dispose();
+      });
+    });
   }
 
   void _showAddStudentDialog() {
@@ -988,9 +988,7 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
-            return Padding(
-              padding: EdgeInsets.only(bottom: kIsWeb ? 0 : MediaQuery.of(context).viewInsets.bottom),
-              child: AlertDialog(
+            return AlertDialog(
               backgroundColor: AppColors.background,
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(20)),
@@ -1289,16 +1287,7 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
               ),
               actions: [
                 TextButton(
-                  onPressed: () {
-                    for (final r in rows) {
-                      (r['nameCtrl'] as TextEditingController)
-                          .dispose();
-                      (r['usernameCtrl'] as TextEditingController)
-                          .dispose();
-                    }
-                    batchUsernames.clear();
-                    Navigator.pop(context);
-                  },
+                  onPressed: () => Navigator.pop(context),
                   child: Text(AppLocalizations.of(context)!.cancel,
                       style: const TextStyle(
                           color: AppColors.mutedForeground)),
@@ -1400,13 +1389,6 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
                             })
                         .toList();
 
-                    // Dispose controllers before closing dialog
-                    for (final r in rows) {
-                      (r['nameCtrl'] as TextEditingController).dispose();
-                      (r['usernameCtrl'] as TextEditingController).dispose();
-                    }
-                    batchUsernames.clear();
-
                     final pageContext = this.context;
                     Navigator.pop(context); // Close the Add Students dialog
 
@@ -1445,12 +1427,19 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
                   ),
                 ),
               ],
-              ),
             );
           },
         );
       },
-    );
+    ).then((_) {
+      Future.delayed(const Duration(milliseconds: 500), () {
+        for (final r in rows) {
+          (r['nameCtrl'] as TextEditingController).dispose();
+          (r['usernameCtrl'] as TextEditingController).dispose();
+        }
+      });
+      batchUsernames.clear();
+    });
   }
 
   void _showCredentialsDialog(List<UserModel> users) {
@@ -1458,9 +1447,7 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
       context: context,
       barrierDismissible: false,
       builder: (ctx) {
-        return Padding(
-          padding: EdgeInsets.only(bottom: kIsWeb ? 0 : MediaQuery.of(ctx).viewInsets.bottom),
-          child: AlertDialog(
+        return AlertDialog(
           backgroundColor: AppColors.white,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
@@ -1569,8 +1556,7 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
               ),
             ),
           ],
-          ),
-        );
+          );
       },
     );
   }
@@ -1599,9 +1585,7 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
       builder: (ctx) {
         return StatefulBuilder(
           builder: (ctx, setDialogState) {
-            return Padding(
-              padding: EdgeInsets.only(bottom: kIsWeb ? 0 : MediaQuery.of(ctx).viewInsets.bottom),
-              child: AlertDialog(
+            return AlertDialog(
               backgroundColor: AppColors.background,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
               insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
@@ -1788,16 +1772,17 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
                   child: Text(AppLocalizations.of(ctx)!.save, style: const TextStyle(fontWeight: FontWeight.bold)),
                 ),
               ],
-              ),
-            );
-          },
-        );
-      },
+              );
+            },
+          );
+        },
     ).then((_) {
-      nameCtrl.dispose();
-      emailCtrl.dispose();
-      phoneCtrl.dispose();
-      idNumberCtrl.dispose();
+      Future.delayed(const Duration(milliseconds: 500), () {
+        nameCtrl.dispose();
+        emailCtrl.dispose();
+        phoneCtrl.dispose();
+        idNumberCtrl.dispose();
+      });
     });
   }
 
@@ -1810,9 +1795,7 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
       builder: (ctx) {
         return StatefulBuilder(
           builder: (ctx, setDialogState) {
-            return Padding(
-              padding: EdgeInsets.only(bottom: kIsWeb ? 0 : MediaQuery.of(ctx).viewInsets.bottom),
-              child: AlertDialog(
+            return AlertDialog(
               backgroundColor: AppColors.background,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
               insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
@@ -1885,20 +1868,17 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
                   child: Text(AppLocalizations.of(ctx)!.save, style: const TextStyle(fontWeight: FontWeight.bold)),
                 ),
               ],
-              ),
-            );
-          },
-        );
-      },
+              );
+            },
+          );
+        },
     );
   }
 
   void _showDeleteConfirmation(String userId, String userName, {bool isStudent = false}) {
     showDialog(
       context: context,
-      builder: (ctx) => Padding(
-        padding: EdgeInsets.only(bottom: kIsWeb ? 0 : MediaQuery.of(ctx).viewInsets.bottom),
-        child: AlertDialog(
+      builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
         title: Text(AppLocalizations.of(context)!.deleteUserTitle, style: const TextStyle(fontWeight: FontWeight.bold)),
@@ -1937,7 +1917,6 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
           ),
         ],
         ),
-      ),
     );
   }
 
@@ -1945,9 +1924,7 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
     showDialog(
       context: context,
       builder: (ctx) {
-        return Padding(
-          padding: EdgeInsets.only(bottom: kIsWeb ? 0 : MediaQuery.of(ctx).viewInsets.bottom),
-          child: AlertDialog(
+        return AlertDialog(
           backgroundColor: AppColors.background,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
@@ -2078,8 +2055,7 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
               child: const Text('Reset', style: TextStyle(fontWeight: FontWeight.bold)),
             ),
           ],
-          ),
-        );
+          );
       },
     );
   }

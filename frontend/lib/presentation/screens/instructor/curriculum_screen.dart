@@ -226,12 +226,12 @@ class _InstructorCurriculumScreenState extends State<InstructorCurriculumScreen>
                       ),
                     ),
                     const SizedBox(height: 4),
-                    Row(
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 4,
                       children: [
                         _chip(_groupName(m.groupId), Icons.group_outlined),
-                        const SizedBox(width: 6),
                         _chip(_levelName(m.levelId), Icons.bar_chart),
-                        const SizedBox(width: 6),
                         _chip(
                           _formatDate(m.createdAt),
                           Icons.calendar_today_outlined,

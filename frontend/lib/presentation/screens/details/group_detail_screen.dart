@@ -652,13 +652,9 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
           ),
           actions: [
             TextButton(
-              onPressed: isCreating ? null : () {
-                for (final row in rows) { row.dispose(); }
-                batchUsernames.clear();
-                Navigator.pop(ctx);
-                },
-                child: Text(l10n.cancelButton, style: TextStyle(color: AppColors.mutedForeground)),
-              ),
+              onPressed: isCreating ? null : () => Navigator.pop(ctx),
+              child: Text(l10n.cancelButton, style: TextStyle(color: AppColors.mutedForeground)),
+            ),
               ElevatedButton(
                 onPressed: isCreating ? null : () async {
                   if (!validate()) {
@@ -693,8 +689,6 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                       );
                       createdUsers.add(user);
                     }
-                    for (final row in rows) { row.dispose(); }
-                    batchUsernames.clear();
                     if (ctx.mounted) Navigator.pop(ctx);
                     if (mounted && createdUsers.isNotEmpty) {
                       _showCredentialsDialog(createdUsers);
@@ -727,7 +721,14 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
           );
         },
       ),
-    );
+    ).then((_) {
+      Future.delayed(const Duration(milliseconds: 500), () {
+        for (final row in rows) {
+          row.dispose();
+        }
+      });
+      batchUsernames.clear();
+    });
   }
 
   Widget _buildStudentFormRow({

@@ -1,12 +1,6 @@
-/// Presentation Tier — Screen
-/// Path: lib/presentation/screens/instructor/instructor_dashboard.dart
-///
-/// ✅ Zero mock data — stats, scope, assignments from InstructorDashboardController
-/// ✅ Uses ListenableBuilder for reactivity
-/// ✅ Clickable stat cards + redesigned Current Week section
+
 library;
 
-import 'dart:math' show pi;
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:go_router/go_router.dart';
@@ -296,10 +290,6 @@ class InstructorDashboard extends StatelessWidget {
                       ),
                     ]),
                   ),
-                  const SizedBox(height: 12),
-
-                  // Submissions Overview Pie Chart
-                  _buildSubmissionsCard(context, controller),
                   const SizedBox(height: 28),
 
                   // Active Assignments
@@ -345,109 +335,4 @@ class InstructorDashboard extends StatelessWidget {
     );
   }
 
-  Widget _buildSubmissionsCard(BuildContext context, InstructorDashboardController controller) {
-    final total = controller.totalSubmissions;
-    final graded = controller.totalGraded;
-    final pendingReview = controller.totalPendingReview;
-    final correct = controller.totalCorrect;
-    final incorrect = controller.totalIncorrect;
-    final progress = total > 0 ? (graded / total) : 0.0;
-    final pct = (progress * 100).toStringAsFixed(0);
-
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.border),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8, offset: const Offset(0, 2)),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(children: [
-              Container(
-                width: 40, height: 40,
-                decoration: BoxDecoration(color: AppColors.accent, borderRadius: BorderRadius.circular(10)),
-                child: const Icon(Icons.pie_chart_outline, size: 20, color: Colors.white),
-              ),
-              const SizedBox(width: 12),
-              Text(AppLocalizations.of(context)!.gradingOverview, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.primaryDark)),
-            ]),
-            const SizedBox(height: 20),
-            Row(
-              children: [
-                Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    SizedBox(
-                      width: 100, height: 100,
-                      child: CustomPaint(painter: _SubmissionsPiePainter(progress: progress)),
-                    ),
-                    Column(mainAxisSize: MainAxisSize.min, children: [
-                      Text('$pct%', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.primaryDark)),
-                      Text(AppLocalizations.of(context)!.statTotal, style: const TextStyle(fontSize: 10, color: AppColors.mutedForeground)),
-                    ]),
-                  ],
-                ),
-                const SizedBox(width: 20),
-                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  _infoRow(AppLocalizations.of(context)!.totalSubmissions, total.toString(), AppColors.primary, AppColors.primary),
-                  const SizedBox(height: 8),
-                  _infoRow(AppLocalizations.of(context)!.statPendingReview, pendingReview.toString(), AppColors.accent, AppColors.accent),
-                  const SizedBox(height: 8),
-                  _infoRow(AppLocalizations.of(context)!.gradedCorrectIndicator, correct.toString(), AppColors.success, AppColors.success),
-                  const SizedBox(height: 8),
-                  _infoRow(AppLocalizations.of(context)!.gradedIncorrectIndicator, incorrect.toString(), AppColors.destructive, AppColors.destructive),
-                ])),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _infoRow(String label, String value, Color dotColor, Color valueColor) {
-    return Row(children: [
-      Container(width: 8, height: 8, decoration: BoxDecoration(color: dotColor, shape: BoxShape.circle)),
-      const SizedBox(width: 8),
-      Expanded(child: Text(label, style: const TextStyle(fontSize: 12, color: AppColors.mutedForeground, fontWeight: FontWeight.w500))),
-      Text(value, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: valueColor)),
-    ]);
-  }
-}
-
-class _SubmissionsPiePainter extends CustomPainter {
-  final double progress;
-  _SubmissionsPiePainter({required this.progress});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    const strokeWidth = 10.0;
-    final center = Offset(size.width / 2, size.height / 2);
-    final radius = (size.width - strokeWidth) / 2;
-    final rect = Rect.fromCircle(center: center, radius: radius);
-
-    // Background track
-    canvas.drawCircle(center, radius, Paint()..color = AppColors.border..style = PaintingStyle.stroke..strokeWidth = strokeWidth);
-
-    if (progress > 0) {
-      final paint = Paint()
-        ..color = AppColors.primary
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = strokeWidth
-        ..strokeCap = StrokeCap.round;
-      canvas.drawArc(rect, -pi / 2, progress * 2 * pi, false, paint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _SubmissionsPiePainter old) => old.progress != progress;
 }
