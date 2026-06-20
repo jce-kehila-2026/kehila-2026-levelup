@@ -183,9 +183,9 @@ class _AssignmentDetailScreenState extends State<AssignmentDetailScreen> {
 
   Widget _buildStatsHeader() {
     final stats = [
-      {'label': 'Total Students', 'value': '${_controller.totalStudentsCount}', 'color': AppColors.primary},
-      {'label': 'Submitted', 'value': '${_controller.submittedCount}', 'color': Colors.blue},
-      {'label': 'Not Submitted', 'value': '${_controller.notSubmittedCount}', 'color': Colors.grey},
+      {'label': 'Total Students', 'value': '${_controller.totalStudentsCount}', 'color': AppColors.mutedForeground},
+      {'label': 'Submitted', 'value': '${_controller.submittedCount}', 'color': AppColors.mutedForeground},
+      {'label': 'Not Submitted', 'value': '${_controller.notSubmittedCount}', 'color': AppColors.mutedForeground},
       {'label': 'Correct', 'value': '${_controller.correctCount}', 'color': AppColors.success},
       {'label': 'Incorrect', 'value': '${_controller.incorrectCount}', 'color': AppColors.error},
       {'label': 'Pending', 'value': '${_controller.pendingCount}', 'color': AppColors.warning},
@@ -208,9 +208,9 @@ class _AssignmentDetailScreenState extends State<AssignmentDetailScreen> {
           final color = item['color'] as Color;
           return Container(
             decoration: BoxDecoration(
-              color: color.withOpacity(0.06),
+              color: color.withValues(alpha: 0.06),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: color.withOpacity(0.2), width: 1),
+              border: Border.all(color: color.withValues(alpha: 0.2), width: 1),
             ),
             padding: const EdgeInsets.all(8),
             child: Column(
@@ -219,7 +219,7 @@ class _AssignmentDetailScreenState extends State<AssignmentDetailScreen> {
               children: [
                 Text(
                   item['label'] as String,
-                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey.shade600),
+                  style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.mutedForeground),
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 2),

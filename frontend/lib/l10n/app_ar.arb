@@ -33,6 +33,8 @@
   "roleAdministrator": "المشرف",
   "loggingOut": "جارٍ تسجيل الخروج...",
   "platformOverview": "نظرة عامة على المنصة",
+  "platformStatistics": "إحصائيات المنصة",
+  "statisticsTitle": "الإحصائيات",
   "statStudents": "الطلاب",
   "statInstructors": "المحاضرون",
   "statLevels": "المستويات",
@@ -113,7 +115,7 @@
   "titleAndDeadlineRequired": "العنوان والموعد النهائي مطلوبان",
   "atLeast2Options": "يرجى توفير خيارين على الأقل",
   "tabActive": "نشط",
-  "tabPast": "منتهية",
+  "tabPast": "متأخرة",
   "filterAll": "الكل",
   "filterOverdue": "متأخرة",
   "filterCentral": "مركزية",
@@ -319,6 +321,7 @@
   "dueDeadlineLabel": "الموعد: {deadline}",
   "typeAnswerHint": "اكتب إجابتك هنا...",
   "submissionLocked": "المهمة مغلقة.",
+  "deadlinePassedLocked": "انتهى الموعد النهائي! تم قفل تقديم الإجابات.",
   "noAnswerProvided": "لم تُقدَّم إجابة.",
 
   "submissionsWaitingReview": "{count} تسليم بانتظار مراجعتك",
@@ -417,6 +420,18 @@
       "count": { "type": "String" }
     }
   },
+  "activeCount": "النشطة {count}",
+  "@activeCount": {
+    "placeholders": {
+      "count": { "type": "String" }
+    }
+  },
+  "pastCount": "متأخرة {count}",
+  "@pastCount": {
+    "placeholders": {
+      "count": { "type": "String" }
+    }
+  },
   "editGroupName": "تعديل اسم المجموعة",
   "groupName": "اسم المجموعة",
   "deleteGroupConfirmDesc": "هل أنت متأكد من حذف هذه المجموعة؟\nعدد الطلاب: {studentCount}\nعدد المحاضرين: {instructorCount}",
@@ -457,7 +472,12 @@
   "materialAssignedSuccess": "تم تعيين المادة بنجاح!",
   "materialLevelLabel": "مستوى المادة: {level}",
 
-  "peopleAndUsers": "People & Users",
-  "curriculumContent": "Curriculum & Content",
-  "activeToday": "active today"
+  "peopleAndUsers": "الأشخاص والمستخدمون",
+  "curriculumContent": "المنهج والمحتوى",
+  "activeToday": "نشط اليوم",
+  "statTotal": "المجموع",
+  "gradingOverview": "نظرة عامة على التصحيح",
+  "totalSubmissions": "إجمالي التسليمات",
+  "gradedCorrectIndicator": "صحيح",
+  "gradedIncorrectIndicator": "خطأ"
 }

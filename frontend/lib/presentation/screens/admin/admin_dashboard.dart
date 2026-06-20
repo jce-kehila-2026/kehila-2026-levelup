@@ -11,7 +11,6 @@ import 'package:frontend/l10n/app_localizations.dart';
 
 const _kBg            = AppColors.background;
 const _kPurplePrimary = AppColors.primary;
-const _kDivider       = AppColors.border;
 const _kTextMuted     = AppColors.mutedForeground;
 
 // One soft shadow used by every content card on this screen.
@@ -179,21 +178,26 @@ class AdminDashboard extends StatelessWidget {
   Widget _buildSectionHeader(String text, {Widget? trailing}) {
     return Row(
       children: [
+        Container(
+          width: 3,
+          height: 18,
+          decoration: BoxDecoration(
+            color: _kPurplePrimary,
+            borderRadius: BorderRadius.circular(2),
+          ),
+        ),
+        const SizedBox(width: 10),
         Text(
           text,
           style: const TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w700,
-            color: _kPurplePrimary,
-            letterSpacing: 1.2,
+            fontSize: 13,
+            fontWeight: FontWeight.bold,
+            color: AppColors.primaryDark,
+            letterSpacing: 0.6,
           ),
         ),
-        const SizedBox(width: 16),
-        const Expanded(
-          child: Divider(color: _kDivider, thickness: 1, height: 1),
-        ),
         if (trailing != null) ...[
-          const SizedBox(width: 12),
+          const Spacer(),
           trailing,
         ],
       ],
@@ -230,7 +234,7 @@ class AdminDashboard extends StatelessWidget {
         child: InkWell(
           onTap: onTapAll,
           child: Padding(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.fromLTRB(20, 10, 20, 10),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -266,7 +270,7 @@ class AdminDashboard extends StatelessWidget {
                       ),
                   ],
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 14),
                 Row(
                   children: [
                     for (int i = 0; i < items.length; i++) ...[
@@ -368,107 +372,12 @@ class AdminDashboard extends StatelessWidget {
                     child: _buildHeroBanner(
                         context, l10n, controller.activeToday),
                   ),
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 28),
 
-                  // ── Platform Overview ──────────────────────────────────────
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: Column(
-                      children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: ElevatedButton(
-                                onPressed: onNavigateToCurriculum,
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppColors.accent,
-                                  foregroundColor: AppColors.text,
-                                  padding: const EdgeInsets.symmetric(vertical: 13),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                                  elevation: 4,
-                                  shadowColor: AppColors.accent.withValues(alpha: 0.35),
-                                ),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    const Icon(Icons.menu_book, size: 14),
-                                    const SizedBox(width: 5),
-                                    Flexible(child: Text(l10n.navCurriculum, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold))),
-                                  ],
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: ElevatedButton(
-                                onPressed: onNavigateToUsers,
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppColors.primary,
-                                  foregroundColor: AppColors.white,
-                                  padding: const EdgeInsets.symmetric(vertical: 13),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                                  elevation: 4,
-                                  shadowColor: AppColors.primary.withValues(alpha: 0.25),
-                                ),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    const Icon(Icons.people, size: 14),
-                                    const SizedBox(width: 5),
-                                    Flexible(child: Text(l10n.navUsers, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold))),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 10),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: OutlinedButton(
-                                onPressed: onNavigateToGroups,
-                                style: OutlinedButton.styleFrom(
-                                  backgroundColor: AppColors.white,
-                                  foregroundColor: AppColors.primary,
-                                  side: const BorderSide(color: AppColors.primary, width: 1.5),
-                                  padding: const EdgeInsets.symmetric(vertical: 13),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                                ),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    const Icon(Icons.how_to_reg, size: 14),
-                                    const SizedBox(width: 5),
-                                    Flexible(child: Text(l10n.navGroups, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold))),
-                                  ],
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: OutlinedButton(
-                                onPressed: () => context.push('/admin/assignments'),
-                                style: OutlinedButton.styleFrom(
-                                  backgroundColor: AppColors.white,
-                                  foregroundColor: AppColors.primary,
-                                  side: const BorderSide(color: AppColors.primary, width: 1.5),
-                                  padding: const EdgeInsets.symmetric(vertical: 13),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                                ),
-                                child: const Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(Icons.assignment_outlined, size: 14),
-                                    SizedBox(width: 5),
-                                    Flexible(child: Text('Assignments', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold))),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
+                    child: _buildSectionHeader(
+                      l10n.myOverview,
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -477,6 +386,17 @@ class AdminDashboard extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     child: Column(
                       children: [
+                        // Curriculum & Content — one button to curriculum.
+                        _buildConsolidatedCard(
+                          l10n.curriculumContent,
+                          Icons.layers_rounded,
+                          [
+                            (label: l10n.statLevels,      value: stats['levels']!,      onTap: null),
+                            (label: l10n.statLessons,     value: stats['lessons']!,     onTap: null),
+                          ],
+                          onTapAll: onNavigateToCurriculum,
+                        ),
+                        const SizedBox(height: 14),
                         // People & Users — three separate destinations.
                         _buildConsolidatedCard(
                           l10n.peopleAndUsers,
@@ -488,16 +408,16 @@ class AdminDashboard extends StatelessWidget {
                           ],
                         ),
                         const SizedBox(height: 14),
-                        // Curriculum & Content — one button to curriculum.
+                        // Assignments — one button to the assignments page.
                         _buildConsolidatedCard(
-                          l10n.curriculumContent,
-                          Icons.layers_rounded,
+                          l10n.assignmentsTitle,
+                          Icons.assignment_rounded,
                           [
-                            (label: l10n.statLevels,      value: stats['levels']!,      onTap: null),
-                            (label: l10n.statLessons,     value: stats['lessons']!,     onTap: null),
-                            (label: l10n.statActiveTasks, value: stats['activeTasks']!, onTap: null),
+                            (label: l10n.statTotal,         value: stats['totalAssignments']!, onTap: null),
+                            (label: l10n.statusActive,      value: stats['activeTasks']!,      onTap: null),
+                            (label: l10n.statPendingReview, value: stats['pendingReview']!,    onTap: null),
                           ],
-                          onTapAll: onNavigateToCurriculum,
+                          onTapAll: () => context.go('/admin?tab=6'),
                         ),
                       ],
                     ),

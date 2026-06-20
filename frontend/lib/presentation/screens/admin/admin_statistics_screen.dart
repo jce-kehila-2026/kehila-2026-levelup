@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:frontend/l10n/app_localizations.dart';
 import '../../../di/service_locator.dart';
 import '../../../logic/controllers/admin_statistics_controller.dart';
 import '../../../theme/app_theme.dart';
@@ -27,7 +28,6 @@ const _textMuted = AppColors.mutedForeground;     // subtitles + percentages (#7
 // Chart internals
 const _trackColor = Color(0xFFF1F5F9);
 const _mutedBar   = Color(0xFFCBD5E1);            // "Not set" / "Other"
-const _divider    = AppColors.border;             // #d9d3e8
 
 // Single-hue bars — same platform colors as the rest of the app; depth via opacity
 const _barPurple = AppColors.primary;   // #663d99 — matches the Add Level button
@@ -73,17 +73,57 @@ class AdminStatisticsScreen extends StatelessWidget {
             );
           }
 
+          final l10n = AppLocalizations.of(context)!;
           return SafeArea(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(20, 24, 20, 100),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-
-                  // ═══════════════════════════════════════════════════════════
-                  // STUDENTS
-                  // ═══════════════════════════════════════════════════════════
-                  _sectionHeader('STUDENTS'),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 14, 20, 16),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Row(
+                              children: [
+                                Container(
+                                  width: 3,
+                                  height: 20,
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primary,
+                                    borderRadius: BorderRadius.circular(2),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  l10n.statisticsTitle,
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .titleLarge
+                                      ?.copyWith(fontSize: 22, fontWeight: FontWeight.bold),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // ═══════════════════════════════════════════════════════════
+                        // STUDENTS
+                        // ═══════════════════════════════════════════════════════════
+                        _sectionHeader(l10n.studentsSectionTitle),
                   const SizedBox(height: 20),
 
                   // KPI row
@@ -173,7 +213,7 @@ class AdminStatisticsScreen extends StatelessWidget {
                   // ═══════════════════════════════════════════════════════════
                   // INSTRUCTORS
                   // ═══════════════════════════════════════════════════════════
-                  _sectionHeader('INSTRUCTORS'),
+                  _sectionHeader(l10n.instructorsSectionTitle),
                   const SizedBox(height: 20),
 
                   // KPI row (single)
@@ -229,7 +269,10 @@ class AdminStatisticsScreen extends StatelessWidget {
                 ],
               ),
             ),
-          );
+          ),
+        ],
+      ),
+    );
         },
       ),
     );
@@ -240,18 +283,23 @@ class AdminStatisticsScreen extends StatelessWidget {
   Widget _sectionHeader(String text) {
     return Row(
       children: [
+        Container(
+          width: 3,
+          height: 18,
+          decoration: BoxDecoration(
+            color: _purplePrimary,
+            borderRadius: BorderRadius.circular(2),
+          ),
+        ),
+        const SizedBox(width: 10),
         Text(
           text,
           style: const TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w700,
-            color: _purplePrimary,
-            letterSpacing: 1.4,
+            fontSize: 13,
+            fontWeight: FontWeight.bold,
+            color: _purpleDark,
+            letterSpacing: 0.6,
           ),
-        ),
-        const SizedBox(width: 16),
-        const Expanded(
-          child: Divider(color: _divider, thickness: 1, height: 1),
         ),
       ],
     );

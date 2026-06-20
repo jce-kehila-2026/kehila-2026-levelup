@@ -166,21 +166,18 @@ class _StudentDashboardState extends State<StudentDashboard> {
                                 runSpacing: 6,
                                 children: [
                                   _bannerChip(
-                                      _controller.levelLabel),
-                                  if (_controller.groupLabel !=
-                                          '—' &&
-                                      _controller
-                                          .groupLabel.isNotEmpty)
-                                    _bannerChipWithIcon(
+                                      _controller.levelLabel,
+                                      Icons.trending_up_rounded),
+                                  if (_controller.groupLabel != '—' &&
+                                      _controller.groupLabel.isNotEmpty)
+                                    _bannerChip(
                                         _controller.groupLabel,
-                                        Icons.group),
-                                  if (_controller.instructorName !=
-                                          '—' &&
-                                      _controller.instructorName
-                                          .isNotEmpty)
-                                    _bannerChipWithIcon(
-                                        _controller.instructorName,
-                                        Icons.person_outline),
+                                        Icons.group_rounded),
+                                  if (_controller.instructorName != '—' &&
+                                      _controller.instructorName.isNotEmpty)
+                                    _bannerChip(
+                                        '${AppLocalizations.of(context)!.roleInstructor}: ${_controller.instructorName}',
+                                        Icons.person_rounded),
                                 ],
                               ),
                             ],
@@ -191,51 +188,93 @@ class _StudentDashboardState extends State<StudentDashboard> {
                   ),
                   const SizedBox(height: 16),
 
-                  // ── QUICK ACTIONS ──
+                  // ── LATEST NOTIFICATION BAR ──
                   Padding(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 20),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: ElevatedButton(
-                            onPressed:
-                                widget.onNavigateToAssignments,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.accent,
-                              foregroundColor: AppColors.text,
-                              padding: const EdgeInsets.symmetric(
-                                  vertical: 13),
-                              shape: RoundedRectangleBorder(
-                                  borderRadius:
-                                      BorderRadius.circular(14)),
-                              elevation: 4,
-                              shadowColor: AppColors.accent
-                                  .withValues(alpha: 0.35),
-                            ),
-                            child: Row(
-                              mainAxisAlignment:
-                                  MainAxisAlignment.center,
-                              children: [
-                                const Icon(Icons.edit_note,
-                                    size: 14),
-                                const SizedBox(width: 6),
-                                Flexible(
-                                  child: Text(
-                                    l10n.navTasks,
-                                    style: const TextStyle(
-                                        fontSize: 13,
-                                        fontWeight:
-                                            FontWeight.bold),
-                                    overflow:
-                                        TextOverflow.ellipsis,
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: _controller.latestNotification != null
+                            ? AppColors.accent.withValues(alpha: 0.08)
+                            : AppColors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: _controller.latestNotification != null
+                              ? AppColors.accent.withValues(alpha: 0.3)
+                              : AppColors.border,
+                        ),
+                      ),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(12),
+                        onTap: widget.onNavigateToNotifications,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                          child: Row(
+                            children: [
+                              Icon(
+                                _controller.latestNotification != null
+                                    ? Icons.campaign_rounded
+                                    : Icons.notifications_none_rounded,
+                                color: _controller.latestNotification != null
+                                    ? AppColors.accentDark
+                                    : AppColors.mutedForeground,
+                                size: 18,
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: _controller.latestNotification != null
+                                    ? Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            _controller.latestNotification!.title,
+                                            style: const TextStyle(
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.bold,
+                                              color: AppColors.text,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            _controller.latestNotification!.body,
+                                            style: const TextStyle(
+                                              fontSize: 11,
+                                              color: AppColors.mutedForeground,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ],
+                                      )
+                                    : Text(
+                                        l10n.noNotifications,
+                                        style: const TextStyle(
+                                          fontSize: 13,
+                                          color: AppColors.mutedForeground,
+                                        ),
+                                      ),
+                              ),
+                              if (_controller.latestNotification != null) ...[
+                                const SizedBox(width: 8),
+                                Text(
+                                  _controller.latestNotification!.time,
+                                  style: const TextStyle(
+                                    fontSize: 10,
+                                    color: AppColors.mutedForeground,
                                   ),
                                 ),
                               ],
-                            ),
+                              const SizedBox(width: 6),
+                              const Icon(
+                                Icons.chevron_right_rounded,
+                                size: 16,
+                                color: AppColors.mutedForeground,
+                              ),
+                            ],
                           ),
                         ),
-                      ],
+                      ),
                     ),
                   ),
                   const SizedBox(height: 24),
@@ -299,25 +338,35 @@ class _StudentDashboardState extends State<StudentDashboard> {
                           Row(
                             children: [
                               Expanded(
-                                child: Column(
-                                  children: [
-                                    Text(
-                                      '${_controller.tasksDue}',
-                                      style: const TextStyle(
-                                          fontSize: 28,
-                                          fontWeight: FontWeight.w700,
-                                          color: AppColors.text),
+                                child: Material(
+                                  color: Colors.transparent,
+                                  child: InkWell(
+                                    onTap: widget.onNavigateToAssignments,
+                                    borderRadius: BorderRadius.circular(12),
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(vertical: 8),
+                                      child: Column(
+                                        children: [
+                                          Text(
+                                            '${_controller.tasksDue}',
+                                            style: const TextStyle(
+                                                fontSize: 28,
+                                                fontWeight: FontWeight.w700,
+                                                color: AppColors.text),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            l10n.navTasks,
+                                            style: const TextStyle(
+                                                fontSize: 11,
+                                                color: AppColors
+                                                    .mutedForeground),
+                                            textAlign: TextAlign.center,
+                                          ),
+                                        ],
+                                      ),
                                     ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      l10n.navTasks,
-                                      style: const TextStyle(
-                                          fontSize: 11,
-                                          color: AppColors
-                                              .mutedForeground),
-                                      textAlign: TextAlign.center,
-                                    ),
-                                  ],
+                                  ),
                                 ),
                               ),
                               Container(
@@ -327,25 +376,35 @@ class _StudentDashboardState extends State<StudentDashboard> {
                                   margin: const EdgeInsets.symmetric(
                                       horizontal: 4)),
                               Expanded(
-                                child: Column(
-                                  children: [
-                                    Text(
-                                      '${_controller.pendingReviewCount}',
-                                      style: const TextStyle(
-                                          fontSize: 28,
-                                          fontWeight: FontWeight.w700,
-                                          color: AppColors.text),
+                                child: Material(
+                                  color: Colors.transparent,
+                                  child: InkWell(
+                                    onTap: widget.onNavigateToAssignments,
+                                    borderRadius: BorderRadius.circular(12),
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(vertical: 8),
+                                      child: Column(
+                                        children: [
+                                          Text(
+                                            '${_controller.pendingReviewCount}',
+                                            style: const TextStyle(
+                                                fontSize: 28,
+                                                fontWeight: FontWeight.w700,
+                                                color: AppColors.text),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            l10n.statPendingReview,
+                                            style: const TextStyle(
+                                                fontSize: 11,
+                                                color: AppColors
+                                                    .mutedForeground),
+                                            textAlign: TextAlign.center,
+                                          ),
+                                        ],
+                                      ),
                                     ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      l10n.statPendingReview,
-                                      style: const TextStyle(
-                                          fontSize: 11,
-                                          color: AppColors
-                                              .mutedForeground),
-                                      textAlign: TextAlign.center,
-                                    ),
-                                  ],
+                                  ),
                                 ),
                               ),
                             ],
@@ -549,48 +608,40 @@ class _StudentDashboardState extends State<StudentDashboard> {
     );
   }
 
-  Widget _bannerChip(String label) {
-    return Container(
-      padding:
-          const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: AppColors.accent.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(
-            color: AppColors.accent.withValues(alpha: 0.25)),
-      ),
-      child: Text(
-        label,
-        style: const TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.bold,
-          color: AppColors.accent,
-        ),
-      ),
-    );
+  String _capitalize(String text) {
+    if (text.isEmpty) return '';
+    return text.split(' ').map((word) {
+      if (word.isEmpty) return '';
+      return word[0].toUpperCase() + word.substring(1).toLowerCase();
+    }).join(' ');
   }
 
-  Widget _bannerChipWithIcon(String label, IconData icon) {
+  Widget _bannerChip(String label, IconData icon) {
     return Container(
-      padding:
-          const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: AppColors.accent.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(6),
+        color: Colors.white.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(
-            color: AppColors.accent.withValues(alpha: 0.25)),
+          color: Colors.white.withValues(alpha: 0.18),
+        ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 11, color: AppColors.accent),
-          const SizedBox(width: 4),
+          Icon(
+            icon,
+            size: 13,
+            color: Colors.white.withValues(alpha: 0.95),
+          ),
+          const SizedBox(width: 5),
           Text(
-            label,
-            style: const TextStyle(
+            _capitalize(label),
+            style: TextStyle(
               fontSize: 11,
-              fontWeight: FontWeight.bold,
-              color: AppColors.accent,
+              fontWeight: FontWeight.w600,
+              color: Colors.white.withValues(alpha: 0.95),
+              letterSpacing: 0.2,
             ),
           ),
         ],

@@ -10,6 +10,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../../di/service_locator.dart';
 import '../controllers/admin_dashboard_controller.dart';
 import '../controllers/instructor_dashboard_controller.dart';
+import '../controllers/instructor_assignment_controller.dart';
 import '../controllers/student_dashboard_controller.dart';
 import '../controllers/student_assignment_controller.dart';
 import '../controllers/student_notification_controller.dart';
@@ -29,6 +30,9 @@ Future<void> performLogout() async {
   }
   if (getIt.checkLazySingletonInstanceExists<InstructorDashboardController>()) {
     try { getIt<InstructorDashboardController>().cancelSubscriptions(); } catch (_) {}
+  }
+  if (getIt.checkLazySingletonInstanceExists<InstructorAssignmentController>()) {
+    try { getIt<InstructorAssignmentController>().cancelSubscriptions(); } catch (_) {}
   }
   if (getIt.checkLazySingletonInstanceExists<StudentDashboardController>()) {
     try { getIt<StudentDashboardController>().cancelSubscriptions(); } catch (_) {}

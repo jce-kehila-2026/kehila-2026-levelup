@@ -1,8 +1,5 @@
-/// Utility — Localized Jerusalem Locations
-/// Path: lib/utils/jerusalem_locations.dart
-library;
 
-/// A single location entry with English and Arabic names.
+library;
 class JerusalemLocation {
   final String en;
   final String ar;
@@ -12,30 +9,48 @@ class JerusalemLocation {
   String name(String languageCode) => languageCode == 'ar' ? ar : en;
 }
 
-/// Jerusalem neighborhoods and surrounding areas.
-/// Sorted alphabetically by English name.
+/// Comprehensive list of Jerusalem neighborhoods and nearby cities.
+/// Use `JerusalemLocation.name(languageCode)` to display in the correct locale.
 const List<JerusalemLocation> kJerusalemLocations = [
-  JerusalemLocation(en: 'Abu Ghosh',                 ar: 'أبوغوش وما حولها'),
-  JerusalemLocation(en: 'Abu Tor - Al-Thawri',       ar: 'أبوطور - الثوري'),
-  JerusalemLocation(en: 'Al-Eizariya and Abu Dis',   ar: 'العيزرية وأبوديس'),
-  JerusalemLocation(en: 'Al-Issawiya',               ar: 'العيساوية'),
-  JerusalemLocation(en: 'Al-Walaja and Beit Sahour', ar: 'الولجة وبيت ساحور'),
-  JerusalemLocation(en: 'Anata - Shufat Camp',       ar: 'عناتا - مخيم شعفاط'),
-  JerusalemLocation(en: 'Atarot',                    ar: 'عطروت'),
-  JerusalemLocation(en: 'At-Tur - Mount of Olives',  ar: 'الطور - جبل الزيتون'),
-  JerusalemLocation(en: 'Beit Hanina',               ar: 'بيت حنينا'),
-  JerusalemLocation(en: 'Beit Safafa',               ar: 'بيت صفافا'),
-  JerusalemLocation(en: 'Jabal Al-Mukaber',          ar: 'جبل المكبر'),
-  JerusalemLocation(en: 'Kafr Aqab',                 ar: 'كفر عقب'),
-  JerusalemLocation(en: 'Old City',                  ar: 'البلدة القديمة ومحيطها'),
-  JerusalemLocation(en: 'Other',                     ar: 'غير ذلك'),
-  JerusalemLocation(en: 'Out of Jerusalem',          ar: 'خارج حدود القدس'),
-  JerusalemLocation(en: 'Ras al-Amud',               ar: 'رأس العامود'),
-  JerusalemLocation(en: 'Sheikh Jarrah',             ar: 'الشيخ جراح'),
-  JerusalemLocation(en: "Shu'fat",                   ar: 'شعفاط'),
-  JerusalemLocation(en: 'Silwan',                    ar: 'سلوان'),
-  JerusalemLocation(en: 'Sur Baher',                 ar: 'صورباهر'),
-  JerusalemLocation(en: 'Umm Laysun',                ar: 'أم ليسون'),
-  JerusalemLocation(en: 'Umm Tuba',                  ar: 'أم طوبا'),
-  JerusalemLocation(en: 'Wadi al-Joz',               ar: 'وادي الجوز'),
+  // ── Old City & surrounding ──
+  JerusalemLocation(en: 'Old City', ar: 'البلدة القديمة'),
+  JerusalemLocation(en: 'Silwan', ar: 'سلوان'),
+  JerusalemLocation(en: 'Sheikh Jarrah', ar: 'الشيخ جراح'),
+  JerusalemLocation(en: 'Wadi al-Joz', ar: 'وادي الجوز'),
+  JerusalemLocation(en: 'At-Tur (Mount of Olives)', ar: 'الطور'),
+  JerusalemLocation(en: 'Ras al-Amud', ar: 'رأس العامود'),
+  JerusalemLocation(en: 'Jabal al-Mukaber', ar: 'جبل المكبر'),
+  JerusalemLocation(en: 'Sur Baher', ar: 'صور باهر'),
+  JerusalemLocation(en: 'Um Tuba', ar: 'أم طوبا'),
+  JerusalemLocation(en: 'Beit Safafa', ar: 'بيت صفافا'),
+  JerusalemLocation(en: 'Sharafat', ar: 'شرفات'),
+
+  // ── Northern neighborhoods ──
+  JerusalemLocation(en: 'Shuafat', ar: 'شعفاط'),
+  JerusalemLocation(en: 'Shuafat Camp', ar: 'مخيم شعفاط'),
+  JerusalemLocation(en: 'Beit Hanina', ar: 'بيت حنينا'),
+  JerusalemLocation(en: 'Dahiyat al-Barid', ar: 'ضاحية البريد'),
+  JerusalemLocation(en: 'Pisgat Ze\'ev', ar: 'بسغات زئيف'),
+  JerusalemLocation(en: 'Neve Ya\'akov', ar: 'نيفي يعقوب'),
+  JerusalemLocation(en: 'Kafr Aqab', ar: 'كفر عقب'),
+  JerusalemLocation(en: 'Qalandiya', ar: 'قلنديا'),
+  JerusalemLocation(en: 'Al-Ram', ar: 'الرام'),
+  JerusalemLocation(en: 'Anata', ar: 'عناتا'),
+
+  // ── Eastern neighborhoods ──
+  JerusalemLocation(en: 'Issawiya', ar: 'العيسوية'),
+  JerusalemLocation(en: 'Abu Dis', ar: 'أبو ديس'),
+  JerusalemLocation(en: 'Al-Eizariya (Bethany)', ar: 'العيزرية'),
+  JerusalemLocation(en: 'Az-Za\'ayyem', ar: 'الزعيم'),
+
+  // ── Southern neighborhoods ──
+  JerusalemLocation(en: 'Beit Jala', ar: 'بيت جالا'),
+
+  // ── Western / Central Jerusalem ──
+  JerusalemLocation(en: 'West Jerusalem', ar: 'القدس الغربية'),
+  JerusalemLocation(en: 'Musrara', ar: 'المصرارة'),
+  JerusalemLocation(en: 'City Center', ar: 'وسط المدينة'),
+
+  // ── Catch-all ──
+  JerusalemLocation(en: 'Other', ar: 'أخرى'),
 ];

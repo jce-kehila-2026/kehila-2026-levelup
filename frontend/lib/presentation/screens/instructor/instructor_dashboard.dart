@@ -1,12 +1,8 @@
-/// Presentation Tier — Screen
-/// Path: lib/presentation/screens/instructor/instructor_dashboard.dart
-///
-/// ✅ Zero mock data — stats, scope, assignments from InstructorDashboardController
-/// ✅ Uses ListenableBuilder for reactivity
-/// ✅ Clickable stat cards + redesigned Current Week section
+
 library;
 
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:go_router/go_router.dart';
 import '../../../theme/app_theme.dart';
 import '../../widgets/assignment_card.dart';
@@ -27,23 +23,11 @@ class InstructorDashboard extends StatelessWidget {
   Widget _buildConsolidatedCard(
     String title,
     IconData headerIcon,
-    List<({String label, String value})> items,
-  ) {
-    return Container(
-      width: double.infinity,
+    List<({String label, String value})> items, {
+    VoidCallback? onTap,
+  }) {
+    final content = Padding(
       padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.border),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -80,6 +64,30 @@ class InstructorDashboard extends StatelessWidget {
             ],
           ),
         ],
+      ),
+    );
+
+    return Container(
+      width: double.infinity,
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.border),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          child: content,
+        ),
       ),
     );
   }
@@ -130,27 +138,9 @@ class InstructorDashboard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // Header
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 14, 20, 16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(AppLocalizations.of(context)!.welcomeBack, style: const TextStyle(fontSize: 13, color: AppColors.mutedForeground)),
-                        const SizedBox(height: 2),
-                        Text(
-                          controller.instructorName.isNotEmpty
-                              ? controller.instructorName
-                              : AppLocalizations.of(context)!.roleInstructorLabel,
-                          style: Theme.of(context).textTheme.titleLarge?.copyWith(fontSize: 26, fontWeight: FontWeight.bold),
-                        ),
-                      ],
-                    ),
-                  ),
-
                   // ── Current Week — Visually Striking Section ──
                   Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 20).copyWith(bottom: 16),
+                    margin: const EdgeInsets.fromLTRB(20, 14, 20, 16),
                     padding: const EdgeInsets.all(0),
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(20),
@@ -195,41 +185,45 @@ class InstructorDashboard extends StatelessWidget {
                         // Content
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            crossAxisAlignment: CrossAxisAlignment.center,
                             children: [
-                              Row(
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                    decoration: BoxDecoration(
-                                      color: AppColors.accent.withValues(alpha: 0.2),
-                                      borderRadius: BorderRadius.circular(20),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      AppLocalizations.of(context)!.welcomeBack,
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        color: Colors.white.withValues(alpha: 0.7),
+                                      ),
                                     ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        const Icon(Icons.play_circle_filled, size: 14, color: AppColors.accent),
-                                        const SizedBox(width: 4),
-                                        Text(AppLocalizations.of(context)!.activeBadge, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: AppColors.accent, letterSpacing: 1)),
-                                      ],
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      controller.instructorName.isNotEmpty
+                                          ? controller.instructorName
+                                          : AppLocalizations.of(context)!.roleInstructorLabel,
+                                      style: const TextStyle(
+                                        fontSize: 24,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.white,
+                                        height: 1.2,
+                                      ),
                                     ),
-                                  ),
-                                  const Spacer(),
-                                  Container(
-                                    padding: const EdgeInsets.all(6),
-                                    decoration: BoxDecoration(
-                                      color: Colors.white.withValues(alpha: 0.12),
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: const Icon(Icons.calendar_today, size: 14, color: Colors.white70),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
-                              const SizedBox(height: 14),
+                              const SizedBox(width: 16),
                               Text(
-                                '${stats['assignments']} ${AppLocalizations.of(context)!.dashboardAssignments}',
-                                style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white, height: 1.2),
+                                DateFormat('EEEE, MMMM d').format(DateTime.now()),
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.white.withValues(alpha: 0.8),
+                                  fontWeight: FontWeight.w500,
+                                ),
                               ),
                             ],
                           ),
@@ -261,30 +255,6 @@ class InstructorDashboard extends StatelessWidget {
                       ),
                     ),
 
-                  // Quick Actions
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: ElevatedButton(
-                            onPressed: onNavigateToAssignments,
-                            style: ElevatedButton.styleFrom(backgroundColor: AppColors.accent, foregroundColor: AppColors.text, padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)), elevation: 4, shadowColor: AppColors.accent.withValues(alpha: 0.35)),
-                            child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [const Icon(Icons.edit_note, size: 14), const SizedBox(width: 6), Flexible(child: Text(AppLocalizations.of(context)!.dashboardAssignments, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis))]),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: ElevatedButton(
-                            onPressed: onNavigateToGroups,
-                            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: AppColors.white, padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)), elevation: 4, shadowColor: AppColors.primary.withValues(alpha: 0.25)),
-                            child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [const Icon(Icons.people, size: 14), const SizedBox(width: 6), Flexible(child: Text(AppLocalizations.of(context)!.dashboardMyGroups, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis))]),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 28),
 
                   // Stats — Clickable
                   Padding(
@@ -306,6 +276,7 @@ class InstructorDashboard extends StatelessWidget {
                           (label: AppLocalizations.of(context)!.statMyGroups, value: stats['myGroups']!),
                           (label: AppLocalizations.of(context)!.statStudents, value: stats['students']!),
                         ],
+                        onTap: onNavigateToGroups,
                       ),
                       const SizedBox(height: 12),
                       _buildConsolidatedCard(
@@ -315,6 +286,7 @@ class InstructorDashboard extends StatelessWidget {
                           (label: AppLocalizations.of(context)!.dashboardAssignments, value: stats['assignments']!),
                           (label: AppLocalizations.of(context)!.statPendingReview, value: stats['pendingReview']!),
                         ],
+                        onTap: onNavigateToAssignments,
                       ),
                     ]),
                   ),

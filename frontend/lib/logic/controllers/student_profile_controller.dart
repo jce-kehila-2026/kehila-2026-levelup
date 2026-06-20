@@ -7,10 +7,13 @@ import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../data/models/student_profile_model.dart';
 import '../../data/repositories/student_profile_repository.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class StudentProfileController extends ChangeNotifier {
   final StudentProfileRepository _repository;
   StreamSubscription<User?>? _authSub;
+  StreamSubscription<DocumentSnapshot>? _userSub;
+  StreamSubscription<QuerySnapshot>? _submissionsSub;
 
   bool _isLoading = false;
   bool get isLoading => _isLoading;
@@ -20,10 +23,9 @@ class StudentProfileController extends ChangeNotifier {
   StudentProfileController(this._repository) {
     _authSub = FirebaseAuth.instance.authStateChanges().listen((user) {
       if (user != null) {
-        _init();
+        _subscribeToUserDoc(user.uid);
       } else {
-        _profile = null;
-        notifyListeners();
+        _unsubscribe();
       }
     });
   }
@@ -31,20 +33,61 @@ class StudentProfileController extends ChangeNotifier {
   String? _error;
   String? get error => _error;
 
-  Future<void> _init() async {
-    _isLoading = true;
+  void _subscribeToUserDoc(String uid) {
+    _isLoading = _profile == null;
     _error = null;
     notifyListeners();
-    try {
-      _profile = await _repository.getProfile();
-    } catch (e, stack) {
+
+    _userSub?.cancel();
+    _userSub = FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .snapshots()
+        .listen((snap) async {
+      _refreshProfile(uid);
+    }, onError: (e) {
       _error = e.toString();
-      debugPrint('StudentProfileController._init error: $e');
-      debugPrint('Stacktrace: $stack');
+      _isLoading = false;
+      notifyListeners();
+    });
+
+    _submissionsSub?.cancel();
+    _submissionsSub = FirebaseFirestore.instance
+        .collection('submissions')
+        .where('studentId', isEqualTo: uid)
+        .snapshots()
+        .listen((snap) async {
+      _refreshProfile(uid);
+    }, onError: (e) {
+      _error = e.toString();
+      _isLoading = false;
+      notifyListeners();
+    });
+  }
+
+  Future<void> _refreshProfile(String uid) async {
+    try {
+      final profile = await _repository.getProfileById(uid);
+      if (profile != null) {
+        _profile = profile;
+        _error = null;
+      }
+    } catch (e) {
+      _error = e.toString();
+      debugPrint('StudentProfileController user stream error: $e');
     } finally {
       _isLoading = false;
       notifyListeners();
     }
+  }
+
+  void _unsubscribe() {
+    _userSub?.cancel();
+    _userSub = null;
+    _submissionsSub?.cancel();
+    _submissionsSub = null;
+    _profile = null;
+    notifyListeners();
   }
 
   // ── Getters ────────────────────────────
@@ -66,6 +109,10 @@ class StudentProfileController extends ChangeNotifier {
   void cancelSubscriptions() {
     _authSub?.cancel();
     _authSub = null;
+    _userSub?.cancel();
+    _userSub = null;
+    _submissionsSub?.cancel();
+    _submissionsSub = null;
   }
 
   @override

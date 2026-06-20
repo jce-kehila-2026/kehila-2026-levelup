@@ -98,6 +98,12 @@ class AppLocalizationsAr extends AppLocalizations {
   String get platformOverview => 'نظرة عامة على المنصة';
 
   @override
+  String get platformStatistics => 'إحصائيات المنصة';
+
+  @override
+  String get statisticsTitle => 'الإحصائيات';
+
+  @override
   String get statStudents => 'الطلاب';
 
   @override
@@ -315,7 +321,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get tabActive => 'نشط';
 
   @override
-  String get tabPast => 'منتهية';
+  String get tabPast => 'متأخرة';
 
   @override
   String get filterAll => 'الكل';
@@ -972,6 +978,10 @@ class AppLocalizationsAr extends AppLocalizations {
   String get submissionLocked => 'المهمة مغلقة.';
 
   @override
+  String get deadlinePassedLocked =>
+      'انتهى الموعد النهائي! تم قفل تقديم الإجابات.';
+
+  @override
   String get noAnswerProvided => 'لم تُقدَّم إجابة.';
 
   @override
@@ -1168,6 +1178,16 @@ class AppLocalizationsAr extends AppLocalizations {
   }
 
   @override
+  String activeCount(String count) {
+    return 'النشطة $count';
+  }
+
+  @override
+  String pastCount(String count) {
+    return 'متأخرة $count';
+  }
+
+  @override
   String get editGroupName => 'تعديل اسم المجموعة';
 
   @override
@@ -1293,11 +1313,26 @@ class AppLocalizationsAr extends AppLocalizations {
   }
 
   @override
-  String get peopleAndUsers => 'People & Users';
+  String get peopleAndUsers => 'الأشخاص والمستخدمون';
 
   @override
-  String get curriculumContent => 'Curriculum & Content';
+  String get curriculumContent => 'المنهج والمحتوى';
 
   @override
-  String get activeToday => 'active today';
+  String get activeToday => 'نشط اليوم';
+
+  @override
+  String get statTotal => 'المجموع';
+
+  @override
+  String get gradingOverview => 'نظرة عامة على التصحيح';
+
+  @override
+  String get totalSubmissions => 'إجمالي التسليمات';
+
+  @override
+  String get gradedCorrectIndicator => 'صحيح';
+
+  @override
+  String get gradedIncorrectIndicator => 'خطأ';
 }
