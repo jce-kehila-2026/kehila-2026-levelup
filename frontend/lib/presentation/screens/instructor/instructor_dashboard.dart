@@ -6,7 +6,9 @@
 /// ✅ Clickable stat cards + redesigned Current Week section
 library;
 
+import 'dart:math' show pi;
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:go_router/go_router.dart';
 import '../../../theme/app_theme.dart';
 import '../../widgets/assignment_card.dart';
@@ -27,23 +29,11 @@ class InstructorDashboard extends StatelessWidget {
   Widget _buildConsolidatedCard(
     String title,
     IconData headerIcon,
-    List<({String label, String value})> items,
-  ) {
-    return Container(
-      width: double.infinity,
+    List<({String label, String value})> items, {
+    VoidCallback? onTap,
+  }) {
+    final content = Padding(
       padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.border),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -80,6 +70,30 @@ class InstructorDashboard extends StatelessWidget {
             ],
           ),
         ],
+      ),
+    );
+
+    return Container(
+      width: double.infinity,
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.border),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          child: content,
+        ),
       ),
     );
   }
@@ -130,27 +144,9 @@ class InstructorDashboard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // Header
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 14, 20, 16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(AppLocalizations.of(context)!.welcomeBack, style: const TextStyle(fontSize: 13, color: AppColors.mutedForeground)),
-                        const SizedBox(height: 2),
-                        Text(
-                          controller.instructorName.isNotEmpty
-                              ? controller.instructorName
-                              : AppLocalizations.of(context)!.roleInstructorLabel,
-                          style: Theme.of(context).textTheme.titleLarge?.copyWith(fontSize: 26, fontWeight: FontWeight.bold),
-                        ),
-                      ],
-                    ),
-                  ),
-
                   // ── Current Week — Visually Striking Section ──
                   Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 20).copyWith(bottom: 16),
+                    margin: const EdgeInsets.fromLTRB(20, 14, 20, 16),
                     padding: const EdgeInsets.all(0),
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(20),
@@ -195,41 +191,45 @@ class InstructorDashboard extends StatelessWidget {
                         // Content
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            crossAxisAlignment: CrossAxisAlignment.center,
                             children: [
-                              Row(
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                    decoration: BoxDecoration(
-                                      color: AppColors.accent.withValues(alpha: 0.2),
-                                      borderRadius: BorderRadius.circular(20),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      AppLocalizations.of(context)!.welcomeBack,
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        color: Colors.white.withValues(alpha: 0.7),
+                                      ),
                                     ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        const Icon(Icons.play_circle_filled, size: 14, color: AppColors.accent),
-                                        const SizedBox(width: 4),
-                                        Text(AppLocalizations.of(context)!.activeBadge, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: AppColors.accent, letterSpacing: 1)),
-                                      ],
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      controller.instructorName.isNotEmpty
+                                          ? controller.instructorName
+                                          : AppLocalizations.of(context)!.roleInstructorLabel,
+                                      style: const TextStyle(
+                                        fontSize: 24,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.white,
+                                        height: 1.2,
+                                      ),
                                     ),
-                                  ),
-                                  const Spacer(),
-                                  Container(
-                                    padding: const EdgeInsets.all(6),
-                                    decoration: BoxDecoration(
-                                      color: Colors.white.withValues(alpha: 0.12),
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: const Icon(Icons.calendar_today, size: 14, color: Colors.white70),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
-                              const SizedBox(height: 14),
+                              const SizedBox(width: 16),
                               Text(
-                                '${stats['assignments']} ${AppLocalizations.of(context)!.dashboardAssignments}',
-                                style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white, height: 1.2),
+                                DateFormat('EEEE, MMMM d').format(DateTime.now()),
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.white.withValues(alpha: 0.8),
+                                  fontWeight: FontWeight.w500,
+                                ),
                               ),
                             ],
                           ),
@@ -261,30 +261,6 @@ class InstructorDashboard extends StatelessWidget {
                       ),
                     ),
 
-                  // Quick Actions
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: ElevatedButton(
-                            onPressed: onNavigateToAssignments,
-                            style: ElevatedButton.styleFrom(backgroundColor: AppColors.accent, foregroundColor: AppColors.text, padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)), elevation: 4, shadowColor: AppColors.accent.withValues(alpha: 0.35)),
-                            child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [const Icon(Icons.edit_note, size: 14), const SizedBox(width: 6), Flexible(child: Text(AppLocalizations.of(context)!.dashboardAssignments, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis))]),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: ElevatedButton(
-                            onPressed: onNavigateToGroups,
-                            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: AppColors.white, padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)), elevation: 4, shadowColor: AppColors.primary.withValues(alpha: 0.25)),
-                            child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [const Icon(Icons.people, size: 14), const SizedBox(width: 6), Flexible(child: Text(AppLocalizations.of(context)!.dashboardMyGroups, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis))]),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 28),
 
                   // Stats — Clickable
                   Padding(
@@ -306,6 +282,7 @@ class InstructorDashboard extends StatelessWidget {
                           (label: AppLocalizations.of(context)!.statMyGroups, value: stats['myGroups']!),
                           (label: AppLocalizations.of(context)!.statStudents, value: stats['students']!),
                         ],
+                        onTap: onNavigateToGroups,
                       ),
                       const SizedBox(height: 12),
                       _buildConsolidatedCard(
@@ -315,9 +292,14 @@ class InstructorDashboard extends StatelessWidget {
                           (label: AppLocalizations.of(context)!.dashboardAssignments, value: stats['assignments']!),
                           (label: AppLocalizations.of(context)!.statPendingReview, value: stats['pendingReview']!),
                         ],
+                        onTap: onNavigateToAssignments,
                       ),
                     ]),
                   ),
+                  const SizedBox(height: 12),
+
+                  // Submissions Overview Pie Chart
+                  _buildSubmissionsCard(context, controller),
                   const SizedBox(height: 28),
 
                   // Active Assignments
@@ -363,4 +345,109 @@ class InstructorDashboard extends StatelessWidget {
     );
   }
 
+  Widget _buildSubmissionsCard(BuildContext context, InstructorDashboardController controller) {
+    final total = controller.totalSubmissions;
+    final graded = controller.totalGraded;
+    final pendingReview = controller.totalPendingReview;
+    final correct = controller.totalCorrect;
+    final incorrect = controller.totalIncorrect;
+    final progress = total > 0 ? (graded / total) : 0.0;
+    final pct = (progress * 100).toStringAsFixed(0);
+
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.border),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8, offset: const Offset(0, 2)),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(children: [
+              Container(
+                width: 40, height: 40,
+                decoration: BoxDecoration(color: AppColors.accent, borderRadius: BorderRadius.circular(10)),
+                child: const Icon(Icons.pie_chart_outline, size: 20, color: Colors.white),
+              ),
+              const SizedBox(width: 12),
+              Text(AppLocalizations.of(context)!.gradingOverview, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.primaryDark)),
+            ]),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    SizedBox(
+                      width: 100, height: 100,
+                      child: CustomPaint(painter: _SubmissionsPiePainter(progress: progress)),
+                    ),
+                    Column(mainAxisSize: MainAxisSize.min, children: [
+                      Text('$pct%', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.primaryDark)),
+                      Text(AppLocalizations.of(context)!.statTotal, style: const TextStyle(fontSize: 10, color: AppColors.mutedForeground)),
+                    ]),
+                  ],
+                ),
+                const SizedBox(width: 20),
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  _infoRow(AppLocalizations.of(context)!.totalSubmissions, total.toString(), AppColors.primary, AppColors.primary),
+                  const SizedBox(height: 8),
+                  _infoRow(AppLocalizations.of(context)!.statPendingReview, pendingReview.toString(), AppColors.accent, AppColors.accent),
+                  const SizedBox(height: 8),
+                  _infoRow(AppLocalizations.of(context)!.gradedCorrectIndicator, correct.toString(), AppColors.success, AppColors.success),
+                  const SizedBox(height: 8),
+                  _infoRow(AppLocalizations.of(context)!.gradedIncorrectIndicator, incorrect.toString(), AppColors.destructive, AppColors.destructive),
+                ])),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _infoRow(String label, String value, Color dotColor, Color valueColor) {
+    return Row(children: [
+      Container(width: 8, height: 8, decoration: BoxDecoration(color: dotColor, shape: BoxShape.circle)),
+      const SizedBox(width: 8),
+      Expanded(child: Text(label, style: const TextStyle(fontSize: 12, color: AppColors.mutedForeground, fontWeight: FontWeight.w500))),
+      Text(value, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: valueColor)),
+    ]);
+  }
+}
+
+class _SubmissionsPiePainter extends CustomPainter {
+  final double progress;
+  _SubmissionsPiePainter({required this.progress});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    const strokeWidth = 10.0;
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = (size.width - strokeWidth) / 2;
+    final rect = Rect.fromCircle(center: center, radius: radius);
+
+    // Background track
+    canvas.drawCircle(center, radius, Paint()..color = AppColors.border..style = PaintingStyle.stroke..strokeWidth = strokeWidth);
+
+    if (progress > 0) {
+      final paint = Paint()
+        ..color = AppColors.primary
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = strokeWidth
+        ..strokeCap = StrokeCap.round;
+      canvas.drawArc(rect, -pi / 2, progress * 2 * pi, false, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _SubmissionsPiePainter old) => old.progress != progress;
 }

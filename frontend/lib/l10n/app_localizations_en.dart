@@ -98,6 +98,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get platformOverview => 'PLATFORM OVERVIEW';
 
   @override
+  String get platformStatistics => 'PLATFORM STATISTICS';
+
+  @override
+  String get statisticsTitle => 'Statistics';
+
+  @override
   String get statStudents => 'Students';
 
   @override
@@ -318,7 +324,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get tabActive => 'Active';
 
   @override
-  String get tabPast => 'Past';
+  String get tabPast => 'Overdue';
 
   @override
   String get filterAll => 'All';
@@ -976,6 +982,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get submissionLocked => 'Submission locked.';
 
   @override
+  String get deadlinePassedLocked => 'Deadline passed! Submissions are locked.';
+
+  @override
   String get noAnswerProvided => 'No answer provided.';
 
   @override
@@ -1173,6 +1182,16 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String activeCount(String count) {
+    return '$count active';
+  }
+
+  @override
+  String pastCount(String count) {
+    return '$count overdue';
+  }
+
+  @override
   String get editGroupName => 'Edit Group Name';
 
   @override
@@ -1309,4 +1328,16 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get statTotal => 'Total';
+
+  @override
+  String get gradingOverview => 'Grading Overview';
+
+  @override
+  String get totalSubmissions => 'Total Submissions';
+
+  @override
+  String get gradedCorrectIndicator => 'Correct';
+
+  @override
+  String get gradedIncorrectIndicator => 'Incorrect';
 }

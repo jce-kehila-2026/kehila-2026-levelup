@@ -11,7 +11,6 @@ import 'package:frontend/l10n/app_localizations.dart';
 
 const _kBg            = AppColors.background;
 const _kPurplePrimary = AppColors.primary;
-const _kDivider       = AppColors.border;
 const _kTextMuted     = AppColors.mutedForeground;
 
 // One soft shadow used by every content card on this screen.
@@ -179,21 +178,26 @@ class AdminDashboard extends StatelessWidget {
   Widget _buildSectionHeader(String text, {Widget? trailing}) {
     return Row(
       children: [
+        Container(
+          width: 3,
+          height: 18,
+          decoration: BoxDecoration(
+            color: _kPurplePrimary,
+            borderRadius: BorderRadius.circular(2),
+          ),
+        ),
+        const SizedBox(width: 10),
         Text(
           text,
           style: const TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w700,
-            color: _kPurplePrimary,
-            letterSpacing: 1.2,
+            fontSize: 13,
+            fontWeight: FontWeight.bold,
+            color: AppColors.primaryDark,
+            letterSpacing: 0.6,
           ),
         ),
-        const SizedBox(width: 16),
-        const Expanded(
-          child: Divider(color: _kDivider, thickness: 1, height: 1),
-        ),
         if (trailing != null) ...[
-          const SizedBox(width: 12),
+          const Spacer(),
           trailing,
         ],
       ],
@@ -368,7 +372,15 @@ class AdminDashboard extends StatelessWidget {
                     child: _buildHeroBanner(
                         context, l10n, controller.activeToday),
                   ),
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 28),
+
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: _buildSectionHeader(
+                      l10n.myOverview,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
 
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),

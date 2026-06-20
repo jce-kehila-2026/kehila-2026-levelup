@@ -6,7 +6,6 @@
 /// ✅ Zero business logic — via GroupController
 library;
 
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -69,7 +68,7 @@ class _GroupsScreenState extends State<GroupsScreen> with SingleTickerProviderSt
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.background,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        insetPadding: EdgeInsets.fromLTRB(24, 24, 24, kIsWeb ? 24 : MediaQuery.of(ctx).viewInsets.bottom + 24),
+        insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
         title: const Row(
           children: [
             Icon(Icons.group_add, color: AppColors.primary, size: 22),
@@ -736,7 +735,7 @@ class _GroupsScreenState extends State<GroupsScreen> with SingleTickerProviderSt
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.background,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        insetPadding: EdgeInsets.fromLTRB(24, 24, 24, kIsWeb ? 24 : MediaQuery.of(ctx).viewInsets.bottom + 24),
+        insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
         title: const Text('Rename Group', style: TextStyle(fontWeight: FontWeight.bold)),
         content: SingleChildScrollView(
           child: ConstrainedBox(

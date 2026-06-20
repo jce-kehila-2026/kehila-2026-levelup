@@ -6,6 +6,9 @@ import '../../../theme/app_theme.dart';
 import '../../widgets/badge.dart';
 import '../../../data/models/assignment_model.dart';
 import '../../../utils/level_helpers.dart';
+import '../../../logic/controllers/admin_assignments_controller.dart';
+import '../../../di/service_locator.dart';
+import 'package:frontend/l10n/app_localizations.dart';
 
 class AdminAssignmentsScreen extends StatefulWidget {
   const AdminAssignmentsScreen({super.key});
@@ -18,12 +21,22 @@ class _AdminAssignmentsScreenState extends State<AdminAssignmentsScreen> {
   bool _isLoading = true;
   String _errorMessage = '';
   List<AssignmentModel> _assignments = [];
-  String _searchQuery = '';
 
   @override
   void initState() {
     super.initState();
     _loadAllAssignments();
+    getIt<AdminAssignmentsController>().addListener(_onSearchChanged);
+  }
+
+  void _onSearchChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    getIt<AdminAssignmentsController>().removeListener(_onSearchChanged);
+    super.dispose();
   }
 
   Future<void> _loadAllAssignments() async {
@@ -61,10 +74,12 @@ class _AdminAssignmentsScreenState extends State<AdminAssignmentsScreen> {
       );
     }
 
-    final filtered = _searchQuery.isEmpty
+    final l10n = AppLocalizations.of(context)!;
+    final searchQuery = getIt<AdminAssignmentsController>().searchQuery;
+    final filtered = searchQuery.isEmpty
         ? _assignments
         : _assignments.where((a) {
-            final q = _searchQuery;
+            final q = searchQuery;
             return a.title.toLowerCase().contains(q) ||
                 (a.groupName?.toLowerCase().contains(q) ?? false) ||
                 levelDisplayName(a.levelId).toLowerCase().contains(q);
@@ -76,23 +91,44 @@ class _AdminAssignmentsScreenState extends State<AdminAssignmentsScreen> {
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: AppColors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.border),
-                ),
-                child: TextField(
-                  onChanged: (val) => setState(() => _searchQuery = val.toLowerCase().trim()),
-                  decoration: const InputDecoration(
-                    hintText: 'Search by name or level...',
-                    prefixIcon: Icon(Icons.search, size: 18, color: AppColors.mutedForeground),
-                    hintStyle: TextStyle(color: AppColors.mutedForeground, fontSize: 14),
-                    border: InputBorder.none,
-                    contentPadding: EdgeInsets.symmetric(vertical: 12),
+              padding: const EdgeInsets.fromLTRB(20, 14, 20, 16),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              width: 3,
+                              height: 20,
+                              decoration: BoxDecoration(
+                                color: AppColors.primary,
+                                borderRadius: BorderRadius.circular(2),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              l10n.assignmentsTitle,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleLarge
+                                  ?.copyWith(fontSize: 22, fontWeight: FontWeight.bold),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${_assignments.length} total assignments',
+                          style: const TextStyle(
+                              fontSize: 13, color: AppColors.mutedForeground),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
+                ],
               ),
             ),
             Expanded(
@@ -101,7 +137,7 @@ class _AdminAssignmentsScreenState extends State<AdminAssignmentsScreen> {
                       child: Text(
                         _assignments.isEmpty
                             ? 'No assignments found.'
-                            : 'No results for "$_searchQuery".',
+                            : 'No results for "$searchQuery".',
                         style: const TextStyle(color: AppColors.mutedForeground),
                       ),
                     )

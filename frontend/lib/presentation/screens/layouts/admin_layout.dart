@@ -10,6 +10,7 @@ import '../../../logic/controllers/curriculum_controller.dart';
 import '../../../logic/controllers/user_controller.dart';
 import '../../../logic/controllers/group_controller.dart';
 import '../../../logic/controllers/audit_log_controller.dart';
+import '../../../logic/controllers/admin_assignments_controller.dart';
 
 import '../admin/admin_dashboard.dart';
 import '../admin/admin_statistics_screen.dart';
@@ -53,7 +54,7 @@ class _AdminLayoutState extends State<AdminLayout> {
     super.dispose();
   }
 
-  bool _hasSearch(int index) => const {1, 2, 3, 4}.contains(index);
+  bool _hasSearch(int index) => const {1, 2, 3, 4, 6}.contains(index);
 
   void _setSearch(String val) {
     final tabParam = GoRouterState.of(context).uri.queryParameters['tab'];
@@ -68,6 +69,8 @@ class _AdminLayoutState extends State<AdminLayout> {
         getIt<GroupController>().setArchiveSearch(val);
       case 4:
         getIt<AuditLogController>().setSearch(val);
+      case 6:
+        getIt<AdminAssignmentsController>().setSearch(val);
     }
   }
 

@@ -112,14 +112,14 @@ class _StudentAssignmentDetailScreenState extends State<StudentAssignmentDetailS
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(color: AppColors.error, width: 1.5),
                         ),
-                        child: const Row(
+                        child: Row(
                           children: [
-                            Icon(Icons.error_outline_rounded, color: AppColors.error, size: 20),
-                            SizedBox(width: 10),
+                            const Icon(Icons.error_outline_rounded, color: AppColors.error, size: 20),
+                            const SizedBox(width: 10),
                             Expanded(
                               child: Text(
-                                'Deadline passed! Submissions are locked.',
-                                style: TextStyle(
+                                AppLocalizations.of(context)!.deadlinePassedLocked,
+                                style: const TextStyle(
                                   color: AppColors.error,
                                   fontWeight: FontWeight.bold,
                                   fontSize: 14,

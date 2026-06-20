@@ -1,6 +1,7 @@
 // ignore_for_file: experimental_member_use
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../theme/app_theme.dart';
 import '../../widgets/badge.dart';
@@ -133,161 +134,218 @@ class _GroupReportScreenState extends State<GroupReportScreen> {
       body: SafeArea(
         child: _students.isEmpty
             ? const Center(child: Text('No students in this group.', style: TextStyle(color: AppColors.mutedForeground)))
-            : Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    // Legend Card
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      decoration: BoxDecoration(
-                        color: AppColors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: AppColors.border),
-                      ),
-                      child: const Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          Row(children: [Icon(Icons.check_circle, size: 15, color: AppColors.success), SizedBox(width: 4), Text('Correct', style: TextStyle(fontSize: 12, color: AppColors.mutedForeground))]),
-                          Row(children: [Icon(Icons.cancel, size: 15, color: AppColors.error), SizedBox(width: 4), Text('Incorrect', style: TextStyle(fontSize: 12, color: AppColors.mutedForeground))]),
-                          Row(children: [Icon(Icons.hourglass_empty, size: 15, color: AppColors.warning), SizedBox(width: 4), Text('Pending', style: TextStyle(fontSize: 12, color: AppColors.mutedForeground))]),
-                          Row(children: [Icon(Icons.remove, size: 15, color: AppColors.mutedForeground), SizedBox(width: 4), Text('Missing', style: TextStyle(fontSize: 12, color: AppColors.mutedForeground))]),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    
-                    // Table container
-                    Expanded(
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: AppColors.white,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: AppColors.border),
+            : Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 1200),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        // Legend Card
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          decoration: BoxDecoration(
+                            color: AppColors.white,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: AppColors.border),
+                          ),
+                          child: const Wrap(
+                            spacing: 16,
+                            runSpacing: 8,
+                            alignment: WrapAlignment.center,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: [
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.check_circle, size: 15, color: AppColors.success),
+                                  SizedBox(width: 4),
+                                  Text('Correct', style: TextStyle(fontSize: 12, color: AppColors.mutedForeground)),
+                                ],
+                              ),
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.cancel, size: 15, color: AppColors.error),
+                                  SizedBox(width: 4),
+                                  Text('Incorrect', style: TextStyle(fontSize: 12, color: AppColors.mutedForeground)),
+                                ],
+                              ),
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.hourglass_empty, size: 15, color: AppColors.warning),
+                                  SizedBox(width: 4),
+                                  Text('Pending', style: TextStyle(fontSize: 12, color: AppColors.mutedForeground)),
+                                ],
+                              ),
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.remove, size: 15, color: AppColors.mutedForeground),
+                                  SizedBox(width: 4),
+                                  Text('Missing', style: TextStyle(fontSize: 12, color: AppColors.mutedForeground)),
+                                ],
+                              ),
+                            ],
+                          ),
                         ),
-                        clipBehavior: Clip.hardEdge,
-                        child: SingleChildScrollView(
-                          scrollDirection: Axis.vertical,
-                          child: SingleChildScrollView(
-                            scrollDirection: Axis.horizontal,
-                            child: DataTable(
-                              columnSpacing: 20,
-                              headingRowColor: MaterialStateProperty.all(Colors.grey.shade50),
-                              headingTextStyle: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.text, fontSize: 13),
-                              dataTextStyle: const TextStyle(color: AppColors.text, fontSize: 13),
-                              columns: [
-                                const DataColumn(label: Text('Student')),
-                                const DataColumn(label: Text('Sub Rate')),
-                                const DataColumn(label: Text('Correct')),
-                                const DataColumn(label: Text('Incorrect')),
-                                const DataColumn(label: Text('Pending')),
-                                ..._assignments.map((a) {
-                                  final title = a['title'] as String? ?? 'Assignment';
-                                  return DataColumn(
-                                    label: Tooltip(
-                                      message: title,
-                                      child: SizedBox(
-                                        width: 80,
-                                        child: Text(
-                                          title,
-                                          overflow: TextOverflow.ellipsis,
-                                          maxLines: 1,
-                                        ),
+                        const SizedBox(height: 16),
+
+
+                        
+                        // Table container
+                        Expanded(
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: AppColors.white,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: AppColors.border),
+                            ),
+                            clipBehavior: Clip.hardEdge,
+                            child: LayoutBuilder(
+                              builder: (context, constraints) {
+                                return SingleChildScrollView(
+                                  scrollDirection: Axis.vertical,
+                                  child: SingleChildScrollView(
+                                    scrollDirection: Axis.horizontal,
+                                    child: ConstrainedBox(
+                                      constraints: BoxConstraints(
+                                        minWidth: constraints.maxWidth,
                                       ),
-                                    ),
-                                  );
-                                }),
-                              ],
-                              rows: _students.map((student) {
-                                final studentId = student['id'] as String;
-                                final studentLevelId = student['levelId'] as String?;
-
-                                // Filter assignments assigned to this student's level
-                                final studentAssignments = _assignments.where((a) {
-                                  final aLevelId = a['levelId'] as String?;
-                                  return aLevelId == null || aLevelId.isEmpty || aLevelId == studentLevelId;
-                                }).toList();
-
-                                int correct = 0;
-                                int incorrect = 0;
-                                int pending = 0;
-                                int submitted = 0;
-
-                                for (final a in studentAssignments) {
-                                  final sub = _getSubmission(a['id'], studentId);
-                                  if (sub != null) {
-                                    submitted++;
-                                    final status = sub['status'] as String? ?? 'pending';
-                                    if (status == 'correct') {
-                                      correct++;
-                                    } else if (status == 'incorrect') {
-                                      incorrect++;
-                                    } else {
-                                      pending++;
-                                    }
-                                  }
-                                }
-
-                                final subRate = studentAssignments.isNotEmpty
-                                    ? (submitted / studentAssignments.length) * 100
-                                    : 0.0;
-
-                                return DataRow(
-                                  cells: [
-                                    DataCell(
-                                      Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        mainAxisAlignment: MainAxisAlignment.center,
-                                        children: [
-                                          Text(student['name'] ?? 'Student', style: const TextStyle(fontWeight: FontWeight.bold)),
-                                          Text('@${student['username'] ?? ''}', style: const TextStyle(fontSize: 10, color: AppColors.mutedForeground)),
+                                      child: DataTable(
+                                        columnSpacing: 24,
+                                        horizontalMargin: 16,
+                                        headingRowColor: WidgetStateProperty.all(AppColors.primary.withAlpha(13)),
+                                        headingTextStyle: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.text, fontSize: 13),
+                                        dataTextStyle: const TextStyle(color: AppColors.text, fontSize: 13),
+                                        columns: [
+                                          const DataColumn(label: Text('Student')),
+                                          const DataColumn(label: Text('Sub Rate')),
+                                          const DataColumn(label: Text('Correct')),
+                                          const DataColumn(label: Text('Incorrect')),
+                                          const DataColumn(label: Text('Pending')),
+                                          ..._assignments.asMap().entries.map((entry) {
+                                            final idx = entry.key + 1;
+                                            final a = entry.value;
+                                            final title = a['title'] as String? ?? 'Assignment';
+                                            return DataColumn(
+                                              label: Tooltip(
+                                                message: 'View $title',
+                                                child: InkWell(
+                                                  onTap: () => context.push('/assignment/${a['id']}'),
+                                                  borderRadius: BorderRadius.circular(4),
+                                                  child: Padding(
+                                                    padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+                                                    child: Text(
+                                                      'Assignment $idx',
+                                                      style: const TextStyle(
+                                                        fontWeight: FontWeight.bold,
+                                                        color: AppColors.primary,
+                                                        decoration: TextDecoration.underline,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                            );
+                                          }),
                                         ],
+                                        rows: _students.map((student) {
+                                          final studentId = student['id'] as String;
+                                          final studentLevelId = student['levelId'] as String?;
+
+                                          // Filter assignments assigned to this student's level
+                                          final studentAssignments = _assignments.where((a) {
+                                            final aLevelId = a['levelId'] as String?;
+                                            return aLevelId == null || aLevelId.isEmpty || aLevelId == studentLevelId;
+                                          }).toList();
+
+                                          int correct = 0;
+                                          int incorrect = 0;
+                                          int pending = 0;
+                                          int submitted = 0;
+
+                                          for (final a in studentAssignments) {
+                                            final sub = _getSubmission(a['id'], studentId);
+                                            if (sub != null) {
+                                              submitted++;
+                                              final status = sub['status'] as String? ?? 'pending';
+                                              if (status == 'correct') {
+                                                correct++;
+                                              } else if (status == 'incorrect') {
+                                                incorrect++;
+                                              } else {
+                                                pending++;
+                                              }
+                                            }
+                                          }
+
+                                          final subRate = studentAssignments.isNotEmpty
+                                              ? (submitted / studentAssignments.length) * 100
+                                              : 0.0;
+
+                                          return DataRow(
+                                            cells: [
+                                              DataCell(
+                                                Column(
+                                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                                  mainAxisAlignment: MainAxisAlignment.center,
+                                                  children: [
+                                                    Text(student['name'] ?? 'Student', style: const TextStyle(fontWeight: FontWeight.bold)),
+                                                    Text('@${student['username'] ?? ''}', style: const TextStyle(fontSize: 10, color: AppColors.mutedForeground)),
+                                                  ],
+                                                ),
+                                              ),
+                                              DataCell(
+                                                BadgeWidget(
+                                                  label: '${subRate.toStringAsFixed(0)}%',
+                                                  variant: subRate >= 80
+                                                      ? BadgeVariant.success
+                                                      : (subRate >= 50 ? BadgeVariant.warning : BadgeVariant.error),
+                                                ),
+                                              ),
+                                              DataCell(Text('$correct', style: const TextStyle(color: AppColors.success, fontWeight: FontWeight.bold))),
+                                              DataCell(Text('$incorrect', style: const TextStyle(color: AppColors.error, fontWeight: FontWeight.bold))),
+                                              DataCell(Text('$pending', style: const TextStyle(color: AppColors.warning, fontWeight: FontWeight.bold))),
+                                              ..._assignments.map((a) {
+                                                final isAssignedToLevel = a['levelId'] == null ||
+                                                    a['levelId'].isEmpty ||
+                                                    a['levelId'] == studentLevelId;
+
+                                                if (!isAssignedToLevel) {
+                                                  return const DataCell(Center(child: Icon(Icons.remove, size: 16, color: AppColors.mutedForeground)));
+                                                }
+
+                                                final sub = _getSubmission(a['id'], studentId);
+                                                if (sub == null) {
+                                                  return const DataCell(Center(child: Icon(Icons.remove, size: 16, color: AppColors.mutedForeground)));
+                                                }
+
+                                                final status = sub['status'] as String? ?? 'pending';
+                                                if (status == 'correct') {
+                                                  return const DataCell(Center(child: Icon(Icons.check_circle, size: 16, color: AppColors.success)));
+                                                } else if (status == 'incorrect') {
+                                                  return const DataCell(Center(child: Icon(Icons.cancel, size: 16, color: AppColors.error)));
+                                                } else {
+                                                  return const DataCell(Center(child: Icon(Icons.hourglass_empty, size: 16, color: AppColors.warning)));
+                                                }
+                                              }),
+                                            ],
+                                          );
+                                        }).toList(),
                                       ),
                                     ),
-                                    DataCell(
-                                      BadgeWidget(
-                                        label: '${subRate.toStringAsFixed(0)}%',
-                                        variant: subRate >= 80
-                                            ? BadgeVariant.success
-                                            : (subRate >= 50 ? BadgeVariant.warning : BadgeVariant.error),
-                                      ),
-                                    ),
-                                    DataCell(Text('$correct', style: const TextStyle(color: AppColors.success, fontWeight: FontWeight.bold))),
-                                    DataCell(Text('$incorrect', style: const TextStyle(color: AppColors.error, fontWeight: FontWeight.bold))),
-                                    DataCell(Text('$pending', style: const TextStyle(color: AppColors.warning, fontWeight: FontWeight.bold))),
-                                    ..._assignments.map((a) {
-                                      final isAssignedToLevel = a['levelId'] == null ||
-                                          a['levelId'].isEmpty ||
-                                          a['levelId'] == studentLevelId;
-
-                                      if (!isAssignedToLevel) {
-                                        return const DataCell(Center(child: Icon(Icons.remove, size: 16, color: AppColors.mutedForeground)));
-                                      }
-
-                                      final sub = _getSubmission(a['id'], studentId);
-                                      if (sub == null) {
-                                        return const DataCell(Center(child: Icon(Icons.remove, size: 16, color: AppColors.mutedForeground)));
-                                      }
-
-                                      final status = sub['status'] as String? ?? 'pending';
-                                      if (status == 'correct') {
-                                        return const DataCell(Center(child: Icon(Icons.check_circle, size: 16, color: AppColors.success)));
-                                      } else if (status == 'incorrect') {
-                                        return const DataCell(Center(child: Icon(Icons.cancel, size: 16, color: AppColors.error)));
-                                      } else {
-                                        return const DataCell(Center(child: Icon(Icons.hourglass_empty, size: 16, color: AppColors.warning)));
-                                      }
-                                    }),
-                                  ],
+                                  ),
                                 );
-                              }).toList(),
+                              },
                             ),
                           ),
                         ),
-                      ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
               ),
       ),
