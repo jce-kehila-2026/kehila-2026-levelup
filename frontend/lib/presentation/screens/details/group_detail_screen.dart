@@ -1177,12 +1177,22 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
   }
 
   Future<String> _resolveUniqueUsername(String fullName, Set<String> batchUsernames) async {
-    final parts = fullName.trim().toLowerCase().split(' ');
+    final cleanName = fullName.trim().toLowerCase();
+    if (cleanName.isEmpty) return '';
+
+    final parts = cleanName.split(RegExp(r'\s+'));
     final first = parts.first.replaceAll(RegExp(r'[^a-z]'), '');
     final last = parts.length > 1
         ? parts.last.replaceAll(RegExp(r'[^a-z]'), '')
         : '';
     if (first.isEmpty) return '';
+
+    if (last.isEmpty) {
+      if (!batchUsernames.contains(first) && !(await _controller.usernameExists(first))) return first;
+      int n = 1;
+      while (batchUsernames.contains('$first$n') || await _controller.usernameExists('$first$n')) { n++; }
+      return '$first$n';
+    }
 
     for (int i = 1; i <= last.length; i++) {
       final candidate = '$first.${last.substring(0, i)}';

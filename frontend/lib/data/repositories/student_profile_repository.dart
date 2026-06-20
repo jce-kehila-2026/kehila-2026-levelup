@@ -60,6 +60,15 @@ class StudentProfileRepository {
       }
     }
 
+    final submissionsSnap = await _db
+        .collection('submissions')
+        .where('studentId', isEqualTo: id)
+        .get();
+    final submissionsList = submissionsSnap.docs;
+    final submissionsCount = submissionsList.length;
+    final gradedCount = submissionsList.where((s) => s.data()['status'] != 'pending').length;
+    final correctCount = submissionsList.where((s) => s.data()['status'] == 'correct').length;
+
     return StudentProfile(
       id: doc.id,
       name: data['name'] ?? '',
@@ -68,9 +77,9 @@ class StudentProfileRepository {
       level: levelDisplayName(data['levelId'] as String?),
       group: groupName,
       instructorName: instructorNames,
-      submissions: (data['submissions'] ?? 0).toInt(),
-      graded: (data['graded'] ?? 0).toInt(),
-      correct: (data['correct'] ?? 0).toInt(),
+      submissions: submissionsCount,
+      graded: gradedCount,
+      correct: correctCount,
       studentNumber: data['studentNumber'],
       pinCode: data['pinCode'],
       lastActive: data['lastActive'] != null
