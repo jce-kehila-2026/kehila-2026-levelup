@@ -4,6 +4,7 @@ import 'package:frontend/l10n/app_localizations.dart';
 import '../../../di/service_locator.dart';
 import '../../../logic/controllers/admin_statistics_controller.dart';
 import '../../../theme/app_theme.dart';
+import '../../widgets/statistics_filter_sheet.dart';
 
 // ── Design tokens — 60/30/10 ─────────────────────────────────────────────────
 
@@ -81,35 +82,33 @@ class AdminStatisticsScreen extends StatelessWidget {
                 Padding(
                   padding: const EdgeInsets.fromLTRB(20, 14, 20, 16),
                   child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.end,
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
+                        child: Row(
                           children: [
-                            Row(
-                              children: [
-                                Container(
-                                  width: 3,
-                                  height: 20,
-                                  decoration: BoxDecoration(
-                                    color: AppColors.primary,
-                                    borderRadius: BorderRadius.circular(2),
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  l10n.statisticsTitle,
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .titleLarge
-                                      ?.copyWith(fontSize: 22, fontWeight: FontWeight.bold),
-                                ),
-                              ],
+                            Container(
+                              width: 3,
+                              height: 20,
+                              decoration: BoxDecoration(
+                                color: AppColors.primary,
+                                borderRadius: BorderRadius.circular(2),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              l10n.statisticsTitle,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleLarge
+                                  ?.copyWith(fontSize: 22, fontWeight: FontWeight.bold),
                             ),
                           ],
                         ),
+                      ),
+                      _FilterButton(
+                        activeCount: ctrl.activeFilter.activeCount,
+                        onTap: () => showStatisticsFilterDialog(context),
                       ),
                     ],
                   ),
@@ -663,7 +662,9 @@ class AdminStatisticsScreen extends StatelessWidget {
                       borderRadius: BorderRadius.all(Radius.circular(4)),
                     ),
                   ),
-                  Container(
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 220),
+                    curve: Curves.easeOut,
                     height: 8,
                     width: barWidth,
                     decoration: BoxDecoration(
@@ -682,6 +683,72 @@ class AdminStatisticsScreen extends StatelessWidget {
 
   String _capitalize(String s) =>
       s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
+}
+
+// ── Filter button ─────────────────────────────────────────────────────────────
+
+class _FilterButton extends StatelessWidget {
+  final int activeCount;
+  final VoidCallback onTap;
+
+  const _FilterButton({required this.activeCount, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final isActive = activeCount > 0;
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+        decoration: BoxDecoration(
+          color: isActive ? AppColors.primary : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: isActive ? AppColors.primary : AppColors.border,
+            width: 1.5,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.tune_rounded,
+              size: 16,
+              color: isActive ? Colors.white : AppColors.mutedForeground,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              'Filter',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: isActive ? Colors.white : AppColors.mutedForeground,
+              ),
+            ),
+            if (isActive) ...[
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.25),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  '$activeCount',
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 // ── Donut painter ─────────────────────────────────────────────────────────────
