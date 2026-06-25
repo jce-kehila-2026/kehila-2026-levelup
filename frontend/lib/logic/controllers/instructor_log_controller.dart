@@ -5,8 +5,9 @@ library;
 import 'package:flutter/foundation.dart';
 import '../../data/models/audit_log_model.dart';
 import '../../data/repositories/audit_log_repository.dart';
+import 'time_filter_mixin.dart';
 
-class InstructorLogController extends ChangeNotifier {
+class InstructorLogController extends ChangeNotifier with TimeFilterMixin {
   final AuditLogRepository _repository;
 
   bool _isLoading = false;
@@ -34,14 +35,16 @@ class InstructorLogController extends ChangeNotifier {
 
   /// Filtered instructor-scoped logs.
   List<AuditLog> get filteredLogs {
-    if (_search.isEmpty) return _allLogs;
-    final q = _search.toLowerCase();
-    return _allLogs.where((log) =>
-        log.action.toLowerCase().contains(q) ||
-        log.performerName.toLowerCase().contains(q) ||
-        (log.details ?? '').toLowerCase().contains(q) ||
-        (log.targetPersonName ?? '').toLowerCase().contains(q) ||
-        (log.targetStudentNumber ?? '').toLowerCase().contains(q)).toList();
+    return _allLogs.where((log) {
+      if (!matchesTimeFilter(log)) return false;
+      if (_search.isEmpty) return true;
+      final q = _search.toLowerCase();
+      return log.action.toLowerCase().contains(q) ||
+          log.performerName.toLowerCase().contains(q) ||
+          (log.details ?? '').toLowerCase().contains(q) ||
+          (log.targetPersonName ?? '').toLowerCase().contains(q) ||
+          (log.targetStudentNumber ?? '').toLowerCase().contains(q);
+    }).toList();
   }
 
   // ── Actions ────────────────────────────

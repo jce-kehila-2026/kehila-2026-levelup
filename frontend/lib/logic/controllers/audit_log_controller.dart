@@ -5,8 +5,9 @@ library;
 import 'package:flutter/foundation.dart';
 import '../../data/models/audit_log_model.dart';
 import '../../data/repositories/audit_log_repository.dart';
+import 'time_filter_mixin.dart';
 
-class AuditLogController extends ChangeNotifier {
+class AuditLogController extends ChangeNotifier with TimeFilterMixin {
   final AuditLogRepository _repository;
 
   bool _isLoading = false;
@@ -38,13 +39,11 @@ class AuditLogController extends ChangeNotifier {
   // ── State ──────────────────────────────
   String _search = '';
   String _roleFilter = 'all';
-  String _timeFilter = 'all';
   String _categoryFilter = 'all';
 
   // ── Getters ────────────────────────────
   String get search => _search;
   String get roleFilter => _roleFilter;
-  String get timeFilter => _timeFilter;
   String get categoryFilter => _categoryFilter;
 
   /// Role filter options for the UI chips.
@@ -53,14 +52,6 @@ class AuditLogController extends ChangeNotifier {
         {'label': 'Admin', 'value': 'admin'},
         {'label': 'Instructor', 'value': 'instructor'},
         {'label': 'Student', 'value': 'student'},
-      ];
-
-  /// Time filter options for the UI chips.
-  List<Map<String, String>> get timeFilters => const [
-        {'label': 'All Time', 'value': 'all'},
-        {'label': 'Today', 'value': 'today'},
-        {'label': '7 Days', 'value': '7days'},
-        {'label': '30 Days', 'value': '30days'},
       ];
 
   /// Category filter options for the UI chips.
@@ -93,24 +84,7 @@ class AuditLogController extends ChangeNotifier {
           (log.targetPersonName?.toLowerCase().contains(q) ?? false) ||
           (log.targetStudentNumber?.toLowerCase().contains(q) ?? false);
 
-      // Time filter
-      bool matchTime = true;
-      if (_timeFilter != 'all') {
-        final now = DateTime.now();
-        final today = DateTime(now.year, now.month, now.day);
-        final logDay = DateTime(log.preciseTimestamp.year, log.preciseTimestamp.month, log.preciseTimestamp.day);
-        final differenceInDays = today.difference(logDay).inDays;
-
-        if (_timeFilter == 'today') {
-          matchTime = logDay == today;
-        } else if (_timeFilter == '7days') {
-          matchTime = differenceInDays <= 7;
-        } else if (_timeFilter == '30days') {
-          matchTime = differenceInDays <= 30;
-        }
-      }
-
-      return matchRole && matchCategory && matchSearch && matchTime;
+      return matchRole && matchCategory && matchSearch && matchesTimeFilter(log);
     }).toList();
   }
 
@@ -123,11 +97,6 @@ class AuditLogController extends ChangeNotifier {
 
   void setRoleFilter(String value) {
     _roleFilter = value;
-    notifyListeners();
-  }
-
-  void setTimeFilter(String value) {
-    _timeFilter = value;
     notifyListeners();
   }
 
