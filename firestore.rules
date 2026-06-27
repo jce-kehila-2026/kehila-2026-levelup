@@ -68,7 +68,7 @@ service cloud.firestore {
     match /assignments/{assignmentId} {
       allow read:           if isStaff() || isStudent();
       allow create:         if isStaff();
-      allow update:         if isStaff() || (isStudent() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['pendingCount']));
+      allow update:         if isStaff() || (isStudent() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['pendingCount', 'submittedCount']));
       allow delete:         if isAdmin() || (isInstructor() && resource.data.instructorId == request.auth.uid);
     }
 

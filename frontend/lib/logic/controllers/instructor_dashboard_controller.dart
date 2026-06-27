@@ -210,9 +210,29 @@ class InstructorDashboardController extends ChangeNotifier {
   Map<String, String> get stats => {
         'myGroups': _myGroupsCount.toString(),
         'students': _studentsCount.toString(),
-        'assignments': _activeAssignments.length.toString(),
-        'pendingReview': '0',
+        'assignments': activeAssignments.length.toString(),
+        'pendingReview': _activeAssignments
+            .fold<int>(0, (total, a) => total + a.pendingCount)
+            .toString(),
       };
 
-  List<AssignmentModel> get activeAssignments => _activeAssignments;
+  List<AssignmentModel> get activeAssignments =>
+      _activeAssignments.where((a) => !a.isOverdue).toList();
+
+  // ── Submission aggregate getters ──────────────────────────────────────────
+
+  int get totalSubmissions =>
+      _activeAssignments.fold<int>(0, (s, a) => s + a.submittedCount);
+
+  int get totalGraded =>
+      _activeAssignments.fold<int>(0, (s, a) => s + a.gradedCount);
+
+  int get totalPendingReview =>
+      _activeAssignments.fold<int>(0, (s, a) => s + a.pendingCount);
+
+  int get totalCorrect =>
+      _activeAssignments.fold<int>(0, (s, a) => s + a.correctCount);
+
+  int get totalIncorrect =>
+      _activeAssignments.fold<int>(0, (s, a) => s + a.incorrectCount);
 }

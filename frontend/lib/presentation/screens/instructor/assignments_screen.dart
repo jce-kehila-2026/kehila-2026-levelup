@@ -372,8 +372,12 @@ class _InstructorAssignmentsScreenState extends State<InstructorAssignmentsScree
                         const SizedBox(width: 8),
                         Text(l10n.assignmentsTitle, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontSize: 22, fontWeight: FontWeight.bold)),
                       ]),
-                      const SizedBox(height: 4),
-                      Text(l10n.totalCount(_controller.allAssignments.length.toString()), style: const TextStyle(fontSize: 13, color: AppColors.mutedForeground)),
+                      Text(
+                        tab == 'active'
+                            ? l10n.activeCount(assignments.length.toString())
+                            : l10n.pastCount(assignments.length.toString()),
+                        style: const TextStyle(fontSize: 13, color: AppColors.mutedForeground),
+                      ),
                     ])),
                   ]),
                 ),
@@ -402,7 +406,6 @@ class _InstructorAssignmentsScreenState extends State<InstructorAssignmentsScree
                     scrollDirection: Axis.horizontal,
                     child: Row(children: [
                       _buildFilterChip(l10n.filterAll, 'all', currentFilter),
-                      _buildFilterChip(l10n.filterOverdue, 'overdue', currentFilter),
                       _buildFilterChip(l10n.filterCentral, 'central', currentFilter),
                       _buildFilterChip(l10n.filterCustom, 'custom', currentFilter),
                     ]),
@@ -538,4 +541,5 @@ class _InstructorAssignmentsScreenState extends State<InstructorAssignmentsScree
       ),
     );
   }
+
 }

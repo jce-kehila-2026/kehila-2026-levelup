@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -16,6 +17,7 @@ class InstructorAssignmentController extends ChangeNotifier {
   bool get isLoading => _isLoading;
 
   List<AssignmentModel> _allAssignments = [];
+  StreamSubscription<QuerySnapshot>? _assignmentsSub;
 
   InstructorAssignmentController(this._repository, this._audit) {
     _audit.resolveIdentity();
@@ -28,6 +30,20 @@ class InstructorAssignmentController extends ChangeNotifier {
     _allAssignments = await _repository.getInstructorAssignments();
     _isLoading = false;
     notifyListeners();
+
+    _assignmentsSub?.cancel();
+    _assignmentsSub = FirebaseFirestore.instance
+        .collection('assignments')
+        .snapshots()
+        .skip(1)
+        .listen((_) async {
+      try {
+        _allAssignments = await _repository.getInstructorAssignments();
+        notifyListeners();
+      } catch (e) {
+        debugPrint('InstructorAssignmentController assignments stream error: $e');
+      }
+    });
   }
 
   // ── State ──────────────────────────────
@@ -45,16 +61,13 @@ class InstructorAssignmentController extends ChangeNotifier {
 
     // Tab filter
     if (_tab == 'active') {
-      list = list.where((a) => a.isActive).toList();
+      list = list.where((a) => !a.isOverdue).toList();
     } else {
-      list = list.where((a) => !a.isActive).toList();
+      list = list.where((a) => a.isOverdue).toList();
     }
 
     // Chip filter
     switch (_filter) {
-      case 'overdue':
-        list = list.where((a) => a.isOverdue).toList();
-        break;
       case 'central':
         list = list.where((a) => a.type == 'central').toList();
         break;
@@ -165,10 +178,22 @@ class InstructorAssignmentController extends ChangeNotifier {
         }
       }
 
-      final dueDays = deadline != null ? deadline.difference(DateTime.now()).inDays : 7;
+      final now = DateTime.now();
+      final dueDays = deadline != null
+          ? DateTime.utc(deadline.year, deadline.month, deadline.day)
+              .difference(DateTime.utc(now.year, now.month, now.day))
+              .inDays
+          : 7;
+      final dueText = deadline != null
+          ? (dueDays == 0
+              ? 'Due today.'
+              : dueDays == 1
+                  ? 'Due tomorrow.'
+                  : 'Due in $dueDays days.')
+          : 'Due in 7 days.';
       await _notifyStudents(
         title: 'New Assignment Assigned',
-        body: '$instructorName assigned "$title". Due in $dueDays days.',
+        body: '$instructorName assigned "$title". $dueText',
         type: 'assignment',
         relatedId: assignmentId,
         groupId: groupId,
@@ -200,6 +225,8 @@ class InstructorAssignmentController extends ChangeNotifier {
     notifyListeners();
     _audit.log(action: 'Deleted assignment', category: 'assignments', details: '"${assignment?.title ?? id}"');
   }
+
+
 
   Future<void> updateDeadline(String id, DateTime newDeadline) async {
     _isLoading = true;
@@ -312,5 +339,17 @@ class InstructorAssignmentController extends ChangeNotifier {
         await notifRepo.addNotification(notif);
       }
     }
+  }
+
+  /// Cancel active Firestore stream subscription.
+  void cancelSubscriptions() {
+    _assignmentsSub?.cancel();
+    _assignmentsSub = null;
+  }
+
+  @override
+  void dispose() {
+    cancelSubscriptions();
+    super.dispose();
   }
 }

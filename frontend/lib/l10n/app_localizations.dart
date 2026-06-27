@@ -272,6 +272,18 @@ abstract class AppLocalizations {
   /// **'PLATFORM OVERVIEW'**
   String get platformOverview;
 
+  /// No description provided for @platformStatistics.
+  ///
+  /// In en, this message translates to:
+  /// **'PLATFORM STATISTICS'**
+  String get platformStatistics;
+
+  /// No description provided for @statisticsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Statistics'**
+  String get statisticsTitle;
+
   /// No description provided for @statStudents.
   ///
   /// In en, this message translates to:
@@ -701,7 +713,7 @@ abstract class AppLocalizations {
   /// No description provided for @tabPast.
   ///
   /// In en, this message translates to:
-  /// **'Past'**
+  /// **'Overdue'**
   String get tabPast;
 
   /// No description provided for @filterAll.
@@ -1856,6 +1868,12 @@ abstract class AppLocalizations {
   /// **'Submission locked.'**
   String get submissionLocked;
 
+  /// No description provided for @deadlinePassedLocked.
+  ///
+  /// In en, this message translates to:
+  /// **'Deadline passed! Submissions are locked.'**
+  String get deadlinePassedLocked;
+
   /// No description provided for @noAnswerProvided.
   ///
   /// In en, this message translates to:
@@ -2170,6 +2188,18 @@ abstract class AppLocalizations {
   /// **'{count} total'**
   String totalCount(String count);
 
+  /// No description provided for @activeCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} active'**
+  String activeCount(String count);
+
+  /// No description provided for @pastCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} overdue'**
+  String pastCount(String count);
+
   /// No description provided for @editGroupName.
   ///
   /// In en, this message translates to:
@@ -2367,6 +2397,54 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Material Level: {level}'**
   String materialLevelLabel(String level);
+
+  /// No description provided for @peopleAndUsers.
+  ///
+  /// In en, this message translates to:
+  /// **'People & Users'**
+  String get peopleAndUsers;
+
+  /// No description provided for @curriculumContent.
+  ///
+  /// In en, this message translates to:
+  /// **'Curriculum & Content'**
+  String get curriculumContent;
+
+  /// No description provided for @activeToday.
+  ///
+  /// In en, this message translates to:
+  /// **'active today'**
+  String get activeToday;
+
+  /// No description provided for @statTotal.
+  ///
+  /// In en, this message translates to:
+  /// **'Total'**
+  String get statTotal;
+
+  /// No description provided for @gradingOverview.
+  ///
+  /// In en, this message translates to:
+  /// **'Grading Overview'**
+  String get gradingOverview;
+
+  /// No description provided for @totalSubmissions.
+  ///
+  /// In en, this message translates to:
+  /// **'Total Submissions'**
+  String get totalSubmissions;
+
+  /// No description provided for @gradedCorrectIndicator.
+  ///
+  /// In en, this message translates to:
+  /// **'Correct'**
+  String get gradedCorrectIndicator;
+
+  /// No description provided for @gradedIncorrectIndicator.
+  ///
+  /// In en, this message translates to:
+  /// **'Incorrect'**
+  String get gradedIncorrectIndicator;
 }
 
 class _AppLocalizationsDelegate

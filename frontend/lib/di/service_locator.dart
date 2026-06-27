@@ -30,6 +30,7 @@ import '../logic/controllers/curriculum_controller.dart';
 import '../logic/controllers/user_controller.dart';
 import '../logic/controllers/group_controller.dart';
 import '../logic/controllers/audit_log_controller.dart';
+import '../logic/controllers/admin_assignments_controller.dart';
 
 // Controllers — Instructor
 import '../logic/controllers/instructor_dashboard_controller.dart';
@@ -87,6 +88,9 @@ void setupServiceLocator() {
       getIt<CurriculumRepository>(),
     ),
   );
+  getIt.registerLazySingleton<AdminStatisticsController>(
+    () => AdminStatisticsController(getIt<UserRepository>(), getIt<CurriculumRepository>()),
+  );
   getIt.registerLazySingleton<CurriculumController>(
     () => CurriculumController(getIt<CurriculumRepository>(), getIt<AssignmentRepository>(), getIt<UserRepository>(), getIt<AuditLogHelper>()),
   );
@@ -99,8 +103,8 @@ void setupServiceLocator() {
   getIt.registerLazySingleton<AuditLogController>(
     () => AuditLogController(getIt<AuditLogRepository>()),
   );
-  getIt.registerLazySingleton<AdminStatisticsController>(
-    () => AdminStatisticsController(getIt<UserRepository>(), getIt<CurriculumRepository>()),
+  getIt.registerLazySingleton<AdminAssignmentsController>(
+    () => AdminAssignmentsController(),
   );
 
   // ──────────────────────────────────────

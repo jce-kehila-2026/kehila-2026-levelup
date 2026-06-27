@@ -36,10 +36,17 @@ class AdminDashboardController extends ChangeNotifier {
   int _groupCount = 0;
   int _levelCount = 0;
   int _lessonCount = 0;
+  int _activeToday = 0;
+  int get activeToday => _activeToday;
+
+  int _assignmentCount = 0;
+  int _activeAssignmentCount = 0;
+  int _pendingReviewCount = 0;
 
   StreamSubscription<QuerySnapshot>? _usersSub;
   StreamSubscription<QuerySnapshot>? _groupsSub;
   StreamSubscription<QuerySnapshot>? _levelsSub;
+  StreamSubscription<QuerySnapshot>? _assignmentsSub;
 
   // ── Initial load ───────────────────────────────────────────────────────────
 
@@ -59,9 +66,24 @@ class AdminDashboardController extends ChangeNotifier {
         _curriculumRepository.getLevels(),
       ]);
       _recentLogs = results[0] as List<AuditLog>;
-      _studentCount = (results[1] as List).length;
-      _instructorCount = (results[2] as List).length;
-      _groupCount = (results[3] as List).length;
+      final students    = results[1] as List;
+      final instructors = results[2] as List;
+      _studentCount    = students.length;
+      _instructorCount = instructors.length;
+      _groupCount      = (results[3] as List).length;
+
+      final today = DateTime.now();
+      int active = 0;
+      for (final u in [...students, ...instructors]) {
+        final la = u.lastActive as DateTime?;
+        if (la != null &&
+            la.year == today.year &&
+            la.month == today.month &&
+            la.day == today.day) {
+          active++;
+        }
+      }
+      _activeToday = active;
       final levels = results[4] as List<LevelModel>;
       _levelCount = levels.length;
       _lessonCount = levels.fold(
@@ -139,6 +161,30 @@ class AdminDashboardController extends ChangeNotifier {
     }, onError: (e) {
       debugPrint('AdminDashboardController: levels stream error: $e');
     });
+
+    // Live assignment counts from the assignments collection
+    _assignmentsSub?.cancel();
+    _assignmentsSub = FirebaseFirestore.instance
+        .collection('assignments')
+        .snapshots()
+        .listen((snap) {
+      int total = 0;
+      int active = 0;
+      int pending = 0;
+      for (final doc in snap.docs) {
+        final data = doc.data();
+        total++;
+        final isActive = data['isActive'] as bool? ?? true;
+        if (isActive) active++;
+        pending += (data['pendingCount'] as num?)?.toInt() ?? 0;
+      }
+      _assignmentCount = total;
+      _activeAssignmentCount = active;
+      _pendingReviewCount = pending;
+      notifyListeners();
+    }, onError: (e) {
+      debugPrint('AdminDashboardController: assignments stream error: $e');
+    });
   }
 
   // ── Dispose ────────────────────────────────────────────────────────────────
@@ -152,6 +198,8 @@ class AdminDashboardController extends ChangeNotifier {
     _groupsSub = null;
     _levelsSub?.cancel();
     _levelsSub = null;
+    _assignmentsSub?.cancel();
+    _assignmentsSub = null;
   }
 
   @override
@@ -168,7 +216,9 @@ class AdminDashboardController extends ChangeNotifier {
         'levels': _levelCount.toString(),
         'groups': _groupCount.toString(),
         'lessons': _lessonCount.toString(),
-        'activeTasks': '0',
+        'activeTasks': _activeAssignmentCount.toString(),
+        'totalAssignments': _assignmentCount.toString(),
+        'pendingReview': _pendingReviewCount.toString(),
       };
 
   List<AuditLog> get recentLogs => _recentLogs;

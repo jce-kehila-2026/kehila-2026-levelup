@@ -7,7 +7,6 @@
 library;
 
 import 'dart:math';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:frontend/l10n/app_localizations.dart';
@@ -99,9 +98,9 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.text)),
+                  Text(name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.text), maxLines: 1, overflow: TextOverflow.ellipsis),
                   const SizedBox(height: 2),
-                  Text(email, style: const TextStyle(fontSize: 12, color: AppColors.mutedForeground)),
+                  Text(email, style: const TextStyle(fontSize: 12, color: AppColors.mutedForeground), maxLines: 1, overflow: TextOverflow.ellipsis),
                   Text('SN: $staffNumber', style: const TextStyle(fontSize: 12, color: AppColors.mutedForeground)),
                   if (phone != null && phone.isNotEmpty)
                     Text(phone, style: const TextStyle(fontSize: 12, color: AppColors.mutedForeground)),
@@ -209,9 +208,9 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(student.name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.text)),
+                Text(student.name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.text), maxLines: 1, overflow: TextOverflow.ellipsis),
                 const SizedBox(height: 2),
-                Text('@${student.username ?? '—'}', style: const TextStyle(fontSize: 12, color: AppColors.mutedForeground)),
+                Text('@${student.username ?? '—'}', style: const TextStyle(fontSize: 12, color: AppColors.mutedForeground), maxLines: 1, overflow: TextOverflow.ellipsis),
                 Text('$levelText  •  ${student.studentNumber ?? '#${student.userNumber}'}', style: const TextStyle(fontSize: 12, color: AppColors.mutedForeground)),
               ],
             ),
@@ -288,11 +287,13 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(user.name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.mutedForeground)),
+                  Text(user.name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.mutedForeground), maxLines: 1, overflow: TextOverflow.ellipsis),
                   const SizedBox(height: 2),
                   Text(
                     isInstructor ? (user.email ?? '') : '@${user.username ?? '—'}',
                     style: const TextStyle(fontSize: 12, color: AppColors.mutedForeground),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ],
               ),
@@ -386,18 +387,18 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
             : '—';
 
         return Container(
-            decoration: const BoxDecoration(
-              color: AppColors.background,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-            ),
-            child: SingleChildScrollView(
-              controller: scrollController,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
+          decoration: const BoxDecoration(
+            color: AppColors.background,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: SingleChildScrollView(
+            controller: scrollController,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
               Center(
                 child: Container(
                   width: 40, height: 4,
@@ -501,10 +502,10 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
               ),
             ],
           ),
-              ),
-            ),
-          );
-        },
+        ),
+        ),
+        );
+      },
       ),
     );
   }
@@ -517,7 +518,7 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
     required List<Widget> children,
   }) {
     return Container(
-      margin: const EdgeInsetsDirectional.only(start: 20, end: 20, bottom: 20),
+      margin: const EdgeInsetsDirectional.only(start: 20, top: 16, end: 20, bottom: 20),
       decoration: BoxDecoration(
         color: AppColors.white,
         borderRadius: BorderRadius.circular(16),
@@ -593,12 +594,22 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
   }
 
   Future<String> _resolveUniqueUsername(String fullName, Set<String> batchUsernames) async {
-    final parts = fullName.trim().toLowerCase().split(' ');
+    final cleanName = fullName.trim().toLowerCase();
+    if (cleanName.isEmpty) return '';
+
+    final parts = cleanName.split(RegExp(r'\s+'));
     final first = parts.first.replaceAll(RegExp(r'[^a-z]'), '');
     final last = parts.length > 1
         ? parts.last.replaceAll(RegExp(r'[^a-z]'), '')
         : '';
     if (first.isEmpty) return '';
+
+    if (last.isEmpty) {
+      if (!batchUsernames.contains(first) && !(await _controller.usernameExists(first))) return first;
+      int n = 1;
+      while (batchUsernames.contains('$first$n') || await _controller.usernameExists('$first$n')) { n++; }
+      return '$first$n';
+    }
 
     for (int i = 1; i <= last.length; i++) {
       final candidate = '$first.${last.substring(0, i)}';
@@ -718,9 +729,7 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
           builder: (context, setDialogState) {
             final isEmailValid = email.isNotEmpty && _emailRegex.hasMatch(email);
 
-            return Padding(
-              padding: EdgeInsets.only(bottom: kIsWeb ? 0 : MediaQuery.of(context).viewInsets.bottom),
-              child: AlertDialog(
+            return AlertDialog(
               backgroundColor: AppColors.background,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
               insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
@@ -950,12 +959,15 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
                   child: Text(AppLocalizations.of(context)!.add, style: const TextStyle(fontWeight: FontWeight.bold)),
                 ),
               ],
-              ),
-            );
-          }
-        );
+              );
+            }
+          );
       },
-    );
+    ).then((_) {
+      Future.delayed(const Duration(milliseconds: 500), () {
+        emailCtrl.dispose();
+      });
+    });
   }
 
   void _showAddStudentDialog() {
@@ -986,9 +998,7 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
-            return Padding(
-              padding: EdgeInsets.only(bottom: kIsWeb ? 0 : MediaQuery.of(context).viewInsets.bottom),
-              child: AlertDialog(
+            return AlertDialog(
               backgroundColor: AppColors.background,
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(20)),
@@ -1287,16 +1297,7 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
               ),
               actions: [
                 TextButton(
-                  onPressed: () {
-                    for (final r in rows) {
-                      (r['nameCtrl'] as TextEditingController)
-                          .dispose();
-                      (r['usernameCtrl'] as TextEditingController)
-                          .dispose();
-                    }
-                    batchUsernames.clear();
-                    Navigator.pop(context);
-                  },
+                  onPressed: () => Navigator.pop(context),
                   child: Text(AppLocalizations.of(context)!.cancel,
                       style: const TextStyle(
                           color: AppColors.mutedForeground)),
@@ -1398,13 +1399,6 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
                             })
                         .toList();
 
-                    // Dispose controllers before closing dialog
-                    for (final r in rows) {
-                      (r['nameCtrl'] as TextEditingController).dispose();
-                      (r['usernameCtrl'] as TextEditingController).dispose();
-                    }
-                    batchUsernames.clear();
-
                     final pageContext = this.context;
                     Navigator.pop(context); // Close the Add Students dialog
 
@@ -1443,12 +1437,19 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
                   ),
                 ),
               ],
-              ),
             );
           },
         );
       },
-    );
+    ).then((_) {
+      Future.delayed(const Duration(milliseconds: 500), () {
+        for (final r in rows) {
+          (r['nameCtrl'] as TextEditingController).dispose();
+          (r['usernameCtrl'] as TextEditingController).dispose();
+        }
+      });
+      batchUsernames.clear();
+    });
   }
 
   void _showCredentialsDialog(List<UserModel> users) {
@@ -1456,9 +1457,7 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
       context: context,
       barrierDismissible: false,
       builder: (ctx) {
-        return Padding(
-          padding: EdgeInsets.only(bottom: kIsWeb ? 0 : MediaQuery.of(ctx).viewInsets.bottom),
-          child: AlertDialog(
+        return AlertDialog(
           backgroundColor: AppColors.white,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
@@ -1567,8 +1566,7 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
               ),
             ),
           ],
-          ),
-        );
+          );
       },
     );
   }
@@ -1597,9 +1595,7 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
       builder: (ctx) {
         return StatefulBuilder(
           builder: (ctx, setDialogState) {
-            return Padding(
-              padding: EdgeInsets.only(bottom: kIsWeb ? 0 : MediaQuery.of(ctx).viewInsets.bottom),
-              child: AlertDialog(
+            return AlertDialog(
               backgroundColor: AppColors.background,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
               insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
@@ -1786,16 +1782,17 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
                   child: Text(AppLocalizations.of(ctx)!.save, style: const TextStyle(fontWeight: FontWeight.bold)),
                 ),
               ],
-              ),
-            );
-          },
-        );
-      },
+              );
+            },
+          );
+        },
     ).then((_) {
-      nameCtrl.dispose();
-      emailCtrl.dispose();
-      phoneCtrl.dispose();
-      idNumberCtrl.dispose();
+      Future.delayed(const Duration(milliseconds: 500), () {
+        nameCtrl.dispose();
+        emailCtrl.dispose();
+        phoneCtrl.dispose();
+        idNumberCtrl.dispose();
+      });
     });
   }
 
@@ -1808,9 +1805,7 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
       builder: (ctx) {
         return StatefulBuilder(
           builder: (ctx, setDialogState) {
-            return Padding(
-              padding: EdgeInsets.only(bottom: kIsWeb ? 0 : MediaQuery.of(ctx).viewInsets.bottom),
-              child: AlertDialog(
+            return AlertDialog(
               backgroundColor: AppColors.background,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
               insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
@@ -1883,20 +1878,17 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
                   child: Text(AppLocalizations.of(ctx)!.save, style: const TextStyle(fontWeight: FontWeight.bold)),
                 ),
               ],
-              ),
-            );
-          },
-        );
-      },
+              );
+            },
+          );
+        },
     );
   }
 
   void _showDeleteConfirmation(String userId, String userName, {bool isStudent = false}) {
     showDialog(
       context: context,
-      builder: (ctx) => Padding(
-        padding: EdgeInsets.only(bottom: kIsWeb ? 0 : MediaQuery.of(ctx).viewInsets.bottom),
-        child: AlertDialog(
+      builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
         title: Text(AppLocalizations.of(context)!.deleteUserTitle, style: const TextStyle(fontWeight: FontWeight.bold)),
@@ -1935,7 +1927,6 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
           ),
         ],
         ),
-      ),
     );
   }
 
@@ -1943,9 +1934,7 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
     showDialog(
       context: context,
       builder: (ctx) {
-        return Padding(
-          padding: EdgeInsets.only(bottom: kIsWeb ? 0 : MediaQuery.of(ctx).viewInsets.bottom),
-          child: AlertDialog(
+        return AlertDialog(
           backgroundColor: AppColors.background,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
@@ -2076,8 +2065,7 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
               child: const Text('Reset', style: TextStyle(fontWeight: FontWeight.bold)),
             ),
           ],
-          ),
-        );
+          );
       },
     );
   }

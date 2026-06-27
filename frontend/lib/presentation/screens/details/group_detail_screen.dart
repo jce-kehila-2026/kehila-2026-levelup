@@ -7,7 +7,6 @@
 library;
 
 import 'dart:math';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
@@ -72,7 +71,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.background,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        insetPadding: EdgeInsets.fromLTRB(24, 24, 24, kIsWeb ? 24 : MediaQuery.of(ctx).viewInsets.bottom + 24),
+        insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
         title: const Text('Rename Group', style: TextStyle(fontWeight: FontWeight.bold)),
         content: SingleChildScrollView(
           child: ConstrainedBox(
@@ -572,7 +571,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
           return AlertDialog(
             backgroundColor: AppColors.background,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-            insetPadding: EdgeInsets.fromLTRB(24, 24, 24, kIsWeb ? 24 : MediaQuery.of(context).viewInsets.bottom + 24),
+            insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
             title: Row(children: [
               Icon(Icons.group_add, color: AppColors.primary, size: 22),
               const SizedBox(width: 10),
@@ -653,13 +652,9 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
           ),
           actions: [
             TextButton(
-              onPressed: isCreating ? null : () {
-                for (final row in rows) { row.dispose(); }
-                batchUsernames.clear();
-                Navigator.pop(ctx);
-                },
-                child: Text(l10n.cancelButton, style: TextStyle(color: AppColors.mutedForeground)),
-              ),
+              onPressed: isCreating ? null : () => Navigator.pop(ctx),
+              child: Text(l10n.cancelButton, style: TextStyle(color: AppColors.mutedForeground)),
+            ),
               ElevatedButton(
                 onPressed: isCreating ? null : () async {
                   if (!validate()) {
@@ -694,8 +689,6 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                       );
                       createdUsers.add(user);
                     }
-                    for (final row in rows) { row.dispose(); }
-                    batchUsernames.clear();
                     if (ctx.mounted) Navigator.pop(ctx);
                     if (mounted && createdUsers.isNotEmpty) {
                       _showCredentialsDialog(createdUsers);
@@ -728,7 +721,14 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
           );
         },
       ),
-    );
+    ).then((_) {
+      Future.delayed(const Duration(milliseconds: 500), () {
+        for (final row in rows) {
+          row.dispose();
+        }
+      });
+      batchUsernames.clear();
+    });
   }
 
   Widget _buildStudentFormRow({
@@ -1177,12 +1177,22 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
   }
 
   Future<String> _resolveUniqueUsername(String fullName, Set<String> batchUsernames) async {
-    final parts = fullName.trim().toLowerCase().split(' ');
+    final cleanName = fullName.trim().toLowerCase();
+    if (cleanName.isEmpty) return '';
+
+    final parts = cleanName.split(RegExp(r'\s+'));
     final first = parts.first.replaceAll(RegExp(r'[^a-z]'), '');
     final last = parts.length > 1
         ? parts.last.replaceAll(RegExp(r'[^a-z]'), '')
         : '';
     if (first.isEmpty) return '';
+
+    if (last.isEmpty) {
+      if (!batchUsernames.contains(first) && !(await _controller.usernameExists(first))) return first;
+      int n = 1;
+      while (batchUsernames.contains('$first$n') || await _controller.usernameExists('$first$n')) { n++; }
+      return '$first$n';
+    }
 
     for (int i = 1; i <= last.length; i++) {
       final candidate = '$first.${last.substring(0, i)}';
@@ -1988,7 +1998,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                 margin: const EdgeInsets.only(right: 10),
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: m.isVisible ? AppColors.success : AppColors.mutedForeground,
+                  color: m.isVisible ? AppColors.primary : AppColors.mutedForeground,
                 ),
               ),
               Container(
@@ -2016,7 +2026,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                       m.isVisible ? 'Visible to students' : 'Hidden from students',
                       style: TextStyle(
                         fontSize: 11,
-                        color: m.isVisible ? AppColors.success : AppColors.mutedForeground,
+                        color: m.isVisible ? AppColors.primary : AppColors.mutedForeground,
                       ),
                     ),
                   ],

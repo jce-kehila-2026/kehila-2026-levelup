@@ -12,6 +12,7 @@ import '../../data/models/assignment_model.dart';
 import '../../di/service_locator.dart';
 import 'student_assignment_controller.dart';
 import 'student_notification_controller.dart';
+import '../../data/models/notification_model.dart';
 
 class StudentDashboardController extends ChangeNotifier {
   bool _isLoading = true;
@@ -322,6 +323,10 @@ class StudentDashboardController extends ChangeNotifier {
   int get pendingReviewCount => _assignmentController.pendingReviewCount;
   List<AssignmentModel> get activeAssignments => _assignmentController.pendingAssignments;
   List<GroupModel> get myGroups => _myGroups;
+  AppNotification? get latestNotification =>
+      _notificationController.notifications.isNotEmpty
+          ? _notificationController.notifications.first
+          : null;
 
   List<CurriculumItem> get lessons {
     if (_search.isEmpty) return _allLessons;

@@ -209,7 +209,7 @@ class _InstructorCurriculumScreenState extends State<InstructorCurriculumScreen>
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: m.isVisible
-                      ? AppColors.success
+                      ? AppColors.primary
                       : AppColors.mutedForeground,
                 ),
               ),
@@ -226,12 +226,12 @@ class _InstructorCurriculumScreenState extends State<InstructorCurriculumScreen>
                       ),
                     ),
                     const SizedBox(height: 4),
-                    Row(
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 4,
                       children: [
                         _chip(_groupName(m.groupId), Icons.group_outlined),
-                        const SizedBox(width: 6),
                         _chip(_levelName(m.levelId), Icons.bar_chart),
-                        const SizedBox(width: 6),
                         _chip(
                           _formatDate(m.createdAt),
                           Icons.calendar_today_outlined,
@@ -241,6 +241,27 @@ class _InstructorCurriculumScreenState extends State<InstructorCurriculumScreen>
                   ],
                 ),
               ),
+              // Visibility toggle button (like admin)
+              if (isOwner) ...[
+                GestureDetector(
+                  onTap: () => _toggleVisibility(m),
+                  child: Container(
+                    padding: const EdgeInsets.all(7),
+                    decoration: BoxDecoration(
+                      color: m.isVisible
+                          ? AppColors.primary
+                          : AppColors.primary.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(9),
+                    ),
+                    child: Icon(
+                      m.isVisible ? Icons.visibility : Icons.visibility_off,
+                      size: 16,
+                      color: m.isVisible ? Colors.white : AppColors.primary.withValues(alpha: 0.45),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+              ],
               if (isOwner)
                 PopupMenuButton<String>(
                   icon: const Icon(Icons.more_vert,
@@ -250,7 +271,6 @@ class _InstructorCurriculumScreenState extends State<InstructorCurriculumScreen>
                   onSelected: (val) {
                     if (val == 'edit') _editMaterial(m);
                     if (val == 'delete') _confirmDelete(m);
-                    if (val == 'toggle') _toggleVisibility(m);
                   },
                   itemBuilder: (_) => [
                     PopupMenuItem(
@@ -260,20 +280,6 @@ class _InstructorCurriculumScreenState extends State<InstructorCurriculumScreen>
                             size: 16, color: AppColors.primary),
                         const SizedBox(width: 8),
                         const Text('Edit'),
-                      ]),
-                    ),
-                    PopupMenuItem(
-                      value: 'toggle',
-                      child: Row(children: [
-                        Icon(
-                          m.isVisible
-                              ? Icons.visibility_off_outlined
-                              : Icons.visibility_outlined,
-                          size: 16,
-                          color: AppColors.mutedForeground,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(m.isVisible ? 'Hide from students' : 'Show to students'),
                       ]),
                     ),
                     PopupMenuItem(

@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:frontend/l10n/app_localizations.dart';
 import '../../../theme/app_theme.dart';
 import '../../widgets/audit_log_item.dart';
+import '../../widgets/custom_date_time_range_dialog.dart';
 import '../../../logic/controllers/audit_log_controller.dart';
 import '../../../di/service_locator.dart';
 
@@ -37,7 +38,26 @@ class _LogsScreenState extends State<LogsScreen> {
       case 'today': return l10n.filterTimeToday;
       case '7days': return l10n.filterTime7Days;
       case '30days': return l10n.filterTime30Days;
+      case 'custom': return 'Custom Range';
       default: return l10n.allTime;
+    }
+  }
+
+  Future<void> _showCustomRangeDialog(BuildContext context) async {
+    final result = await showCustomDateTimeRangeDialog(
+      context,
+      initialStartDate: _controller.customStartDate,
+      initialEndDate: _controller.customEndDate,
+      initialStartTime: _controller.customStartTime,
+      initialEndTime: _controller.customEndTime,
+    );
+    if (result != null) {
+      _controller.setCustomRange(
+        startDate: result.startDate,
+        endDate: result.endDate,
+        startTime: result.startTime,
+        endTime: result.endTime,
+      );
     }
   }
 
@@ -140,7 +160,13 @@ class _LogsScreenState extends State<LogsScreen> {
                       
                       // Time Filter
                       PopupMenuButton<String>(
-                        onSelected: (val) => _controller.setTimeFilter(val),
+                        onSelected: (val) async {
+                          if (val == 'custom') {
+                            await _showCustomRangeDialog(context);
+                          } else {
+                            _controller.setTimeFilter(val);
+                          }
+                        },
                         color: AppColors.white,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         child: Container(

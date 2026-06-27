@@ -38,6 +38,8 @@
   "roleAdministrator": "Administrator",
   "loggingOut": "Logging out...",
   "platformOverview": "PLATFORM OVERVIEW",
+  "platformStatistics": "PLATFORM STATISTICS",
+  "statisticsTitle": "Statistics",
   "statStudents": "Students",
   "statInstructors": "Instructors",
   "statLevels": "Levels",
@@ -128,7 +130,7 @@
   "titleAndDeadlineRequired": "Title and deadline are required",
   "atLeast2Options": "Please provide at least 2 options",
   "tabActive": "Active",
-  "tabPast": "Past",
+  "tabPast": "Overdue",
   "filterAll": "All",
   "filterOverdue": "Overdue",
   "filterCentral": "Central",
@@ -525,6 +527,7 @@
   },
   "typeAnswerHint": "Type your answer here...",
   "submissionLocked": "Submission locked.",
+  "deadlinePassedLocked": "Deadline passed! Submissions are locked.",
   "noAnswerProvided": "No answer provided.",
 
   "submissionsWaitingReview": "{count} submissions waiting for your review",
@@ -647,6 +650,18 @@
       "count": { "type": "String" }
     }
   },
+  "activeCount": "{count} active",
+  "@activeCount": {
+    "placeholders": {
+      "count": { "type": "String" }
+    }
+  },
+  "pastCount": "{count} overdue",
+  "@pastCount": {
+    "placeholders": {
+      "count": { "type": "String" }
+    }
+  },
   "editGroupName": "Edit Group Name",
   "groupName": "Group Name",
   "deleteGroupConfirmDesc": "Are you sure you want to delete this group?\nStudents count: {studentCount}\nInstructors count: {instructorCount}",
@@ -741,5 +756,14 @@
     "placeholders": {
       "level": { "type": "String" }
     }
-  }
+  },
+
+  "peopleAndUsers": "People & Users",
+  "curriculumContent": "Curriculum & Content",
+  "activeToday": "active today",
+  "statTotal": "Total",
+  "gradingOverview": "Grading Overview",
+  "totalSubmissions": "Total Submissions",
+  "gradedCorrectIndicator": "Correct",
+  "gradedIncorrectIndicator": "Incorrect"
 }

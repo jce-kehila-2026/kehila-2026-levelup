@@ -10,6 +10,7 @@ library;
 import 'package:flutter/material.dart';
 import '../../../theme/app_theme.dart';
 import '../../widgets/audit_log_item.dart';
+import '../../widgets/custom_date_time_range_dialog.dart';
 import '../../widgets/empty_state.dart';
 import '../../../logic/controllers/instructor_log_controller.dart';
 import '../../../di/service_locator.dart';
@@ -25,6 +26,34 @@ class InstructorLogsScreen extends StatefulWidget {
 class _InstructorLogsScreenState extends State<InstructorLogsScreen> {
   final InstructorLogController _controller = getIt<InstructorLogController>();
   String _categoryFilter = 'all';
+
+  String _localizedTimeLabel(String value, AppLocalizations l10n) {
+    switch (value) {
+      case 'today': return l10n.filterTimeToday;
+      case '7days': return l10n.filterTime7Days;
+      case '30days': return l10n.filterTime30Days;
+      case 'custom': return 'Custom Range';
+      default: return l10n.allTime;
+    }
+  }
+
+  Future<void> _showCustomRangeDialog(BuildContext context) async {
+    final result = await showCustomDateTimeRangeDialog(
+      context,
+      initialStartDate: _controller.customStartDate,
+      initialEndDate: _controller.customEndDate,
+      initialStartTime: _controller.customStartTime,
+      initialEndTime: _controller.customEndTime,
+    );
+    if (result != null) {
+      _controller.setCustomRange(
+        startDate: result.startDate,
+        endDate: result.endDate,
+        startTime: result.startTime,
+        endTime: result.endTime,
+      );
+    }
+  }
 
   static const Map<String, String> _categories = {
     'all': 'All',
@@ -84,6 +113,61 @@ class _InstructorLogsScreenState extends State<InstructorLogsScreen> {
                       Text(AppLocalizations.of(context)!.countTotalShown(allFiltered.length.toString(), logs.length.toString()), style: const TextStyle(fontSize: 13, color: AppColors.mutedForeground)),
                     ])),
                   ]),
+                ),
+
+                // Time filter dropdown
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+                  child: Row(
+                    children: [
+                      PopupMenuButton<String>(
+                        onSelected: (val) async {
+                          if (val == 'custom') {
+                            await _showCustomRangeDialog(context);
+                          } else {
+                            _controller.setTimeFilter(val);
+                          }
+                        },
+                        color: AppColors.white,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: AppColors.white,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: AppColors.border),
+                          ),
+                          child: Row(children: [
+                            Text(
+                              _localizedTimeLabel(
+                                  _controller.timeFilter,
+                                  AppLocalizations.of(context)!),
+                              style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.text),
+                            ),
+                            const SizedBox(width: 6),
+                            const Icon(Icons.arrow_drop_down,
+                                size: 18, color: AppColors.mutedForeground),
+                          ]),
+                        ),
+                        itemBuilder: (context) =>
+                            _controller.timeFilters.map((f) =>
+                              PopupMenuItem<String>(
+                                value: f['value'],
+                                child: Text(
+                                  _localizedTimeLabel(
+                                      f['value'] ?? '',
+                                      AppLocalizations.of(context)!),
+                                  style: const TextStyle(fontSize: 13),
+                                ),
+                              )).toList(),
+                      ),
+                    ],
+                  ),
                 ),
 
                 // Category filter chips

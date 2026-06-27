@@ -151,18 +151,29 @@ class AssignmentModel {
   /// Human-readable deadline label relative to now.
   String get deadlineText {
     final now = DateTime.now();
-    final diff = deadline.difference(now);
-    if (diff.isNegative) {
-      final days = diff.inDays.abs();
-      if (days == 0) return 'Overdue (today)';
-      return 'Overdue by ${days}d';
+    final todayMidnight = DateTime.utc(now.year, now.month, now.day);
+    final deadlineMidnight = DateTime.utc(deadline.year, deadline.month, deadline.day);
+    final diffDays = deadlineMidnight.difference(todayMidnight).inDays;
+
+    final timeStr = '${deadline.hour.toString().padLeft(2, '0')}:${deadline.minute.toString().padLeft(2, '0')}';
+
+    if (deadline.isBefore(now)) {
+      if (diffDays.abs() == 0) {
+        return 'Overdue (today)';
+      }
+      return 'Overdue by ${diffDays.abs()}d';
     }
-    if (diff.inDays == 0) {
-      return 'Due today, ${deadline.hour.toString().padLeft(2, '0')}:${deadline.minute.toString().padLeft(2, '0')}';
+
+    if (diffDays == 0) {
+      return 'Due today, $timeStr';
     }
-    if (diff.inDays == 1) return 'Tomorrow, ${deadline.hour.toString().padLeft(2, '0')}:${deadline.minute.toString().padLeft(2, '0')}';
-    if (diff.inDays < 7) return 'In ${diff.inDays} days';
-    return 'In ${(diff.inDays / 7).ceil()} weeks';
+    if (diffDays == 1) {
+      return 'Tomorrow, $timeStr';
+    }
+    if (diffDays < 7) {
+      return 'In $diffDays days';
+    }
+    return 'In ${(diffDays / 7).ceil()} weeks';
   }
 
   factory AssignmentModel.fromMap(Map<String, dynamic> map, String documentId) {

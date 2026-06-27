@@ -6,7 +6,6 @@
 /// ✅ Zero business logic — via GroupController
 library;
 
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -69,7 +68,7 @@ class _GroupsScreenState extends State<GroupsScreen> with SingleTickerProviderSt
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.background,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        insetPadding: EdgeInsets.fromLTRB(24, 24, 24, kIsWeb ? 24 : MediaQuery.of(ctx).viewInsets.bottom + 24),
+        insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
         title: const Row(
           children: [
             Icon(Icons.group_add, color: AppColors.primary, size: 22),
@@ -599,7 +598,7 @@ class _GroupsScreenState extends State<GroupsScreen> with SingleTickerProviderSt
                                   )
                                 : ListView.builder(
                                     padding: const EdgeInsetsDirectional.only(
-                                        start: 20, end: 20, bottom: 100),
+                                        start: 20, top: 16, end: 20, bottom: 100),
                                     itemCount: groups.length,
                                     itemBuilder: (context, index) {
                                       final group = groups[index];
@@ -686,7 +685,7 @@ class _GroupsScreenState extends State<GroupsScreen> with SingleTickerProviderSt
                                   )
                                 : ListView.builder(
                                     padding: const EdgeInsetsDirectional.only(
-                                        start: 20, end: 20, bottom: 100),
+                                        start: 20, top: 16, end: 20, bottom: 100),
                                     itemCount: archivedGroups.length,
                                     itemBuilder: (context, index) {
                                       final group = archivedGroups[index];
@@ -708,7 +707,7 @@ class _GroupsScreenState extends State<GroupsScreen> with SingleTickerProviderSt
                                     subtitle: 'All students are in groups',
                                   )
                                 : ListView.builder(
-                                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                                    padding: const EdgeInsetsDirectional.only(start: 20, top: 16, end: 20, bottom: 100),
                                     itemCount: unassignedStudents.length,
                                     itemBuilder: (context, index) {
                                       final student = unassignedStudents[index];
@@ -736,7 +735,7 @@ class _GroupsScreenState extends State<GroupsScreen> with SingleTickerProviderSt
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.background,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        insetPadding: EdgeInsets.fromLTRB(24, 24, 24, kIsWeb ? 24 : MediaQuery.of(ctx).viewInsets.bottom + 24),
+        insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
         title: const Text('Rename Group', style: TextStyle(fontWeight: FontWeight.bold)),
         content: SingleChildScrollView(
           child: ConstrainedBox(
