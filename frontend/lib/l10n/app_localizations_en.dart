@@ -622,6 +622,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get deleteGroup => 'Delete Group';
 
   @override
+  String get totalMembersLabel => 'Total Members';
+
+  @override
   String deleteGroupConfirm(String group) {
     return 'Delete $group?';
   }
@@ -1340,4 +1343,73 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get gradedIncorrectIndicator => 'Incorrect';
+
+  @override
+  String get adminDashboard => 'Admin Dashboard';
+
+  @override
+  String get overviewDashboard => 'Overview Dashboard';
+
+  @override
+  String get adminUserName => 'Admin User';
+
+  @override
+  String get adminAuthorityLevel => 'Level 1 Authority';
+
+  @override
+  String get searchHint => 'Search...';
+
+  @override
+  String get notificationsTooltip => 'Notifications';
+
+  @override
+  String get settingsTooltip => 'Settings';
+
+  @override
+  String get logoutButton => 'Logout';
+
+  @override
+  String get languageButton => 'Language';
+
+  @override
+  String get comingSoon => 'Coming soon';
+
+  @override
+  String get needHelp => 'Need Help?';
+
+  @override
+  String get viewDocumentation => 'View Documentation';
+
+  @override
+  String get superAdmin => 'Super Admin';
+
+  @override
+  String get statusOnline => 'Online';
+
+  @override
+  String get globalSearchHint => 'Search students, instructors, groups…';
+
+  @override
+  String get ctrlKShortcut => 'Ctrl + K';
+
+  @override
+  String get darkModeComingSoon => 'Dark mode coming soon';
+
+  @override
+  String get fromLastMonth => 'from last month';
+
+  @override
+  String get badgeAssignment => 'Assignment';
+
+  @override
+  String get badgeGroup => 'Group';
+
+  @override
+  String get badgeLesson => 'Lesson';
+
+  @override
+  String get badgeUser => 'User';
+
+  @override
+  String get badgeSubmission => 'Submission';
 }

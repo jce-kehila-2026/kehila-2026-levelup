@@ -49,6 +49,8 @@ flutter:
   assets:
     - .env
     - assets/images/Shah2Range.jpeg
+    - assets/images/levelup_mark.png
+    - assets/images/levelup_logo_full.png
     - assets/fonts/
     
   fonts:

@@ -295,6 +295,7 @@
   "searchByNameEmail": "Search by name or email...",
   "groupDetails": "Group Details",
   "deleteGroup": "Delete Group",
+  "totalMembersLabel": "Total Members",
   "deleteGroupConfirm": "Delete {group}?",
   "@deleteGroupConfirm": {
     "placeholders": {
@@ -765,5 +766,30 @@
   "gradingOverview": "Grading Overview",
   "totalSubmissions": "Total Submissions",
   "gradedCorrectIndicator": "Correct",
-  "gradedIncorrectIndicator": "Incorrect"
+  "gradedIncorrectIndicator": "Incorrect",
+
+  "adminDashboard": "Admin Dashboard",
+  "overviewDashboard": "Overview Dashboard",
+  "adminUserName": "Admin User",
+  "adminAuthorityLevel": "Level 1 Authority",
+  "searchHint": "Search...",
+  "notificationsTooltip": "Notifications",
+  "settingsTooltip": "Settings",
+  "logoutButton": "Logout",
+  "languageButton": "Language",
+
+  "comingSoon": "Coming soon",
+  "needHelp": "Need Help?",
+  "viewDocumentation": "View Documentation",
+  "superAdmin": "Super Admin",
+  "statusOnline": "Online",
+  "globalSearchHint": "Search students, instructors, groups…",
+  "ctrlKShortcut": "Ctrl + K",
+  "darkModeComingSoon": "Dark mode coming soon",
+  "fromLastMonth": "from last month",
+  "badgeAssignment": "Assignment",
+  "badgeGroup": "Group",
+  "badgeLesson": "Lesson",
+  "badgeUser": "User",
+  "badgeSubmission": "Submission"
 }

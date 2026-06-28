@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 import '../../../theme/app_theme.dart';
 import '../../widgets/audit_log_item.dart';
+import '../../widgets/recent_activity_timeline.dart';
 import '../../../logic/controllers/admin_dashboard_controller.dart';
 import '../../../di/service_locator.dart';
 import 'package:frontend/l10n/app_localizations.dart';
@@ -20,6 +21,22 @@ const _kShadow = BoxShadow(
   spreadRadius: 0,
   offset: Offset(0, 2),
 );
+
+/// Stat-card trend pills have no real data source yet (no historical
+/// snapshots are stored), so they're gated behind this flag and only ever
+/// turned on locally for screenshots.
+/// TODO: real trends require storing periodic count snapshots in Firestore
+/// (e.g. a daily 'stats_history' doc) and computing deltas.
+const bool kShowDemoTrends = false;
+
+const Map<String, int> _demoTrends = {
+  'students': 12,
+  'instructors': 8,
+  'groups': 5,
+  'levels': 3,
+  'lessons': 15,
+  'totalAssignments': 9,
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -69,7 +86,6 @@ class AdminDashboard extends StatelessWidget {
       ),
       child: Stack(
         children: [
-          // Decorative circles — same depth treatment as student/instructor banners
           PositionedDirectional(
             end: -20,
             top: -20,
@@ -94,13 +110,11 @@ class AdminDashboard extends StatelessWidget {
               ),
             ),
           ),
-          // Content
           Padding(
             padding: const EdgeInsets.all(28),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                // Welcome text
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -129,7 +143,6 @@ class AdminDashboard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 16),
-                // Date + active-today
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
@@ -204,24 +217,21 @@ class AdminDashboard extends StatelessWidget {
     );
   }
 
-  // ── Platform Overview card ──────────────────────────────────────────────────
-  //
-  // Two modes:
-  //  • Per-stat tap targets (each cell navigates somewhere different) — pass
-  //    items with their own onTap and leave onTapAll null.
-  //  • Single button (whole card navigates to one place) — pass onTapAll; the
-  //    individual cells are not tappable and a chevron hints it's one button.
+  // ── Stat cards (6, responsive grid) ─────────────────────────────────────────
 
-  Widget _buildConsolidatedCard(
-    String title,
-    IconData headerIcon,
-    List<({String label, String value, VoidCallback? onTap})> items, {
-    VoidCallback? onTapAll,
+  Widget _buildStatCard(
+    AppLocalizations l10n, {
+    required IconData icon,
+    required String value,
+    required String label,
+    required bool gold,
+    required int demoTrendPercent,
+    VoidCallback? onTap,
   }) {
-    final bool singleButton = onTapAll != null;
+    final iconColor = gold ? AppColors.accent : AppColors.primary;
+    final iconBg = gold ? AppColors.accent.withValues(alpha: 0.15) : AppColors.secondary;
 
     return Container(
-      width: double.infinity,
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: AppColors.white,
@@ -232,78 +242,67 @@ class AdminDashboard extends StatelessWidget {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: onTapAll,
+          onTap: onTap,
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 10, 20, 10),
+            padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     Container(
                       width: 40,
                       height: 40,
-                      decoration: BoxDecoration(
-                        color: AppColors.accent,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Icon(headerIcon, size: 20, color: Colors.white),
+                      decoration: BoxDecoration(color: iconBg, borderRadius: BorderRadius.circular(10)),
+                      child: Icon(icon, size: 20, color: iconColor),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
-                      child: Text(
-                        title,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.primaryDark,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(value, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: AppColors.text)),
+                          Text(
+                            label,
+                            style: const TextStyle(fontSize: 12, color: AppColors.mutedForeground),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
                       ),
                     ),
-                    if (singleButton)
-                      const Icon(
-                        Icons.chevron_right,
-                        size: 18,
-                        color: AppColors.mutedForeground,
-                      ),
                   ],
                 ),
-                const SizedBox(height: 14),
-                Row(
-                  children: [
-                    for (int i = 0; i < items.length; i++) ...[
-                      if (i > 0)
-                        Container(
-                          width: 1,
-                          height: 44,
-                          color: AppColors.border,
-                          margin:
-                              const EdgeInsets.symmetric(horizontal: 4),
+                if (kShowDemoTrends) ...[
+                  const SizedBox(height: 10),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: AppColors.success.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(6),
                         ),
-                      Expanded(
-                        child: singleButton
-                            ? Padding(
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 6),
-                                child: _buildStatColumn(
-                                    items[i].value, items[i].label),
-                              )
-                            : InkWell(
-                                onTap: items[i].onTap,
-                                borderRadius: BorderRadius.circular(8),
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                      vertical: 6),
-                                  child: _buildStatColumn(
-                                      items[i].value, items[i].label),
-                                ),
-                              ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.arrow_upward, size: 10, color: AppColors.success),
+                            const SizedBox(width: 2),
+                            Text(
+                              '+$demoTrendPercent%',
+                              style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.success),
+                            ),
+                          ],
+                        ),
                       ),
+                      const SizedBox(width: 6),
+                      Text(l10n.fromLastMonth, style: const TextStyle(fontSize: 10, color: AppColors.mutedForeground)),
                     ],
-                  ],
-                ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -312,29 +311,51 @@ class AdminDashboard extends StatelessWidget {
     );
   }
 
-  Widget _buildStatColumn(String value, String label) {
-    return Column(
-      children: [
-        Text(
-          value,
-          style: const TextStyle(
-            fontSize: 28,
-            fontWeight: FontWeight.w700,
-            color: AppColors.text,
-          ),
+  Widget _buildStatsGrid(BuildContext context, AppLocalizations l10n, Map<String, String> stats) {
+    final cardsData = <({IconData icon, String value, String label, bool gold, VoidCallback? onTap})>[
+      (icon: Icons.people, value: stats['students']!, label: l10n.statStudents, gold: false, onTap: onNavigateToUsers),
+      (icon: Icons.school, value: stats['instructors']!, label: l10n.statInstructors, gold: true, onTap: onNavigateToUsers),
+      (icon: Icons.groups, value: stats['groups']!, label: l10n.statGroups, gold: false, onTap: onNavigateToGroups),
+      (icon: Icons.menu_book, value: stats['levels']!, label: l10n.statLevels, gold: true, onTap: onNavigateToCurriculum),
+      (icon: Icons.play_circle_fill, value: stats['lessons']!, label: l10n.statLessons, gold: false, onTap: onNavigateToCurriculum),
+      (icon: Icons.assignment, value: stats['totalAssignments']!, label: l10n.assignmentsTitle, gold: true, onTap: () => context.go('/admin?tab=6')),
+    ];
+    const demoTrendKeys = ['students', 'instructors', 'groups', 'levels', 'lessons', 'totalAssignments'];
+
+    final cards = [
+      for (int i = 0; i < cardsData.length; i++)
+        _buildStatCard(
+          l10n,
+          icon: cardsData[i].icon,
+          value: cardsData[i].value,
+          label: cardsData[i].label,
+          gold: cardsData[i].gold,
+          onTap: cardsData[i].onTap,
+          demoTrendPercent: _demoTrends[demoTrendKeys[i]] ?? 0,
         ),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 11,
-            color: AppColors.mutedForeground,
-          ),
-          textAlign: TextAlign.center,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-      ],
+    ];
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final columns = constraints.maxWidth >= 1000 ? 3 : (constraints.maxWidth >= 700 ? 2 : 1);
+        final rows = <Widget>[];
+        for (int i = 0; i < cards.length; i += columns) {
+          final rowCards = cards.sublist(i, (i + columns).clamp(0, cards.length));
+          rows.add(
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                for (int j = 0; j < rowCards.length; j++) ...[
+                  if (j > 0) const SizedBox(width: 14),
+                  Expanded(child: rowCards[j]),
+                ],
+              ],
+            ),
+          );
+          if (i + columns < cards.length) rows.add(const SizedBox(height: 14));
+        }
+        return Column(children: rows);
+      },
     );
   }
 
@@ -369,58 +390,19 @@ class AdminDashboard extends StatelessWidget {
                   // ── Hero banner ────────────────────────────────────────────
                   Padding(
                     padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-                    child: _buildHeroBanner(
-                        context, l10n, controller.activeToday),
+                    child: _buildHeroBanner(context, l10n, controller.activeToday),
                   ),
                   const SizedBox(height: 28),
 
+                  // ── Stat cards ─────────────────────────────────────────────
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: _buildSectionHeader(
-                      l10n.myOverview,
-                    ),
+                    child: _buildSectionHeader(l10n.myOverview),
                   ),
                   const SizedBox(height: 16),
-
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: Column(
-                      children: [
-                        // Curriculum & Content — one button to curriculum.
-                        _buildConsolidatedCard(
-                          l10n.curriculumContent,
-                          Icons.layers_rounded,
-                          [
-                            (label: l10n.statLevels,      value: stats['levels']!,      onTap: null),
-                            (label: l10n.statLessons,     value: stats['lessons']!,     onTap: null),
-                          ],
-                          onTapAll: onNavigateToCurriculum,
-                        ),
-                        const SizedBox(height: 14),
-                        // People & Users — three separate destinations.
-                        _buildConsolidatedCard(
-                          l10n.peopleAndUsers,
-                          Icons.people_rounded,
-                          [
-                            (label: l10n.statStudents,    value: stats['students']!,    onTap: onNavigateToUsers),
-                            (label: l10n.statInstructors, value: stats['instructors']!, onTap: onNavigateToUsers),
-                            (label: l10n.statGroups,      value: stats['groups']!,      onTap: onNavigateToGroups),
-                          ],
-                        ),
-                        const SizedBox(height: 14),
-                        // Assignments — one button to the assignments page.
-                        _buildConsolidatedCard(
-                          l10n.assignmentsTitle,
-                          Icons.assignment_rounded,
-                          [
-                            (label: l10n.statTotal,         value: stats['totalAssignments']!, onTap: null),
-                            (label: l10n.statusActive,      value: stats['activeTasks']!,      onTap: null),
-                            (label: l10n.statPendingReview, value: stats['pendingReview']!,    onTap: null),
-                          ],
-                          onTapAll: () => context.go('/admin?tab=6'),
-                        ),
-                      ],
-                    ),
+                    child: _buildStatsGrid(context, l10n, stats),
                   ),
                   const SizedBox(height: 32),
 
@@ -476,10 +458,18 @@ class AdminDashboard extends StatelessWidget {
                               ),
                             ),
                           )
-                        : Column(
-                            children: recentLogs
-                                .map((log) => AuditLogItem(log: log))
-                                .toList(),
+                        : LayoutBuilder(
+                            builder: (context, constraints) {
+                              if (constraints.maxWidth > 700) {
+                                return Padding(
+                                  padding: const EdgeInsets.all(20),
+                                  child: RecentActivityTimeline(logs: recentLogs),
+                                );
+                              }
+                              return Column(
+                                children: recentLogs.map((log) => AuditLogItem(log: log)).toList(),
+                              );
+                            },
                           ),
                   ),
                 ],
