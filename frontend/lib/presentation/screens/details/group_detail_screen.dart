@@ -1423,7 +1423,8 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                         BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 12, offset: const Offset(0, 4)),
                       ],
                     ),
-                    child: Row(
+                    child: IntrinsicHeight(
+                      child: Row(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         Container(width: 5, color: AppColors.primary),
@@ -1538,6 +1539,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                           ),
                         ),
                       ],
+                    ),
                     ),
                   ),
 
@@ -1783,6 +1785,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                             children: [
                               Expanded(
                                 child: Column(
+                                  mainAxisSize: MainAxisSize.min,
                                   children: [
                                     levelsCard,
                                     const SizedBox(height: 16),
@@ -1793,6 +1796,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                               const SizedBox(width: 16),
                               Expanded(
                                 child: Column(
+                                  mainAxisSize: MainAxisSize.min,
                                   children: [
                                     if (instructorsCard != null) ...[
                                       instructorsCard,
