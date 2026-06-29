@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../theme/app_theme.dart';
 import 'package:frontend/l10n/app_localizations.dart';
 import '../screens/secure_pdf_viewer_screen.dart';
+import 'quill_image_widget.dart';
 
 class _PdfPlaceholderEmbedBuilder extends quill.EmbedBuilder {
   final List<Map<String, String>> attachments;
@@ -151,7 +152,7 @@ class CustomImageEmbedBuilder extends quill.EmbedBuilder {
   @override
   Widget build(BuildContext context, quill.EmbedContext embedContext) {
     final imageUrl = embedContext.node.value.data as String;
-    final bool isAsset = imageUrl.startsWith('assets/');
+    final styleAttr = embedContext.node.style.attributes['style']?.value as String?;
 
     return MouseRegion(
       cursor: SystemMouseCursors.basic,
@@ -160,39 +161,11 @@ class CustomImageEmbedBuilder extends quill.EmbedBuilder {
         onTap: () {},
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 16.0),
-          child: Center(
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: isAsset
-                  ? Image.asset(
-                      imageUrl,
-                      fit: BoxFit.contain,
-                      errorBuilder: (context, error, stackTrace) => const Icon(
-                        Icons.broken_image,
-                        size: 50,
-                        color: Colors.grey,
-                      ),
-                    )
-                  : Image.network(
-                      imageUrl,
-                      fit: BoxFit.contain,
-                      loadingBuilder: (context, child, loadingProgress) {
-                        if (loadingProgress == null) return child;
-                        return Center(
-                          child: CircularProgressIndicator(
-                            value: loadingProgress.expectedTotalBytes != null
-                                ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
-                                : null,
-                          ),
-                        );
-                      },
-                      errorBuilder: (context, error, stackTrace) => const Icon(
-                        Icons.broken_image,
-                        size: 50,
-                        color: Colors.grey,
-                      ),
-                    ),
-            ),
+          child: QuillImageWidget(
+            imageUrl: imageUrl,
+            styleAttr: styleAttr,
+            borderRadius: 12.0,
+            alignment: Alignment.center,
           ),
         ),
       ),

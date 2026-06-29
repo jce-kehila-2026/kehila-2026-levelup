@@ -15,6 +15,7 @@ import '../../../logic/controllers/instructor_assignment_controller.dart';
 import '../../../logic/controllers/instructor_group_controller.dart';
 import '../../../logic/controllers/auth_controller.dart';
 import '../../../di/service_locator.dart';
+import '../../widgets/quill_image_widget.dart';
 
 class _ImageEmbedBuilder extends quill.EmbedBuilder {
   final quill.QuillController controller;
@@ -29,19 +30,49 @@ class _ImageEmbedBuilder extends quill.EmbedBuilder {
   @override
   Widget build(BuildContext context, quill.EmbedContext embedContext) {
     final src = embedContext.node.value.data as String;
-    final img = src.startsWith('data:')
-        ? Image.memory(
-            base64Decode(src.split(',').last),
-            fit: BoxFit.contain,
-            width: double.infinity,
-            errorBuilder: (_, _, _) => const Icon(Icons.broken_image),
-          )
-        : Image.network(
-            src,
-            fit: BoxFit.contain,
-            width: double.infinity,
-            errorBuilder: (_, _, _) => const Icon(Icons.broken_image),
+    final styleAttr = embedContext.node.style.attributes['style']?.value as String?;
+
+    // Get current width percentage
+    double currentVal = 100.0;
+    if (styleAttr != null) {
+      final match = RegExp(r'width:\s*([0-9.]+)%').firstMatch(styleAttr);
+      if (match != null) {
+        currentVal = double.tryParse(match.group(1) ?? '') ?? 100.0;
+      }
+    }
+    // Ensure currentVal is clamped between 10.0 and 100.0
+    currentVal = currentVal.clamp(10.0, 100.0);
+
+    // Get current alignment
+    String currentAlign = 'left';
+    if (styleAttr != null) {
+      final match = RegExp(r'alignment:\s*(left|center|right)').firstMatch(styleAttr);
+      if (match != null) {
+        currentAlign = match.group(1) ?? 'left';
+      }
+    }
+
+    Widget buildAlignButton(String value, IconData icon) {
+      final isActive = currentAlign == value;
+      return IconButton(
+        icon: Icon(
+          icon,
+          size: 16,
+          color: isActive ? AppColors.primary : AppColors.mutedForeground,
+        ),
+        onPressed: () {
+          final offset = embedContext.node.documentOffset;
+          controller.formatText(
+            offset,
+            1,
+            quill.Attribute.fromKeyValue('style', 'width: ${currentVal.round()}%; alignment: $value;'),
           );
+        },
+        constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+        padding: EdgeInsets.zero,
+        tooltip: 'Align ${value[0].toUpperCase()}${value.substring(1)}',
+      );
+    }
 
     return MouseRegion(
       cursor: SystemMouseCursors.basic,
@@ -54,12 +85,12 @@ class _ImageEmbedBuilder extends quill.EmbedBuilder {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxHeight: 300),
-                  child: img,
-                ),
+              QuillImageWidget(
+                imageUrl: src,
+                styleAttr: styleAttr,
+                maxHeight: 300,
+                borderRadius: 8.0,
+                alignment: Alignment.centerLeft,
               ),
               Container(
                 decoration: const BoxDecoration(
@@ -73,10 +104,71 @@ class _ImageEmbedBuilder extends quill.EmbedBuilder {
                 child: Row(
                   children: [
                     const Icon(Icons.image_outlined, size: 14, color: AppColors.mutedForeground),
-                    const SizedBox(width: 6),
-                    const Expanded(
-                      child: Text('Image', style: TextStyle(fontSize: 12, color: AppColors.mutedForeground)),
+                    const SizedBox(width: 4),
+                    const Text('Image', style: TextStyle(fontSize: 12, color: AppColors.mutedForeground)),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'Resize:',
+                      style: TextStyle(fontSize: 11, color: AppColors.mutedForeground, fontWeight: FontWeight.bold),
                     ),
+                    Expanded(
+                      child: StatefulBuilder(
+                        builder: (context, setState) {
+                          return Row(
+                            children: [
+                              Expanded(
+                                child: SliderTheme(
+                                  data: SliderTheme.of(context).copyWith(
+                                    trackHeight: 2.0,
+                                    thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6.0),
+                                    overlayShape: const RoundSliderOverlayShape(overlayRadius: 14.0),
+                                    activeTrackColor: AppColors.primary,
+                                    inactiveTrackColor: AppColors.border,
+                                    thumbColor: AppColors.primary,
+                                  ),
+                                  child: Slider(
+                                    value: currentVal,
+                                    min: 10.0,
+                                    max: 100.0,
+                                    divisions: 18, // steps of 5% from 10% to 100%
+                                    label: '${currentVal.round()}%',
+                                    onChanged: (val) {
+                                      setState(() {
+                                        currentVal = val;
+                                      });
+                                      final offset = embedContext.node.documentOffset;
+                                      controller.formatText(
+                                        offset,
+                                        1,
+                                        quill.Attribute.fromKeyValue('style', 'width: ${val.round()}%; alignment: $currentAlign;'),
+                                      );
+                                    },
+                                  ),
+                                ),
+                              ),
+                              SizedBox(
+                                width: 36,
+                                child: Text(
+                                  '${currentVal.round()}%',
+                                  style: const TextStyle(fontSize: 11, color: AppColors.mutedForeground, fontWeight: FontWeight.w600),
+                                  textAlign: TextAlign.end,
+                                ),
+                              ),
+                            ],
+                          );
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        buildAlignButton('left', Icons.format_align_left_outlined),
+                        buildAlignButton('center', Icons.format_align_center_outlined),
+                        buildAlignButton('right', Icons.format_align_right_outlined),
+                      ],
+                    ),
+                    const SizedBox(width: 4),
                     IconButton(
                       icon: const Icon(Icons.delete_outline, size: 16, color: AppColors.error),
                       onPressed: () {
