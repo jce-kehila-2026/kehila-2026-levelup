@@ -77,7 +77,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
         final l10n = AppLocalizations.of(context)!;
 
         return Scaffold(
-          backgroundColor: AppColors.background,
+          backgroundColor: Colors.transparent,
           body: SafeArea(
             child: SingleChildScrollView(
               child: Column(

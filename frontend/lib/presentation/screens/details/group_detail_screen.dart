@@ -1346,7 +1346,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
         final totalStudents = _controller.allGroupStudents.length;
 
         return Scaffold(
-          backgroundColor: AppColors.background,
+          backgroundColor: Colors.transparent,
           appBar: AppBar(
             backgroundColor: AppColors.white,
             elevation: 0,

@@ -452,7 +452,7 @@ class _CurriculumScreenState extends State<CurriculumScreen> {
         final levels = _controller.levels;
 
         return Scaffold(
-          backgroundColor: AppColors.background,
+          backgroundColor: Colors.transparent,
           body: SafeArea(
             child: Column(
               children: [

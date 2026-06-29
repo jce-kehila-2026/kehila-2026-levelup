@@ -655,7 +655,7 @@ class _MaterialEditorScreenState extends State<MaterialEditorScreen> {
         : widget.item != null;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         backgroundColor: AppColors.white,
         elevation: 0,

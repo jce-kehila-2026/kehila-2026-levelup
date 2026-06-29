@@ -135,22 +135,29 @@ class DashboardStatGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final rows = <Widget>[];
-    for (int i = 0; i < cards.length; i += perRow) {
-      final rowCards = cards.sublist(i, (i + perRow).clamp(0, cards.length));
-      rows.add(
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            for (int j = 0; j < rowCards.length; j++) ...[
-              if (j > 0) SizedBox(width: gap),
-              Expanded(child: rowCards[j]),
-            ],
-          ],
-        ),
-      );
-      if (i + perRow < cards.length) rows.add(SizedBox(height: gap));
-    }
-    return Column(children: rows);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final effectivePerRow =
+            constraints.maxWidth < 500 ? perRow.clamp(1, 2) : perRow;
+        final rows = <Widget>[];
+        for (int i = 0; i < cards.length; i += effectivePerRow) {
+          final rowCards =
+              cards.sublist(i, (i + effectivePerRow).clamp(0, cards.length));
+          rows.add(
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                for (int j = 0; j < rowCards.length; j++) ...[
+                  if (j > 0) SizedBox(width: gap),
+                  Expanded(child: rowCards[j]),
+                ],
+              ],
+            ),
+          );
+          if (i + effectivePerRow < cards.length) rows.add(SizedBox(height: gap));
+        }
+        return Column(children: rows);
+      },
+    );
   }
 }

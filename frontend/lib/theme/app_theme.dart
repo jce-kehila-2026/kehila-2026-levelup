@@ -55,7 +55,7 @@ class AppTheme {
         error: AppColors.error,
         onError: AppColors.destructiveForeground,
       ),
-      scaffoldBackgroundColor: AppColors.background,
+      scaffoldBackgroundColor: Colors.transparent,
       textTheme: GoogleFonts.ibmPlexSansTextTheme().apply(
         bodyColor: AppColors.text,
         displayColor: AppColors.text,

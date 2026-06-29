@@ -146,7 +146,7 @@ class _InstructorCurriculumScreenState extends State<InstructorCurriculumScreen>
         final materials = _materialController.materials;
 
         return Scaffold(
-          backgroundColor: AppColors.background,
+          backgroundColor: Colors.transparent,
           floatingActionButton: FloatingActionButton(
             backgroundColor: AppColors.primary,
             foregroundColor: AppColors.white,
@@ -664,7 +664,7 @@ class _InstructorCurriculumScreenState extends State<InstructorCurriculumScreen>
     final l10n = AppLocalizations.of(context)!;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Colors.transparent,
       body: SafeArea(
         child: Column(
           children: [

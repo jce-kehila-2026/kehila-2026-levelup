@@ -375,7 +375,7 @@ class _AssignmentEditorScreenState extends State<AssignmentEditorScreen> {
     final isEdit = widget.item != null;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         backgroundColor: AppColors.white,
         elevation: 0,

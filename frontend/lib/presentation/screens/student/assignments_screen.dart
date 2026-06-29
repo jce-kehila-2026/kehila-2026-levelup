@@ -39,7 +39,7 @@ class _StudentAssignmentsScreenState extends State<StudentAssignmentsScreen> {
         final submitted = _controller.submittedAssignments;
 
         return Scaffold(
-          backgroundColor: AppColors.background,
+          backgroundColor: Colors.transparent,
           body: SafeArea(
             child: Column(
               children: [

@@ -63,13 +63,13 @@ class _AdminAssignmentsScreenState extends State<AdminAssignmentsScreen> {
   Widget build(BuildContext context) {
     if (_isLoading) {
       return const Scaffold(
-        backgroundColor: AppColors.background,
+        backgroundColor: Colors.transparent,
         body: Center(child: CircularProgressIndicator()),
       );
     }
     if (_errorMessage.isNotEmpty) {
       return Scaffold(
-        backgroundColor: AppColors.background,
+        backgroundColor: Colors.transparent,
         body: Center(child: Text(_errorMessage, style: const TextStyle(color: AppColors.error))),
       );
     }
@@ -86,7 +86,7 @@ class _AdminAssignmentsScreenState extends State<AdminAssignmentsScreen> {
           }).toList();
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Colors.transparent,
       body: SafeArea(
         child: Column(
           children: [

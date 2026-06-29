@@ -75,7 +75,7 @@ class _LessonDetailScreenState extends State<LessonDetailScreen> {
     required List<Map<String, String>> attachments,
   }) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         backgroundColor: AppColors.white,
         elevation: 0,

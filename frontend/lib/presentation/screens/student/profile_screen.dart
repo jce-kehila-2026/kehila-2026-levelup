@@ -60,7 +60,7 @@ class StudentProfileScreen extends StatelessWidget {
         }
         if (controller.error != null) {
           return Scaffold(
-            backgroundColor: AppColors.background,
+            backgroundColor: Colors.transparent,
             body: Center(
               child: Padding(
                 padding: const EdgeInsets.all(24.0),
@@ -90,7 +90,7 @@ class StudentProfileScreen extends StatelessWidget {
         final initials = raw.length >= 2 ? raw.substring(0, 2) : raw;
 
         return Scaffold(
-          backgroundColor: AppColors.background,
+          backgroundColor: Colors.transparent,
           body: SafeArea(
             child: SingleChildScrollView(
               padding: const EdgeInsets.only(bottom: 100),
