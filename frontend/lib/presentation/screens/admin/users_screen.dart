@@ -2195,7 +2195,7 @@ class _UsersScreenState extends State<UsersScreen> with SingleTickerProviderStat
         }
 
         return Scaffold(
-          backgroundColor: AppColors.background,
+          backgroundColor: Colors.transparent,
           body: SafeArea(
             child: Column(
               children: [

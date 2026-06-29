@@ -190,7 +190,7 @@ class _InstructorGroupsScreenState extends State<InstructorGroupsScreen> {
         final groups = _controller.myGroups;
 
         return Scaffold(
-          backgroundColor: AppColors.background,
+          backgroundColor: Colors.transparent,
           floatingActionButton: FloatingActionButton(
             heroTag: 'fab_instructor_groups',
             onPressed: _showAddGroupDialog,

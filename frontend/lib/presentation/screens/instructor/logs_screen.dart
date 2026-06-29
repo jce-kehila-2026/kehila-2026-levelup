@@ -95,7 +95,7 @@ class _InstructorLogsScreenState extends State<InstructorLogsScreen> {
         final logs = _applyCategory(allFiltered);
 
         return Scaffold(
-          backgroundColor: AppColors.background,
+          backgroundColor: Colors.transparent,
           body: SafeArea(
             child: Column(
               children: [

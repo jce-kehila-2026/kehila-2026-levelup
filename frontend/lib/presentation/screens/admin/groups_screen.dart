@@ -495,7 +495,7 @@ class _GroupsScreenState extends State<GroupsScreen> with SingleTickerProviderSt
         final unassignedStudents = _controller.unassignedStudents;
 
         return Scaffold(
-          backgroundColor: AppColors.background,
+          backgroundColor: Colors.transparent,
           floatingActionButton: _tabController.index == 0
               ? FloatingActionButton(
                   heroTag: 'fab_admin_groups',

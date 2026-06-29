@@ -350,7 +350,7 @@ class _InstructorAssignmentsScreenState extends State<InstructorAssignmentsScree
         final currentFilter = _controller.filter;
 
         return Scaffold(
-          backgroundColor: AppColors.background,
+          backgroundColor: Colors.transparent,
           floatingActionButton: FloatingActionButton(
             heroTag: 'fab_instructor_assignments',
             onPressed: _showCreateAssignmentFlow,

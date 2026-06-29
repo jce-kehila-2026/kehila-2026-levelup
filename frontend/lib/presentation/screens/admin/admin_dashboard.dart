@@ -10,7 +10,6 @@ import 'package:frontend/l10n/app_localizations.dart';
 
 // ── Design tokens — anchored to the platform palette (AppColors) ─────────────
 
-const _kBg            = AppColors.background;
 const _kPurplePrimary = AppColors.primary;
 const _kTextMuted     = AppColors.mutedForeground;
 
@@ -258,7 +257,7 @@ class AdminDashboard extends StatelessWidget {
       builder: (context, _) {
         if (controller.isLoading) {
           return const Scaffold(
-            backgroundColor: _kBg,
+            backgroundColor: Colors.transparent,
             body: Center(child: CircularProgressIndicator()),
           );
         }
@@ -266,7 +265,7 @@ class AdminDashboard extends StatelessWidget {
         final recentLogs = controller.recentLogs;
 
         return Scaffold(
-          backgroundColor: _kBg,
+          backgroundColor: Colors.transparent,
           body: SafeArea(
             child: SingleChildScrollView(
               padding: const EdgeInsets.only(bottom: 100),

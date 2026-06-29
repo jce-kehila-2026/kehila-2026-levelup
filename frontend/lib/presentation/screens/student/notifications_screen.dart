@@ -32,7 +32,7 @@ class StudentNotificationsScreen extends StatelessWidget {
         final unreadCount = controller.unreadCount;
 
         return Scaffold(
-          backgroundColor: AppColors.background,
+          backgroundColor: Colors.transparent,
           body: SafeArea(
             child: Column(
               children: [

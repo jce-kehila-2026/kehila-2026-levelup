@@ -36,7 +36,7 @@ class InstructorDashboard extends StatelessWidget {
         final activeAssignments = controller.activeAssignments;
 
         return Scaffold(
-          backgroundColor: AppColors.background,
+          backgroundColor: Colors.transparent,
           body: SafeArea(
             child: SingleChildScrollView(
               padding: const EdgeInsets.only(bottom: 100),

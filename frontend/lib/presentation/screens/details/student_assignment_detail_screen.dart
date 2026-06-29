@@ -76,7 +76,7 @@ class _StudentAssignmentDetailScreenState extends State<StudentAssignmentDetailS
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         backgroundColor: AppColors.white,
         elevation: 0,

@@ -116,7 +116,7 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
         final profile = _controller.profile;
 
         return Scaffold(
-          backgroundColor: AppColors.background,
+          backgroundColor: Colors.transparent,
           appBar: AppBar(
             backgroundColor: AppColors.white,
             elevation: 0,

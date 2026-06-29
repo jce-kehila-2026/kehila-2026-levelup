@@ -9,7 +9,6 @@ import '../../widgets/statistics_filter_sheet.dart';
 // ── Design tokens — 60/30/10 ─────────────────────────────────────────────────
 
 // 60 % — Neutral
-const _bg = AppColors.background;        // page background — matches the rest of the app
 // card background is Colors.white (pure white)
 
 // 30 % — Primary purple (anchored to AppColors)
@@ -52,7 +51,7 @@ class AdminStatisticsScreen extends StatelessWidget {
     final ctrl = getIt<AdminStatisticsController>();
 
     return Scaffold(
-      backgroundColor: _bg,
+      backgroundColor: Colors.transparent,
       body: ListenableBuilder(
         listenable: ctrl,
         builder: (context, _) {

@@ -87,7 +87,7 @@ class _LogsScreenState extends State<LogsScreen> {
         final timeFilters = _controller.timeFilters;
 
         return Scaffold(
-          backgroundColor: AppColors.background,
+          backgroundColor: Colors.transparent,
           body: SafeArea(
             child: Column(
               children: [
