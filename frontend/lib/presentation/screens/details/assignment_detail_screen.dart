@@ -325,7 +325,6 @@ class _AssignmentDetailScreenState extends State<AssignmentDetailScreen> {
   }
 
   Widget _buildPositionBox(String? source) {
-    const double maxHeight = 260;
     if (source == null || source.isEmpty) return _buildNoImagePlaceholder();
 
     Widget image;
@@ -334,7 +333,8 @@ class _AssignmentDetailScreenState extends State<AssignmentDetailScreen> {
         final bytes = base64Decode(source.substring(source.indexOf(',') + 1));
         image = Image.memory(
           bytes,
-          fit: BoxFit.contain,
+          width: double.infinity,
+          fit: BoxFit.fitWidth,
           errorBuilder: (_, _, _) => _buildNoImagePlaceholder(),
         );
       } catch (_) {
@@ -343,7 +343,8 @@ class _AssignmentDetailScreenState extends State<AssignmentDetailScreen> {
     } else {
       image = Image.network(
         source,
-        fit: BoxFit.contain,
+        width: double.infinity,
+        fit: BoxFit.fitWidth,
         loadingBuilder: (context, child, progress) {
           if (progress == null) return child;
           return const SizedBox(
@@ -357,12 +358,7 @@ class _AssignmentDetailScreenState extends State<AssignmentDetailScreen> {
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(14),
-      child: Container(
-        width: double.infinity,
-        constraints: const BoxConstraints(maxHeight: maxHeight),
-        color: AppColors.background,
-        child: image,
-      ),
+      child: image,
     );
   }
 
@@ -395,11 +391,14 @@ class _AssignmentDetailScreenState extends State<AssignmentDetailScreen> {
       removeFirstImage: !hasImageUrl && embeddedImageSrc != null,
     );
 
+    final instructorName = _controller.instructorName;
+    final hasInstructorName = instructorName != null && instructorName.isNotEmpty;
+
     return _card(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _cardHeader('Position'),
+          Text(assignment.title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.text)),
           const SizedBox(height: 12),
           _buildPositionBox(positionImage),
           const SizedBox(height: 24),
@@ -408,6 +407,16 @@ class _AssignmentDetailScreenState extends State<AssignmentDetailScreen> {
           VibePremiumRenderer(
             content: instructionsContent,
           ),
+          if (hasInstructorName) ...[
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                const Icon(Icons.person_outline, size: 14, color: AppColors.mutedForeground),
+                const SizedBox(width: 6),
+                Text('${l10n.createdByLabel} $instructorName', style: const TextStyle(fontSize: 12, color: AppColors.mutedForeground)),
+              ],
+            ),
+          ],
           if (assignment.assignmentType == AssignmentType.multipleChoice && assignment.choices != null) ...[
             const SizedBox(height: 24),
             _cardHeader(l10n.optionsLabel),

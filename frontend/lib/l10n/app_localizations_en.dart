@@ -550,6 +550,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get instructionsLabel => 'Instructions';
 
   @override
+  String get createdByLabel => 'Created by';
+
+  @override
   String get optionsLabel => 'Options';
 
   @override
@@ -1372,15 +1375,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get languageButton => 'Language';
 
   @override
-  String get comingSoon => 'Coming soon';
-
-  @override
-  String get needHelp => 'Need Help?';
-
-  @override
-  String get viewDocumentation => 'View Documentation';
-
-  @override
   String get superAdmin => 'Super Admin';
 
   @override
@@ -1388,9 +1382,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get globalSearchHint => 'Search students, instructors, groups…';
-
-  @override
-  String get ctrlKShortcut => 'Ctrl + K';
 
   @override
   String get darkModeComingSoon => 'Dark mode coming soon';

@@ -7,6 +7,7 @@ import '../../../theme/app_theme.dart';
 import '../../../data/models/instructor_material_model.dart';
 import '../../../data/repositories/instructor_material_repository.dart';
 import '../../../logic/controllers/student_dashboard_controller.dart';
+import '../../widgets/dashboard_stat_card.dart';
 import '../../../di/service_locator.dart';
 import 'package:frontend/l10n/app_localizations.dart';
 import '../details/lesson_detail_screen.dart';
@@ -93,9 +94,9 @@ class _StudentDashboardState extends State<StudentDashboard> {
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                         colors: [
-                          Color(0xFF663d99),
-                          Color(0xFF422969),
-                          Color(0xFF26266a),
+                          AppColors.primary,
+                          AppColors.primaryDark,
+                          AppColors.primaryDeep,
                         ],
                       ),
                       boxShadow: [
@@ -279,138 +280,28 @@ class _StudentDashboardState extends State<StudentDashboard> {
                   ),
                   const SizedBox(height: 24),
 
-                  // ── WORKLOAD OVERVIEW ──
+                  // ── MY OVERVIEW ──
                   _sectionHeader(l10n.myOverview),
                   const SizedBox(height: 12),
                   Padding(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 20),
-                    child: Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        color: AppColors.white,
-                        borderRadius: BorderRadius.circular(20),
-                        border:
-                            Border.all(color: AppColors.border),
-                        boxShadow: [
-                          BoxShadow(
-                            color:
-                                Colors.black.withValues(alpha: 0.04),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: Column(
-                        crossAxisAlignment:
-                            CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Container(
-                                width: 40,
-                                height: 40,
-                                decoration: BoxDecoration(
-                                  color: AppColors.accent
-                                      .withValues(alpha: 0.15),
-                                  borderRadius:
-                                      BorderRadius.circular(10),
-                                ),
-                                child: const Icon(
-                                    Icons.check_box_outlined,
-                                    size: 20,
-                                    color:
-                                        AppColors.accentDark),
-                              ),
-                              const SizedBox(width: 12),
-                              const Text(
-                                'Workload',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.primaryDark,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 20),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Material(
-                                  color: Colors.transparent,
-                                  child: InkWell(
-                                    onTap: widget.onNavigateToAssignments,
-                                    borderRadius: BorderRadius.circular(12),
-                                    child: Padding(
-                                      padding: const EdgeInsets.symmetric(vertical: 8),
-                                      child: Column(
-                                        children: [
-                                          Text(
-                                            '${_controller.tasksDue}',
-                                            style: const TextStyle(
-                                                fontSize: 28,
-                                                fontWeight: FontWeight.w700,
-                                                color: AppColors.text),
-                                          ),
-                                          const SizedBox(height: 4),
-                                          Text(
-                                            l10n.navTasks,
-                                            style: const TextStyle(
-                                                fontSize: 11,
-                                                color: AppColors
-                                                    .mutedForeground),
-                                            textAlign: TextAlign.center,
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              Container(
-                                  width: 1,
-                                  height: 44,
-                                  color: AppColors.border,
-                                  margin: const EdgeInsets.symmetric(
-                                      horizontal: 4)),
-                              Expanded(
-                                child: Material(
-                                  color: Colors.transparent,
-                                  child: InkWell(
-                                    onTap: widget.onNavigateToAssignments,
-                                    borderRadius: BorderRadius.circular(12),
-                                    child: Padding(
-                                      padding: const EdgeInsets.symmetric(vertical: 8),
-                                      child: Column(
-                                        children: [
-                                          Text(
-                                            '${_controller.pendingReviewCount}',
-                                            style: const TextStyle(
-                                                fontSize: 28,
-                                                fontWeight: FontWeight.w700,
-                                                color: AppColors.text),
-                                          ),
-                                          const SizedBox(height: 4),
-                                          Text(
-                                            l10n.statPendingReview,
-                                            style: const TextStyle(
-                                                fontSize: 11,
-                                                color: AppColors
-                                                    .mutedForeground),
-                                            textAlign: TextAlign.center,
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: DashboardStatGrid(
+                      perRow: 2,
+                      cards: [
+                        DashboardStatCard(
+                          icon: Icons.assignment,
+                          value: '${_controller.tasksDue}',
+                          label: l10n.navTasks,
+                          onTap: widget.onNavigateToAssignments,
+                        ),
+                        DashboardStatCard(
+                          icon: Icons.pending_actions,
+                          value: '${_controller.pendingReviewCount}',
+                          label: l10n.statPendingReview,
+                          gold: true,
+                          onTap: widget.onNavigateToAssignments,
+                        ),
+                      ],
                     ),
                   ),
                   const SizedBox(height: 28),

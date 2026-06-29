@@ -1106,6 +1106,12 @@ abstract class AppLocalizations {
   /// **'Instructions'**
   String get instructionsLabel;
 
+  /// No description provided for @createdByLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Created by'**
+  String get createdByLabel;
+
   /// No description provided for @optionsLabel.
   ///
   /// In en, this message translates to:
@@ -2506,24 +2512,6 @@ abstract class AppLocalizations {
   /// **'Language'**
   String get languageButton;
 
-  /// No description provided for @comingSoon.
-  ///
-  /// In en, this message translates to:
-  /// **'Coming soon'**
-  String get comingSoon;
-
-  /// No description provided for @needHelp.
-  ///
-  /// In en, this message translates to:
-  /// **'Need Help?'**
-  String get needHelp;
-
-  /// No description provided for @viewDocumentation.
-  ///
-  /// In en, this message translates to:
-  /// **'View Documentation'**
-  String get viewDocumentation;
-
   /// No description provided for @superAdmin.
   ///
   /// In en, this message translates to:
@@ -2541,12 +2529,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Search students, instructors, groups…'**
   String get globalSearchHint;
-
-  /// No description provided for @ctrlKShortcut.
-  ///
-  /// In en, this message translates to:
-  /// **'Ctrl + K'**
-  String get ctrlKShortcut;
 
   /// No description provided for @darkModeComingSoon.
   ///

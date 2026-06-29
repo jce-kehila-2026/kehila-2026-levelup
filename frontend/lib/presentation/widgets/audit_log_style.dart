@@ -5,8 +5,7 @@ import '../../theme/app_theme.dart';
 import '../../data/models/audit_log_model.dart';
 
 /// Shared action -> icon/color/label/type/time logic for audit log entries.
-/// Single source of truth for [AuditLogItem] (vertical list) and
-/// [RecentActivityTimeline] (horizontal dashboard timeline).
+/// Single source of truth for [AuditLogItem] (vertical list).
 class AuditLogStyle {
   const AuditLogStyle._();
 

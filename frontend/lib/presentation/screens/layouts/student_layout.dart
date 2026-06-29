@@ -1,8 +1,10 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:frontend/l10n/app_localizations.dart';
 import 'package:go_router/go_router.dart';
 import '../../../theme/app_theme.dart';
 import '../../widgets/locale_toggle_button.dart';
+import '../../widgets/sidebar_nav_item.dart';
 import '../../../di/service_locator.dart';
 import '../../../logic/helpers/logout_helper.dart';
 import '../../../logic/controllers/student_notification_controller.dart';
@@ -79,19 +81,195 @@ class _StudentLayoutState extends State<StudentLayout> {
     });
   }
 
-  Widget _buildIconButton({required IconData icon, required VoidCallback onPressed}) {
+  void _goToTab(int index) {
+    _closeSearch();
+    context.go('/student?tab=$index');
+  }
+
+  /// Single-letter avatar fallback, e.g. "Ibrahim" -> "I", or "S" if no name
+  /// is resolvable from the current Firebase user.
+  String _avatarLetter(String? name) {
+    final trimmed = name?.trim() ?? '';
+    return trimmed.isNotEmpty ? trimmed[0].toUpperCase() : 'S';
+  }
+
+  Widget _buildSidebar(BuildContext context, AppLocalizations l10n, int currentIndex) {
+    final firebaseUser = FirebaseAuth.instance.currentUser;
+    final displayName = firebaseUser?.displayName;
+    final photoUrl = firebaseUser?.photoURL;
+    final avatarLetter = _avatarLetter(displayName);
+
     return Container(
-      width: 38,
-      height: 38,
-      decoration: BoxDecoration(
+      width: 250,
+      decoration: const BoxDecoration(
         color: AppColors.white,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppColors.border),
+        border: BorderDirectional(end: BorderSide(color: AppColors.border, width: 1)),
       ),
-      child: IconButton(
-        icon: Icon(icon, size: 15, color: AppColors.mutedForeground),
-        onPressed: onPressed,
-        padding: EdgeInsets.zero,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsetsDirectional.fromSTEB(16, 20, 16, 20),
+            child: Row(
+              children: [
+                Image.asset('assets/images/levelup_mark.png', height: 38, width: 38, fit: BoxFit.contain),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text(
+                        'شطرنج القدس',
+                        style: TextStyle(fontSize: 11, color: AppColors.mutedForeground),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const Text(
+                        'LevelUp',
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.primary),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1, color: AppColors.border),
+          Expanded(
+            child: ListenableBuilder(
+              listenable: getIt<StudentNotificationController>(),
+              builder: (context, _) {
+                final unreadCount = getIt<StudentNotificationController>().unreadCount;
+                final navItems = <({IconData icon, String label, int tabIndex, Widget? trailing})>[
+                  (icon: Icons.home, label: l10n.navHome, tabIndex: 0, trailing: null),
+                  (icon: Icons.check_circle, label: l10n.navTasks, tabIndex: 1, trailing: null),
+                  (
+                    icon: Icons.notifications,
+                    label: l10n.navAlerts,
+                    tabIndex: 2,
+                    trailing: unreadCount > 0
+                        ? Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                            decoration: BoxDecoration(color: AppColors.accent, borderRadius: BorderRadius.circular(10)),
+                            child: Text('$unreadCount', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.white)),
+                          )
+                        : null,
+                  ),
+                  (icon: Icons.person, label: l10n.navProfile, tabIndex: 3, trailing: null),
+                ];
+                return ListView(
+                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+                  children: [
+                    for (final item in navItems)
+                      SidebarNavItem(
+                        icon: item.icon,
+                        label: item.label,
+                        active: item.tabIndex == currentIndex,
+                        onTap: () => _goToTab(item.tabIndex),
+                        trailing: item.trailing,
+                      ),
+                  ],
+                );
+              },
+            ),
+          ),
+          const Divider(height: 1, color: AppColors.border),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                CircleAvatar(
+                  radius: 18,
+                  backgroundColor: AppColors.primary,
+                  backgroundImage: photoUrl != null ? NetworkImage(photoUrl) : null,
+                  child: photoUrl == null
+                      ? Text(avatarLetter, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.white))
+                      : null,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        displayName?.trim().isNotEmpty == true ? displayName!.trim() : l10n.studentRoleLabel,
+                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.text),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Text(
+                        l10n.studentRoleLabel,
+                        style: const TextStyle(fontSize: 11, color: AppColors.mutedForeground),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 3),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: 7,
+                            height: 7,
+                            decoration: const BoxDecoration(color: AppColors.success, shape: BoxShape.circle),
+                          ),
+                          const SizedBox(width: 5),
+                          Text(l10n.statusOnline, style: const TextStyle(fontSize: 11, color: AppColors.mutedForeground)),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProfileButton(AppLocalizations l10n) {
+    final firebaseUser = FirebaseAuth.instance.currentUser;
+    final avatarLetter = _avatarLetter(firebaseUser?.displayName);
+    final photoUrl = firebaseUser?.photoURL;
+
+    return PopupMenuButton<String>(
+      offset: const Offset(0, 44),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      onSelected: (value) async {
+        if (value == 'logout') {
+          await performLogout();
+          if (mounted) context.go('/login');
+        }
+      },
+      itemBuilder: (context) => [
+        PopupMenuItem(
+          value: 'logout',
+          child: Row(
+            children: [
+              const Icon(Icons.logout, size: 18, color: AppColors.mutedForeground),
+              const SizedBox(width: 10),
+              Text(l10n.logoutButton),
+            ],
+          ),
+        ),
+      ],
+      child: Padding(
+        padding: const EdgeInsetsDirectional.only(end: 4),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircleAvatar(
+              radius: 16,
+              backgroundColor: AppColors.primary,
+              backgroundImage: photoUrl != null ? NetworkImage(photoUrl) : null,
+              child: photoUrl == null
+                  ? Text(avatarLetter, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.white))
+                  : null,
+            ),
+            const SizedBox(width: 8),
+            const Icon(Icons.keyboard_arrow_down, size: 18, color: AppColors.mutedForeground),
+          ],
+        ),
       ),
     );
   }
@@ -100,6 +278,7 @@ class _StudentLayoutState extends State<StudentLayout> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final tabParam = GoRouterState.of(context).uri.queryParameters['tab'];
     final currentIndex = (int.tryParse(tabParam ?? '') ?? 0).clamp(0, 3);
     final bool isWide = _enableResponsiveDesktopLayout && MediaQuery.of(context).size.width > 850;
@@ -168,75 +347,15 @@ class _StudentLayoutState extends State<StudentLayout> {
           : const Text('LevelUp', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.text)),
         actions: [
           const LocaleToggleButton(),
-          const SizedBox(width: 6),
-          _buildIconButton(
-            icon: Icons.logout,
-            onPressed: () async {
-              await performLogout();
-              if (context.mounted) context.go('/login');
-            },
-          ),
+          const SizedBox(width: 8),
+          _buildProfileButton(l10n),
           const SizedBox(width: 8),
         ],
       ),
       body: isWide
           ? Row(
               children: [
-                NavigationRail(
-                  selectedIndex: currentIndex,
-                  onDestinationSelected: (i) {
-                    _closeSearch();
-                    context.go('/student?tab=$i');
-                  },
-                  backgroundColor: AppColors.white,
-                  selectedLabelTextStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 11, color: AppColors.primary),
-                  unselectedLabelTextStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 11, color: AppColors.mutedForeground),
-                  indicatorColor: AppColors.secondary,
-                  labelType: NavigationRailLabelType.all,
-                  destinations: [
-                    NavigationRailDestination(
-                      icon: const GoldenNavIcon(icon: Icons.home, active: false),
-                      selectedIcon: const GoldenNavIcon(icon: Icons.home),
-                      label: Text(AppLocalizations.of(context)!.navHome),
-                    ),
-                    NavigationRailDestination(
-                      icon: const GoldenNavIcon(icon: Icons.check_circle, active: false),
-                      selectedIcon: const GoldenNavIcon(icon: Icons.check_circle),
-                      label: Text(AppLocalizations.of(context)!.navTasks),
-                    ),
-                    NavigationRailDestination(
-                      icon: ListenableBuilder(
-                        listenable: getIt<StudentNotificationController>(),
-                        builder: (context, _) {
-                          final count = getIt<StudentNotificationController>().unreadCount;
-                          return Badge(
-                            label: count > 0 ? Text('$count') : null,
-                            isLabelVisible: count > 0,
-                            child: const GoldenNavIcon(icon: Icons.notifications, active: false),
-                          );
-                        },
-                      ),
-                      selectedIcon: ListenableBuilder(
-                        listenable: getIt<StudentNotificationController>(),
-                        builder: (context, _) {
-                          final count = getIt<StudentNotificationController>().unreadCount;
-                          return Badge(
-                            label: count > 0 ? Text('$count') : null,
-                            isLabelVisible: count > 0,
-                            child: const GoldenNavIcon(icon: Icons.notifications),
-                          );
-                        },
-                      ),
-                      label: Text(AppLocalizations.of(context)!.navAlerts),
-                    ),
-                    NavigationRailDestination(
-                      icon: const GoldenNavIcon(icon: Icons.person, active: false),
-                      selectedIcon: const GoldenNavIcon(icon: Icons.person),
-                      label: Text(AppLocalizations.of(context)!.navProfile),
-                    ),
-                  ],
-                ),
-                Container(width: 1, color: AppColors.border),
+                _buildSidebar(context, l10n, currentIndex),
                 Expanded(
                   child: Center(
                     child: ConstrainedBox(

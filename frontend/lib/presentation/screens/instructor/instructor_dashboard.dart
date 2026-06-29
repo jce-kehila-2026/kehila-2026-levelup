@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import 'package:go_router/go_router.dart';
 import '../../../theme/app_theme.dart';
 import '../../widgets/assignment_card.dart';
+import '../../widgets/dashboard_stat_card.dart';
 import '../../../logic/controllers/instructor_dashboard_controller.dart';
 import '../../../di/service_locator.dart';
 import 'package:frontend/l10n/app_localizations.dart';
@@ -19,102 +20,6 @@ class InstructorDashboard extends StatelessWidget {
     required this.onNavigateToAssignments,
     required this.onNavigateToGroups,
   });
-
-  Widget _buildConsolidatedCard(
-    String title,
-    IconData headerIcon,
-    List<({String label, String value})> items, {
-    VoidCallback? onTap,
-  }) {
-    final content = Padding(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: AppColors.accent,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(headerIcon, size: 20, color: Colors.white),
-              ),
-              const SizedBox(width: 12),
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.primaryDark,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          Row(
-            children: [
-              for (int i = 0; i < items.length; i++) ...[
-                if (i > 0)
-                  Container(width: 1, height: 44, color: AppColors.border, margin: const EdgeInsets.symmetric(horizontal: 4)),
-                Expanded(child: _buildStatColumn(items[i].value, items[i].label)),
-              ],
-            ],
-          ),
-        ],
-      ),
-    );
-
-    return Container(
-      width: double.infinity,
-      clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.border),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          child: content,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildStatColumn(String value, String label) {
-    return Column(
-      children: [
-        Text(
-          value,
-          style: const TextStyle(
-            fontSize: 28,
-            fontWeight: FontWeight.w700,
-            color: AppColors.text,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 11,
-            color: AppColors.mutedForeground,
-          ),
-          textAlign: TextAlign.center,
-        ),
-      ],
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -148,9 +53,9 @@ class InstructorDashboard extends StatelessWidget {
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                         colors: [
-                          Color(0xFF663d99),
-                          Color(0xFF422969),
-                          Color(0xFF26266a),
+                          AppColors.primary,
+                          AppColors.primaryDark,
+                          AppColors.primaryDeep,
                         ],
                       ),
                       boxShadow: [
@@ -267,28 +172,38 @@ class InstructorDashboard extends StatelessWidget {
                   ),
                   const SizedBox(height: 12),
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Column(children: [
-                      _buildConsolidatedCard(
-                        'My Classes',
-                        Icons.how_to_reg,
-                        [
-                          (label: AppLocalizations.of(context)!.statMyGroups, value: stats['myGroups']!),
-                          (label: AppLocalizations.of(context)!.statStudents, value: stats['students']!),
-                        ],
-                        onTap: onNavigateToGroups,
-                      ),
-                      const SizedBox(height: 12),
-                      _buildConsolidatedCard(
-                        'Workload',
-                        Icons.check_box,
-                        [
-                          (label: AppLocalizations.of(context)!.dashboardAssignments, value: stats['assignments']!),
-                          (label: AppLocalizations.of(context)!.statPendingReview, value: stats['pendingReview']!),
-                        ],
-                        onTap: onNavigateToAssignments,
-                      ),
-                    ]),
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: DashboardStatGrid(
+                      perRow: 2,
+                      cards: [
+                        DashboardStatCard(
+                          icon: Icons.groups,
+                          value: stats['myGroups']!,
+                          label: AppLocalizations.of(context)!.statMyGroups,
+                          onTap: onNavigateToGroups,
+                        ),
+                        DashboardStatCard(
+                          icon: Icons.people,
+                          value: stats['students']!,
+                          label: AppLocalizations.of(context)!.statStudents,
+                          gold: true,
+                          onTap: onNavigateToGroups,
+                        ),
+                        DashboardStatCard(
+                          icon: Icons.assignment,
+                          value: stats['assignments']!,
+                          label: AppLocalizations.of(context)!.dashboardAssignments,
+                          onTap: onNavigateToAssignments,
+                        ),
+                        DashboardStatCard(
+                          icon: Icons.pending_actions,
+                          value: stats['pendingReview']!,
+                          label: AppLocalizations.of(context)!.statPendingReview,
+                          gold: true,
+                          onTap: onNavigateToAssignments,
+                        ),
+                      ],
+                    ),
                   ),
                   const SizedBox(height: 28),
 

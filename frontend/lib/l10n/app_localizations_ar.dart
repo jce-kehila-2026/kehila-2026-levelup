@@ -546,6 +546,9 @@ class AppLocalizationsAr extends AppLocalizations {
   String get instructionsLabel => 'التعليمات';
 
   @override
+  String get createdByLabel => 'بواسطة';
+
+  @override
   String get optionsLabel => 'الخيارات';
 
   @override
@@ -1367,15 +1370,6 @@ class AppLocalizationsAr extends AppLocalizations {
   String get languageButton => 'اللغة';
 
   @override
-  String get comingSoon => 'قريباً';
-
-  @override
-  String get needHelp => 'هل تحتاج مساعدة؟';
-
-  @override
-  String get viewDocumentation => 'عرض الوثائق';
-
-  @override
   String get superAdmin => 'مشرف عام';
 
   @override
@@ -1383,9 +1377,6 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get globalSearchHint => 'البحث عن طلاب، محاضرين، مجموعات…';
-
-  @override
-  String get ctrlKShortcut => 'Ctrl + K';
 
   @override
   String get darkModeComingSoon => 'الوضع الداكن قريباً';

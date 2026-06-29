@@ -3,7 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../theme/app_theme.dart';
 import '../../widgets/audit_log_item.dart';
-import '../../widgets/recent_activity_timeline.dart';
+import '../../widgets/dashboard_stat_card.dart';
 import '../../../logic/controllers/admin_dashboard_controller.dart';
 import '../../../di/service_locator.dart';
 import 'package:frontend/l10n/app_localizations.dart';
@@ -217,99 +217,7 @@ class AdminDashboard extends StatelessWidget {
     );
   }
 
-  // ── Stat cards (6, responsive grid) ─────────────────────────────────────────
-
-  Widget _buildStatCard(
-    AppLocalizations l10n, {
-    required IconData icon,
-    required String value,
-    required String label,
-    required bool gold,
-    required int demoTrendPercent,
-    VoidCallback? onTap,
-  }) {
-    final iconColor = gold ? AppColors.accent : AppColors.primary;
-    final iconBg = gold ? AppColors.accent.withValues(alpha: 0.15) : AppColors.secondary;
-
-    return Container(
-      clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
-        boxShadow: const [_kShadow],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(color: iconBg, borderRadius: BorderRadius.circular(10)),
-                      child: Icon(icon, size: 20, color: iconColor),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(value, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: AppColors.text)),
-                          Text(
-                            label,
-                            style: const TextStyle(fontSize: 12, color: AppColors.mutedForeground),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                if (kShowDemoTrends) ...[
-                  const SizedBox(height: 10),
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: AppColors.success.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(Icons.arrow_upward, size: 10, color: AppColors.success),
-                            const SizedBox(width: 2),
-                            Text(
-                              '+$demoTrendPercent%',
-                              style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.success),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                      Text(l10n.fromLastMonth, style: const TextStyle(fontSize: 10, color: AppColors.mutedForeground)),
-                    ],
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
+  // ── Stat cards (6, fixed 3×2 grid via the shared DashboardStatCard) ────────
 
   Widget _buildStatsGrid(BuildContext context, AppLocalizations l10n, Map<String, String> stats) {
     final cardsData = <({IconData icon, String value, String label, bool gold, VoidCallback? onTap})>[
@@ -322,40 +230,19 @@ class AdminDashboard extends StatelessWidget {
     ];
     const demoTrendKeys = ['students', 'instructors', 'groups', 'levels', 'lessons', 'totalAssignments'];
 
-    final cards = [
-      for (int i = 0; i < cardsData.length; i++)
-        _buildStatCard(
-          l10n,
-          icon: cardsData[i].icon,
-          value: cardsData[i].value,
-          label: cardsData[i].label,
-          gold: cardsData[i].gold,
-          onTap: cardsData[i].onTap,
-          demoTrendPercent: _demoTrends[demoTrendKeys[i]] ?? 0,
-        ),
-    ];
-
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final columns = constraints.maxWidth >= 1000 ? 3 : (constraints.maxWidth >= 700 ? 2 : 1);
-        final rows = <Widget>[];
-        for (int i = 0; i < cards.length; i += columns) {
-          final rowCards = cards.sublist(i, (i + columns).clamp(0, cards.length));
-          rows.add(
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                for (int j = 0; j < rowCards.length; j++) ...[
-                  if (j > 0) const SizedBox(width: 14),
-                  Expanded(child: rowCards[j]),
-                ],
-              ],
-            ),
-          );
-          if (i + columns < cards.length) rows.add(const SizedBox(height: 14));
-        }
-        return Column(children: rows);
-      },
+    return DashboardStatGrid(
+      cards: [
+        for (int i = 0; i < cardsData.length; i++)
+          DashboardStatCard(
+            icon: cardsData[i].icon,
+            value: cardsData[i].value,
+            label: cardsData[i].label,
+            gold: cardsData[i].gold,
+            onTap: cardsData[i].onTap,
+            trendPercent: kShowDemoTrends ? (_demoTrends[demoTrendKeys[i]] ?? 0) : null,
+            trendCaption: kShowDemoTrends ? l10n.fromLastMonth : null,
+          ),
+      ],
     );
   }
 
@@ -458,18 +345,8 @@ class AdminDashboard extends StatelessWidget {
                               ),
                             ),
                           )
-                        : LayoutBuilder(
-                            builder: (context, constraints) {
-                              if (constraints.maxWidth > 700) {
-                                return Padding(
-                                  padding: const EdgeInsets.all(20),
-                                  child: RecentActivityTimeline(logs: recentLogs),
-                                );
-                              }
-                              return Column(
-                                children: recentLogs.map((log) => AuditLogItem(log: log)).toList(),
-                              );
-                            },
+                        : Column(
+                            children: recentLogs.map((log) => AuditLogItem(log: log)).toList(),
                           ),
                   ),
                 ],

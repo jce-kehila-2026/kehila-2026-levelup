@@ -2,7 +2,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:frontend/l10n/app_localizations.dart';
 import 'package:go_router/go_router.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../../../theme/app_theme.dart';
 import '../../../di/service_locator.dart';
 import '../../../logic/helpers/logout_helper.dart';
@@ -13,6 +12,7 @@ import '../../../logic/controllers/group_controller.dart';
 import '../../../logic/controllers/audit_log_controller.dart';
 import '../../../logic/controllers/admin_assignments_controller.dart';
 import '../../widgets/locale_toggle_button.dart';
+import '../../widgets/sidebar_nav_item.dart';
 
 import '../admin/admin_dashboard.dart';
 import '../admin/admin_statistics_screen.dart';
@@ -93,100 +93,6 @@ class _AdminLayoutState extends State<AdminLayout> {
     return trimmed.isNotEmpty ? trimmed[0].toUpperCase() : 'A';
   }
 
-  Widget _buildSidebarNavItem({
-    required IconData icon,
-    required String label,
-    required bool active,
-    required VoidCallback onTap,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 3),
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(12),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(12),
-          onTap: onTap,
-          child: Container(
-            width: double.infinity,
-            decoration: BoxDecoration(
-              color: active ? AppColors.primary : Colors.transparent,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
-            child: Row(
-              children: [
-                Icon(icon, size: 20, color: active ? AppColors.white : AppColors.mutedForeground),
-                const SizedBox(width: 12),
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: active ? FontWeight.w600 : FontWeight.w500,
-                    color: active ? AppColors.white : AppColors.mutedForeground,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Future<void> _openDocumentation(AppLocalizations l10n) async {
-    final uri = Uri.parse('https://github.com/jce-kehila-2026/kehila-2026-levelup#readme');
-    try {
-      final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
-      if (!launched && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.comingSoon)));
-      }
-    } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.comingSoon)));
-      }
-    }
-  }
-
-  Widget _buildNeedHelpCard(AppLocalizations l10n) {
-    return Padding(
-      padding: const EdgeInsetsDirectional.fromSTEB(14, 0, 14, 12),
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(14),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(14),
-          onTap: () => _openDocumentation(l10n),
-          child: Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: AppColors.accent.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.help_outline, size: 20, color: AppColors.accentDark),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(l10n.needHelp, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.text)),
-                      const SizedBox(height: 2),
-                      Text(l10n.viewDocumentation, style: const TextStyle(fontSize: 11, color: AppColors.primary)),
-                    ],
-                  ),
-                ),
-                const Icon(Icons.chevron_right, size: 16, color: AppColors.mutedForeground),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _buildSidebar(BuildContext context, AppLocalizations l10n, int currentIndex) {
     final firebaseUser = FirebaseAuth.instance.currentUser;
     final displayName = firebaseUser?.displayName;
@@ -245,7 +151,7 @@ class _AdminLayoutState extends State<AdminLayout> {
               padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
               children: [
                 for (final item in navItems)
-                  _buildSidebarNavItem(
+                  SidebarNavItem(
                     icon: item.icon,
                     label: item.label,
                     active: item.tabIndex == currentIndex,
@@ -254,7 +160,6 @@ class _AdminLayoutState extends State<AdminLayout> {
               ],
             ),
           ),
-          _buildNeedHelpCard(l10n),
           const Divider(height: 1, color: AppColors.border),
           Padding(
             padding: const EdgeInsets.all(16),
@@ -330,25 +235,6 @@ class _AdminLayoutState extends State<AdminLayout> {
             hintStyle: const TextStyle(fontSize: 13, color: AppColors.mutedForeground),
             hintMaxLines: 1,
             contentPadding: const EdgeInsets.symmetric(vertical: 10),
-            suffixIcon: Padding(
-              padding: const EdgeInsetsDirectional.only(end: 8),
-              child: Align(
-                alignment: Alignment.center,
-                widthFactor: 1,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: AppColors.white,
-                    border: Border.all(color: AppColors.border),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    l10n.ctrlKShortcut,
-                    style: const TextStyle(fontSize: 10, color: AppColors.mutedForeground, fontWeight: FontWeight.w600),
-                  ),
-                ),
-              ),
-            ),
           ),
         ),
       ),

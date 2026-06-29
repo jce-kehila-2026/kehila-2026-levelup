@@ -4,6 +4,7 @@ import 'package:frontend/l10n/app_localizations.dart';
 import 'package:go_router/go_router.dart';
 import '../../../theme/app_theme.dart';
 import '../../widgets/locale_toggle_button.dart';
+import '../../widgets/sidebar_nav_item.dart';
 import '../../../di/service_locator.dart';
 import '../../../logic/helpers/logout_helper.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -88,21 +89,9 @@ class _InstructorLayoutState extends State<InstructorLayout> {
     });
   }
 
-  Widget _buildIconButton({required IconData icon, required VoidCallback onPressed}) {
-    return Container(
-      width: 38,
-      height: 38,
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: IconButton(
-        icon: Icon(icon, size: 15, color: AppColors.mutedForeground),
-        onPressed: onPressed,
-        padding: EdgeInsets.zero,
-      ),
-    );
+  void _goToTab(int index) {
+    _closeSearch();
+    context.go('/instructor?tab=$index');
   }
 
   Future<void> _showProfileSheet() async {
@@ -243,10 +232,195 @@ class _InstructorLayoutState extends State<InstructorLayout> {
     );
   }
 
+  /// Single-letter avatar fallback, e.g. "Ibrahim" -> "I", or "I" if no name
+  /// is resolvable from the current Firebase user.
+  String _avatarLetter(String? name) {
+    final trimmed = name?.trim() ?? '';
+    return trimmed.isNotEmpty ? trimmed[0].toUpperCase() : 'I';
+  }
+
+  Widget _buildSidebar(BuildContext context, AppLocalizations l10n, int currentIndex) {
+    final firebaseUser = FirebaseAuth.instance.currentUser;
+    final displayName = firebaseUser?.displayName;
+    final photoUrl = firebaseUser?.photoURL;
+    final avatarLetter = _avatarLetter(displayName);
+
+    final navItems = <({IconData icon, String label, int tabIndex})>[
+      (icon: Icons.home, label: l10n.navHome, tabIndex: 0),
+      (icon: Icons.how_to_reg, label: l10n.navGroups, tabIndex: 1),
+      (icon: Icons.menu_book, label: l10n.navMaterials, tabIndex: 2),
+      (icon: Icons.check_box, label: l10n.navTasks, tabIndex: 3),
+      (icon: Icons.bar_chart, label: l10n.navActivity, tabIndex: 4),
+    ];
+
+    return Container(
+      width: 250,
+      decoration: const BoxDecoration(
+        color: AppColors.white,
+        border: BorderDirectional(end: BorderSide(color: AppColors.border, width: 1)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsetsDirectional.fromSTEB(16, 20, 16, 20),
+            child: Row(
+              children: [
+                Image.asset('assets/images/levelup_mark.png', height: 38, width: 38, fit: BoxFit.contain),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text(
+                        'شطرنج القدس',
+                        style: TextStyle(fontSize: 11, color: AppColors.mutedForeground),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const Text(
+                        'LevelUp',
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.primary),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1, color: AppColors.border),
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+              children: [
+                for (final item in navItems)
+                  SidebarNavItem(
+                    icon: item.icon,
+                    label: item.label,
+                    active: item.tabIndex == currentIndex,
+                    onTap: () => _goToTab(item.tabIndex),
+                  ),
+              ],
+            ),
+          ),
+          const Divider(height: 1, color: AppColors.border),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                CircleAvatar(
+                  radius: 18,
+                  backgroundColor: AppColors.primary,
+                  backgroundImage: photoUrl != null ? NetworkImage(photoUrl) : null,
+                  child: photoUrl == null
+                      ? Text(avatarLetter, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.white))
+                      : null,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        displayName?.trim().isNotEmpty == true ? displayName!.trim() : l10n.roleInstructorLabel,
+                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.text),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Text(
+                        l10n.roleInstructorLabel,
+                        style: const TextStyle(fontSize: 11, color: AppColors.mutedForeground),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 3),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: 7,
+                            height: 7,
+                            decoration: const BoxDecoration(color: AppColors.success, shape: BoxShape.circle),
+                          ),
+                          const SizedBox(width: 5),
+                          Text(l10n.statusOnline, style: const TextStyle(fontSize: 11, color: AppColors.mutedForeground)),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProfileButton(AppLocalizations l10n) {
+    final firebaseUser = FirebaseAuth.instance.currentUser;
+    final avatarLetter = _avatarLetter(firebaseUser?.displayName);
+    final photoUrl = firebaseUser?.photoURL;
+
+    return PopupMenuButton<String>(
+      offset: const Offset(0, 44),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      onSelected: (value) async {
+        if (value == 'profile') {
+          _showProfileSheet();
+        } else if (value == 'logout') {
+          await performLogout();
+          if (mounted) context.go('/login');
+        }
+      },
+      itemBuilder: (context) => [
+        PopupMenuItem(
+          value: 'profile',
+          child: Row(
+            children: [
+              const Icon(Icons.person_outline, size: 18, color: AppColors.mutedForeground),
+              const SizedBox(width: 10),
+              Text(l10n.myProfile),
+            ],
+          ),
+        ),
+        PopupMenuItem(
+          value: 'logout',
+          child: Row(
+            children: [
+              const Icon(Icons.logout, size: 18, color: AppColors.mutedForeground),
+              const SizedBox(width: 10),
+              Text(l10n.logoutButton),
+            ],
+          ),
+        ),
+      ],
+      child: Padding(
+        padding: const EdgeInsetsDirectional.only(end: 4),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircleAvatar(
+              radius: 16,
+              backgroundColor: AppColors.primary,
+              backgroundImage: photoUrl != null ? NetworkImage(photoUrl) : null,
+              child: photoUrl == null
+                  ? Text(avatarLetter, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.white))
+                  : null,
+            ),
+            const SizedBox(width: 8),
+            const Icon(Icons.keyboard_arrow_down, size: 18, color: AppColors.mutedForeground),
+          ],
+        ),
+      ),
+    );
+  }
+
   static const bool _enableResponsiveDesktopLayout = true;
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final tabParam = GoRouterState.of(context).uri.queryParameters['tab'];
     final currentIndex = (int.tryParse(tabParam ?? '') ?? 0).clamp(0, 4);
     final bool isWide = _enableResponsiveDesktopLayout && MediaQuery.of(context).size.width > 850;
@@ -315,62 +489,15 @@ class _InstructorLayoutState extends State<InstructorLayout> {
           : const Text('LevelUp', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.text)),
         actions: [
           const LocaleToggleButton(),
-          const SizedBox(width: 6),
-          _buildIconButton(icon: Icons.person_outline, onPressed: _showProfileSheet),
-          const SizedBox(width: 6),
-          _buildIconButton(
-            icon: Icons.logout,
-            onPressed: () async {
-              await performLogout();
-              if (context.mounted) context.go('/login');
-            },
-          ),
+          const SizedBox(width: 8),
+          _buildProfileButton(l10n),
           const SizedBox(width: 8),
         ],
       ),
       body: isWide
           ? Row(
               children: [
-                NavigationRail(
-                  selectedIndex: currentIndex,
-                  onDestinationSelected: (i) {
-                    _closeSearch();
-                    context.go('/instructor?tab=$i');
-                  },
-                  backgroundColor: AppColors.white,
-                  selectedLabelTextStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 11, color: AppColors.primary),
-                  unselectedLabelTextStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 11, color: AppColors.mutedForeground),
-                  indicatorColor: AppColors.secondary,
-                  labelType: NavigationRailLabelType.all,
-                  destinations: [
-                    NavigationRailDestination(
-                      icon: const GoldenNavIcon(icon: Icons.home, active: false),
-                      selectedIcon: const GoldenNavIcon(icon: Icons.home),
-                      label: Text(AppLocalizations.of(context)!.navHome),
-                    ),
-                    NavigationRailDestination(
-                      icon: const GoldenNavIcon(icon: Icons.how_to_reg, active: false),
-                      selectedIcon: const GoldenNavIcon(icon: Icons.how_to_reg),
-                      label: Text(AppLocalizations.of(context)!.navGroups),
-                    ),
-                    NavigationRailDestination(
-                      icon: const GoldenNavIcon(icon: Icons.menu_book, active: false),
-                      selectedIcon: const GoldenNavIcon(icon: Icons.menu_book),
-                      label: Text(AppLocalizations.of(context)!.navMaterials),
-                    ),
-                    NavigationRailDestination(
-                      icon: const GoldenNavIcon(icon: Icons.check_box, active: false),
-                      selectedIcon: const GoldenNavIcon(icon: Icons.check_box),
-                      label: Text(AppLocalizations.of(context)!.navTasks),
-                    ),
-                    NavigationRailDestination(
-                      icon: const GoldenNavIcon(icon: Icons.bar_chart, active: false),
-                      selectedIcon: const GoldenNavIcon(icon: Icons.bar_chart),
-                      label: Text(AppLocalizations.of(context)!.navActivity),
-                    ),
-                  ],
-                ),
-                Container(width: 1, color: AppColors.border),
+                _buildSidebar(context, l10n, currentIndex),
                 Expanded(
                   child: Center(
                     child: ConstrainedBox(
