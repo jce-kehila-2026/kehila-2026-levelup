@@ -1106,6 +1106,12 @@ abstract class AppLocalizations {
   /// **'Instructions'**
   String get instructionsLabel;
 
+  /// No description provided for @createdByLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Created by'**
+  String get createdByLabel;
+
   /// No description provided for @optionsLabel.
   ///
   /// In en, this message translates to:
@@ -1249,6 +1255,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Delete Group'**
   String get deleteGroup;
+
+  /// No description provided for @totalMembersLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Total Members'**
+  String get totalMembersLabel;
 
   /// No description provided for @deleteGroupConfirm.
   ///
@@ -2445,6 +2457,120 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Incorrect'**
   String get gradedIncorrectIndicator;
+
+  /// No description provided for @adminDashboard.
+  ///
+  /// In en, this message translates to:
+  /// **'Admin Dashboard'**
+  String get adminDashboard;
+
+  /// No description provided for @overviewDashboard.
+  ///
+  /// In en, this message translates to:
+  /// **'Overview Dashboard'**
+  String get overviewDashboard;
+
+  /// No description provided for @adminUserName.
+  ///
+  /// In en, this message translates to:
+  /// **'Admin User'**
+  String get adminUserName;
+
+  /// No description provided for @adminAuthorityLevel.
+  ///
+  /// In en, this message translates to:
+  /// **'Level 1 Authority'**
+  String get adminAuthorityLevel;
+
+  /// No description provided for @searchHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Search...'**
+  String get searchHint;
+
+  /// No description provided for @notificationsTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Notifications'**
+  String get notificationsTooltip;
+
+  /// No description provided for @settingsTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Settings'**
+  String get settingsTooltip;
+
+  /// No description provided for @logoutButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Logout'**
+  String get logoutButton;
+
+  /// No description provided for @languageButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Language'**
+  String get languageButton;
+
+  /// No description provided for @superAdmin.
+  ///
+  /// In en, this message translates to:
+  /// **'Super Admin'**
+  String get superAdmin;
+
+  /// No description provided for @statusOnline.
+  ///
+  /// In en, this message translates to:
+  /// **'Online'**
+  String get statusOnline;
+
+  /// No description provided for @globalSearchHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Search students, instructors, groups…'**
+  String get globalSearchHint;
+
+  /// No description provided for @darkModeComingSoon.
+  ///
+  /// In en, this message translates to:
+  /// **'Dark mode coming soon'**
+  String get darkModeComingSoon;
+
+  /// No description provided for @fromLastMonth.
+  ///
+  /// In en, this message translates to:
+  /// **'from last month'**
+  String get fromLastMonth;
+
+  /// No description provided for @badgeAssignment.
+  ///
+  /// In en, this message translates to:
+  /// **'Assignment'**
+  String get badgeAssignment;
+
+  /// No description provided for @badgeGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Group'**
+  String get badgeGroup;
+
+  /// No description provided for @badgeLesson.
+  ///
+  /// In en, this message translates to:
+  /// **'Lesson'**
+  String get badgeLesson;
+
+  /// No description provided for @badgeUser.
+  ///
+  /// In en, this message translates to:
+  /// **'User'**
+  String get badgeUser;
+
+  /// No description provided for @badgeSubmission.
+  ///
+  /// In en, this message translates to:
+  /// **'Submission'**
+  String get badgeSubmission;
 }
 
 class _AppLocalizationsDelegate

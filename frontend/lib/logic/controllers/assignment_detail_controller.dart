@@ -27,6 +27,7 @@ class AssignmentDetailController extends ChangeNotifier {
   List<SubmissionModel> _submissions = [];
   List<UserModel> _students = [];
   List<LevelModel> _levels = [];
+  UserModel? _instructor;
 
   bool _isLoading = true;
   bool get isLoading => _isLoading;
@@ -64,6 +65,16 @@ class AssignmentDetailController extends ChangeNotifier {
     } finally {
       _isLoading = false;
       notifyListeners();
+    }
+
+    final instructorId = assignment.instructorId;
+    if (instructorId != null && instructorId.isNotEmpty) {
+      try {
+        _instructor = await _userRepository.getStudentById(instructorId);
+        notifyListeners();
+      } catch (e) {
+        debugPrint('AssignmentDetailController._init instructor lookup error: $e');
+      }
     }
   }
 
@@ -121,6 +132,10 @@ class AssignmentDetailController extends ChangeNotifier {
   bool get isAdminRole => _authController.authenticatedRole == 'admin';
 
   bool get isTemplateAssignment => assignment.type == 'central';
+
+  /// Name of the instructor who created this assignment, or null if it
+  /// has no instructor (e.g. a central/admin assignment) or the lookup failed.
+  String? get instructorName => _instructor?.name;
 
   /// Hide the submissions panel only for admins; instructors always see submissions.
   bool get hideSubmissionsPanel => isAdminRole;

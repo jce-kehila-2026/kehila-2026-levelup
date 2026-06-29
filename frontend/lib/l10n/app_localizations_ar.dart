@@ -546,6 +546,9 @@ class AppLocalizationsAr extends AppLocalizations {
   String get instructionsLabel => 'التعليمات';
 
   @override
+  String get createdByLabel => 'بواسطة';
+
+  @override
   String get optionsLabel => 'الخيارات';
 
   @override
@@ -616,6 +619,9 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get deleteGroup => 'حذف المجموعة';
+
+  @override
+  String get totalMembersLabel => 'إجمالي الأعضاء';
 
   @override
   String deleteGroupConfirm(String group) {
@@ -1335,4 +1341,61 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get gradedIncorrectIndicator => 'خطأ';
+
+  @override
+  String get adminDashboard => 'لوحة تحكم المشرف';
+
+  @override
+  String get overviewDashboard => 'لوحة النظرة العامة';
+
+  @override
+  String get adminUserName => 'مستخدم المشرف';
+
+  @override
+  String get adminAuthorityLevel => 'صلاحية المستوى 1';
+
+  @override
+  String get searchHint => 'بحث...';
+
+  @override
+  String get notificationsTooltip => 'الإشعارات';
+
+  @override
+  String get settingsTooltip => 'الإعدادات';
+
+  @override
+  String get logoutButton => 'تسجيل الخروج';
+
+  @override
+  String get languageButton => 'اللغة';
+
+  @override
+  String get superAdmin => 'مشرف عام';
+
+  @override
+  String get statusOnline => 'متصل';
+
+  @override
+  String get globalSearchHint => 'البحث عن طلاب، محاضرين، مجموعات…';
+
+  @override
+  String get darkModeComingSoon => 'الوضع الداكن قريباً';
+
+  @override
+  String get fromLastMonth => 'عن الشهر الماضي';
+
+  @override
+  String get badgeAssignment => 'مهمة';
+
+  @override
+  String get badgeGroup => 'مجموعة';
+
+  @override
+  String get badgeLesson => 'درس';
+
+  @override
+  String get badgeUser => 'مستخدم';
+
+  @override
+  String get badgeSubmission => 'تسليم';
 }

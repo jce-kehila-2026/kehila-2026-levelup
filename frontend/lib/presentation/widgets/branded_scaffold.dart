@@ -10,24 +10,6 @@ class BrandedBackground extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        // ── Content Layer ────────────────────────────
-        child,
-        // ── Watermark Layer ──────────────────────────
-        Positioned.fill(
-          child: IgnorePointer(
-            child: Opacity(
-              opacity: 0.04,
-              child: Image.asset(
-                'assets/images/Shah2Range.jpeg',
-                fit: BoxFit.contain,
-                alignment: Alignment.center,
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
+    return child;
   }
 }

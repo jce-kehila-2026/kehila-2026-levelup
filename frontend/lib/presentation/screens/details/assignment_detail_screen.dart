@@ -1,6 +1,8 @@
 // ignore_for_file: experimental_member_use
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import '../../../services/pdf_export_service.dart';
 import '../../../theme/app_theme.dart';
 import '../../widgets/badge.dart';
@@ -181,136 +183,524 @@ class _AssignmentDetailScreenState extends State<AssignmentDetailScreen> {
     );
   }
 
-  Widget _buildStatsHeader() {
-    final stats = [
-      {'label': 'Total Students', 'value': '${_controller.totalStudentsCount}', 'color': AppColors.mutedForeground},
-      {'label': 'Submitted', 'value': '${_controller.submittedCount}', 'color': AppColors.mutedForeground},
-      {'label': 'Not Submitted', 'value': '${_controller.notSubmittedCount}', 'color': AppColors.mutedForeground},
-      {'label': 'Correct', 'value': '${_controller.correctCount}', 'color': AppColors.success},
-      {'label': 'Incorrect', 'value': '${_controller.incorrectCount}', 'color': AppColors.error},
-      {'label': 'Pending', 'value': '${_controller.pendingCount}', 'color': AppColors.warning},
-    ];
-
+  // ── Shared card chrome ──────────────────────────
+  Widget _card({required Widget child}) {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-      child: GridView.builder(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 3,
-          crossAxisSpacing: 10,
-          mainAxisSpacing: 10,
-          childAspectRatio: 1.8,
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.border),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 10, offset: const Offset(0, 3))],
+      ),
+      child: child,
+    );
+  }
+
+  Widget _cardHeader(String label) {
+    return Row(
+      children: [
+        Container(width: 3, height: 16, decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(2))),
+        const SizedBox(width: 8),
+        Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.primaryDark, letterSpacing: 0.6)),
+      ],
+    );
+  }
+
+  // ── Header block ─────────────────────────────────
+  Widget _buildHeaderBlock(AssignmentModel assignment, AppLocalizations l10n) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        BadgeWidget(
+          label: assignment.isActive ? l10n.statusActive : l10n.statusInactive,
+          variant: assignment.isActive ? BadgeVariant.success : BadgeVariant.muted,
         ),
-        itemCount: stats.length,
-        itemBuilder: (ctx, idx) {
-          final item = stats[idx];
-          final color = item['color'] as Color;
-          return Container(
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.06),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: color.withValues(alpha: 0.2), width: 1),
-            ),
-            padding: const EdgeInsets.all(8),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  item['label'] as String,
-                  style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.mutedForeground),
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  item['value'] as String,
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: color),
-                ),
-              ],
-            ),
+        const SizedBox(height: 10),
+        Text(assignment.title, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppColors.text, height: 1.3)),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            BadgeWidget(label: assignment.deadlineText, variant: assignment.isOverdue ? BadgeVariant.error : BadgeVariant.warning),
+            BadgeWidget(label: assignment.groupName ?? l10n.noGroupAssigned, variant: BadgeVariant.defaultVariant),
+            if (_controller.levelName.isNotEmpty) BadgeWidget(label: _controller.levelName, variant: BadgeVariant.info),
+          ],
+        ),
+      ],
+    );
+  }
+
+  // ── Position card content ────────────────────────
+
+  /// Parses [textContent] as Quill Delta JSON and returns its ops list, or
+  /// null if it isn't valid Quill JSON (e.g. plain text or empty).
+  List<dynamic>? _parseQuillOps(String? textContent) {
+    if (textContent == null || textContent.trim().isEmpty) return null;
+    try {
+      final decoded = jsonDecode(textContent);
+      if (decoded is Map && decoded['ops'] is List) return decoded['ops'] as List;
+      if (decoded is List) return decoded;
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  bool _isImageOp(dynamic op) {
+    if (op is Map) {
+      final insert = op['insert'];
+      if (insert is Map && insert.containsKey('image')) return true;
+    }
+    return false;
+  }
+
+  /// Some editors store the image embed's data as a JSON-encoded string
+  /// (e.g. `{"s": url, "w": 75, "a": "center"}`) instead of a plain URL.
+  /// Resolves either shape down to the actual URL/data-URI source.
+  String? _resolveImageSrc(dynamic raw) {
+    if (raw is! String || raw.isEmpty) return null;
+    final trimmed = raw.trim();
+    if (trimmed.startsWith('{')) {
+      try {
+        final decoded = jsonDecode(trimmed);
+        if (decoded is Map && decoded['s'] is String && (decoded['s'] as String).isNotEmpty) {
+          return decoded['s'] as String;
+        }
+      } catch (_) {
+        // fall through and try the raw string as-is
+      }
+    }
+    return raw;
+  }
+
+  /// Returns the source (URL or data URI) of the first embedded image op in
+  /// [textContent], or null if there isn't one.
+  String? _firstEmbeddedImageSrc(String? textContent) {
+    final ops = _parseQuillOps(textContent);
+    if (ops == null) return null;
+    for (final op in ops) {
+      if (_isImageOp(op)) {
+        final resolved = _resolveImageSrc((op['insert'] as Map)['image']);
+        if (resolved != null) return resolved;
+      }
+    }
+    return null;
+  }
+
+  /// Builds the content to feed the Instructions renderer: text ops first,
+  /// then any remaining image ops. When [removeFirstImage] is true, the
+  /// first embedded image op (already shown in the Position card) is
+  /// dropped entirely to avoid duplication.
+  String _buildInstructionsContent(String? textContent, {bool removeFirstImage = false}) {
+    final fallback = textContent ?? 'No instructions provided.';
+    final ops = _parseQuillOps(textContent);
+    if (ops == null) return fallback;
+    try {
+      final textOps = <dynamic>[];
+      final imageOps = <dynamic>[];
+      var droppedFirstImage = false;
+      for (final op in ops) {
+        if (_isImageOp(op)) {
+          if (removeFirstImage && !droppedFirstImage) {
+            droppedFirstImage = true;
+            continue;
+          }
+          imageOps.add(op);
+        } else {
+          textOps.add(op);
+        }
+      }
+      final reordered = [...textOps, ...imageOps];
+      final decoded = jsonDecode(textContent!);
+      if (decoded is Map && decoded.containsKey('ops')) {
+        return jsonEncode({...decoded, 'ops': reordered});
+      }
+      return jsonEncode(reordered);
+    } catch (_) {
+      return fallback;
+    }
+  }
+
+  Widget _buildPositionBox(String? source) {
+    if (source == null || source.isEmpty) return _buildNoImagePlaceholder();
+
+    Widget image;
+    if (source.startsWith('data:')) {
+      try {
+        final bytes = base64Decode(source.substring(source.indexOf(',') + 1));
+        image = Image.memory(
+          bytes,
+          width: double.infinity,
+          fit: BoxFit.fitWidth,
+          errorBuilder: (_, _, _) => _buildNoImagePlaceholder(),
+        );
+      } catch (_) {
+        image = _buildNoImagePlaceholder();
+      }
+    } else {
+      image = Image.network(
+        source,
+        width: double.infinity,
+        fit: BoxFit.fitWidth,
+        loadingBuilder: (context, child, progress) {
+          if (progress == null) return child;
+          return const SizedBox(
+            height: 160,
+            child: Center(child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary)),
           );
         },
+        errorBuilder: (_, _, _) => _buildNoImagePlaceholder(),
+      );
+    }
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(14),
+      child: image,
+    );
+  }
+
+  Widget _buildNoImagePlaceholder() {
+    return Container(
+      width: double.infinity,
+      height: 160,
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.image_outlined, size: 36, color: AppColors.mutedForeground),
+          const SizedBox(height: 8),
+          const Text('No image', style: TextStyle(fontSize: 13, color: AppColors.mutedForeground, fontWeight: FontWeight.w600)),
+        ],
       ),
     );
   }
 
+  Widget _buildLeftCard(AssignmentModel assignment, AppLocalizations l10n) {
+    final hasImageUrl = assignment.imageUrl != null && assignment.imageUrl!.isNotEmpty;
+    final embeddedImageSrc = _firstEmbeddedImageSrc(assignment.textContent);
+    final positionImage = hasImageUrl ? assignment.imageUrl : embeddedImageSrc;
+    final instructionsContent = _buildInstructionsContent(
+      assignment.textContent,
+      removeFirstImage: !hasImageUrl && embeddedImageSrc != null,
+    );
+
+    final instructorName = _controller.instructorName;
+    final hasInstructorName = instructorName != null && instructorName.isNotEmpty;
+
+    return _card(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(assignment.title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.text)),
+          const SizedBox(height: 12),
+          _buildPositionBox(positionImage),
+          const SizedBox(height: 24),
+          _cardHeader(l10n.instructionsLabel),
+          const SizedBox(height: 12),
+          VibePremiumRenderer(
+            content: instructionsContent,
+          ),
+          if (hasInstructorName) ...[
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                const Icon(Icons.person_outline, size: 14, color: AppColors.mutedForeground),
+                const SizedBox(width: 6),
+                Text('${l10n.createdByLabel} $instructorName', style: const TextStyle(fontSize: 12, color: AppColors.mutedForeground)),
+              ],
+            ),
+          ],
+          if (assignment.assignmentType == AssignmentType.multipleChoice && assignment.choices != null) ...[
+            const SizedBox(height: 24),
+            _cardHeader(l10n.optionsLabel),
+            const SizedBox(height: 12),
+            ...assignment.choices!.asMap().entries.map((e) => Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(color: AppColors.background, borderRadius: BorderRadius.circular(10), border: Border.all(color: AppColors.border)),
+              child: Row(
+                children: [
+                  Container(
+                    width: 24, height: 24,
+                    decoration: BoxDecoration(color: AppColors.primary.withValues(alpha: 0.1), shape: BoxShape.circle),
+                    alignment: Alignment.center,
+                    child: Text(String.fromCharCode(65 + e.key), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.primary)),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(child: Text(e.value, style: const TextStyle(fontSize: 14, color: AppColors.text))),
+                ],
+              ),
+            )),
+          ],
+        ],
+      ),
+    );
+  }
+
+  // ── Overview stats card ───────────────────────────
+  Widget _buildStatTile({required IconData icon, required String value, required String label, required Color color}) {
+    return Container(
+      height: 96,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withValues(alpha: 0.18)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            width: 26, height: 26,
+            decoration: BoxDecoration(color: color.withValues(alpha: 0.16), borderRadius: BorderRadius.circular(8)),
+            alignment: Alignment.center,
+            child: Icon(icon, size: 14, color: color),
+          ),
+          const SizedBox(height: 6),
+          Text(value, style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: color)),
+          Text(label, style: const TextStyle(fontSize: 10, color: AppColors.mutedForeground, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOverviewCard() {
+    return _card(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _cardHeader('Overview'),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(child: _buildStatTile(icon: Icons.people_outline, value: '${_controller.totalStudentsCount}', label: 'Total Students', color: AppColors.info)),
+              const SizedBox(width: 10),
+              Expanded(child: _buildStatTile(icon: Icons.check_circle_outline, value: '${_controller.submittedCount}', label: 'Submitted', color: AppColors.success)),
+              const SizedBox(width: 10),
+              Expanded(child: _buildStatTile(icon: Icons.hourglass_empty, value: '${_controller.notSubmittedCount}', label: 'Not Submitted', color: AppColors.warning)),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(child: _buildStatTile(icon: Icons.check_circle, value: '${_controller.correctCount}', label: 'Correct', color: AppColors.success)),
+              const SizedBox(width: 10),
+              Expanded(child: _buildStatTile(icon: Icons.cancel, value: '${_controller.incorrectCount}', label: 'Incorrect', color: AppColors.error)),
+              const SizedBox(width: 10),
+              Expanded(child: _buildStatTile(icon: Icons.schedule, value: '${_controller.pendingCount}', label: 'Pending', color: AppColors.warning)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Two-column responsive section ─────────────────
+  Widget _buildTwoColumnSection(AssignmentModel assignment, AppLocalizations l10n) {
+    final left = _buildLeftCard(assignment, l10n);
+    final right = _buildOverviewCard();
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isWide = constraints.maxWidth >= 900;
+        if (isWide) {
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(child: left),
+              const SizedBox(width: 20),
+              Expanded(child: right),
+            ],
+          );
+        }
+        return Column(
+          children: [
+            left,
+            const SizedBox(height: 20),
+            right,
+          ],
+        );
+      },
+    );
+  }
+
+  // ── Submissions tabs toggle (kept) ────────────────
   Widget _buildTabsToggle() {
     final pendingCount = _controller.pendingCount;
     final gradedCount = _controller.correctCount + _controller.incorrectCount;
     final notSubmittedCount = _controller.notSubmittedCount;
 
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: AppColors.white,
+        color: AppColors.background,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: AppColors.border),
       ),
       child: Row(
         children: [
+          Expanded(child: _buildTabSegment('Pending ($pendingCount)', 'pending')),
+          Expanded(child: _buildTabSegment('Graded ($gradedCount)', 'graded')),
+          Expanded(child: _buildTabSegment('Unsubmitted ($notSubmittedCount)', 'not_submitted')),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTabSegment(String label, String tabKey) {
+    final selected = _currentTab == tabKey;
+    return GestureDetector(
+      onTap: () => setState(() => _currentTab = tabKey),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        decoration: BoxDecoration(
+          color: selected ? AppColors.primary : Colors.transparent,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        alignment: Alignment.center,
+        child: Text(
+          label,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
+            color: selected ? AppColors.white : AppColors.mutedForeground,
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ── Empty state ────────────────────────────────────
+  Widget _buildEmptyState(IconData icon, Color iconColor, String title, String subtitle) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 28),
+      alignment: Alignment.center,
+      child: Column(
+        children: [
+          Icon(icon, size: 36, color: iconColor),
+          const SizedBox(height: 8),
+          Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.text)),
+          const SizedBox(height: 4),
+          Text(subtitle, style: const TextStyle(fontSize: 12, color: AppColors.mutedForeground), textAlign: TextAlign.center),
+        ],
+      ),
+    );
+  }
+
+  // ── Student resolution helpers ─────────────────────
+  String? _studentEmail(String studentId) {
+    final matches = _controller.groupLevelStudents.where((s) => s.id == studentId).toList();
+    if (matches.isEmpty) return null;
+    return matches.first.email;
+  }
+
+  Widget _avatar(String name, {double size = 32}) {
+    return Container(
+      width: size, height: size,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(colors: [AppColors.primary.withValues(alpha: 0.15), AppColors.accent.withValues(alpha: 0.15)], begin: Alignment.topLeft, end: Alignment.bottomRight),
+        borderRadius: BorderRadius.circular(size * 0.3),
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        name.isNotEmpty ? name[0].toUpperCase() : '?',
+        style: TextStyle(fontSize: size * 0.42, fontWeight: FontWeight.bold, color: AppColors.primary),
+      ),
+    );
+  }
+
+  ({Color color, String label, IconData icon}) _resultMeta(GradeStatus status, AppLocalizations l10n) {
+    switch (status) {
+      case GradeStatus.correct:
+        return (color: AppColors.success, label: l10n.statusCorrect, icon: Icons.check_circle);
+      case GradeStatus.incorrect:
+        return (color: AppColors.error, label: l10n.statusIncorrect, icon: Icons.cancel);
+      case GradeStatus.pending:
+        return (color: AppColors.warning, label: l10n.statusPending, icon: Icons.schedule);
+    }
+  }
+
+  String _formatSubmittedAt(DateTime dt, String locale) {
+    return DateFormat('d MMM, HH:mm', locale).format(dt);
+  }
+
+  // ── Submissions table rows ─────────────────────────
+  Widget _tableHeaderRow() {
+    const headerStyle = TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.mutedForeground, letterSpacing: 0.4);
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: AppColors.border))),
+      child: Row(
+        children: [
+          Expanded(flex: 3, child: Text('Student', style: headerStyle)),
+          Expanded(flex: 2, child: Text('Status', style: headerStyle)),
+          Expanded(flex: 2, child: Text('Result', style: headerStyle)),
+          Expanded(flex: 2, child: Text('Submitted At', style: headerStyle)),
+          const SizedBox(width: 40),
+        ],
+      ),
+    );
+  }
+
+  Widget _tableRow(SubmissionModel sub, AppLocalizations l10n) {
+    final name = _controller.studentName(sub.studentId);
+    final email = _studentEmail(sub.studentId);
+    final result = _resultMeta(sub.status, l10n);
+    final locale = l10n.localeName;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: AppColors.border))),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
           Expanded(
-            child: GestureDetector(
-              onTap: () => setState(() => _currentTab = 'pending'),
-              child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                decoration: BoxDecoration(
-                  color: _currentTab == 'pending' ? AppColors.primary : Colors.transparent,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  'Pending ($pendingCount)',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: _currentTab == 'pending' ? AppColors.white : AppColors.mutedForeground,
+            flex: 3,
+            child: Row(
+              children: [
+                _avatar(name),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(name, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.text), overflow: TextOverflow.ellipsis),
+                      if (email != null && email.isNotEmpty)
+                        Text(email, style: const TextStyle(fontSize: 11, color: AppColors.mutedForeground), overflow: TextOverflow.ellipsis),
+                    ],
                   ),
                 ),
-              ),
+              ],
             ),
           ),
+          Expanded(flex: 2, child: BadgeWidget(label: l10n.submittedLabel, variant: BadgeVariant.success)),
           Expanded(
-            child: GestureDetector(
-              onTap: () => setState(() => _currentTab = 'graded'),
-              child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                decoration: BoxDecoration(
-                  color: _currentTab == 'graded' ? AppColors.primary : Colors.transparent,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  'Graded ($gradedCount)',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: _currentTab == 'graded' ? AppColors.white : AppColors.mutedForeground,
-                  ),
-                ),
-              ),
+            flex: 2,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(result.icon, size: 14, color: result.color),
+                const SizedBox(width: 4),
+                Flexible(child: Text(result.label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: result.color), overflow: TextOverflow.ellipsis)),
+              ],
             ),
           ),
-          Expanded(
-            child: GestureDetector(
-              onTap: () => setState(() => _currentTab = 'not_submitted'),
-              child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                decoration: BoxDecoration(
-                  color: _currentTab == 'not_submitted' ? AppColors.primary : Colors.transparent,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  'Unsubmitted ($notSubmittedCount)',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: _currentTab == 'not_submitted' ? AppColors.white : AppColors.mutedForeground,
-                  ),
-                ),
-              ),
+          Expanded(flex: 2, child: Text(_formatSubmittedAt(sub.submittedAt, locale), style: const TextStyle(fontSize: 12, color: AppColors.mutedForeground))),
+          SizedBox(
+            width: 40,
+            child: IconButton(
+              icon: Icon(_controller.canGrade ? Icons.edit : Icons.visibility, size: 18, color: AppColors.primary),
+              tooltip: _controller.canGrade ? l10n.gradeButton : null,
+              onPressed: () => _showGradeSheet(sub),
             ),
           ),
         ],
@@ -318,117 +708,141 @@ class _AssignmentDetailScreenState extends State<AssignmentDetailScreen> {
     );
   }
 
-  Widget _buildNotSubmittedList() {
-    final students = _controller.notSubmittedStudents;
-    if (students.isEmpty) {
-      return Container(
-        margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-        padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: AppColors.border)),
-        child: const Column(
-          children: [
-            Icon(Icons.check_circle_outline, size: 40, color: AppColors.success),
-            SizedBox(height: 8),
-            Text('All submissions completed!', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.text)),
-            SizedBox(height: 4),
-            Text('No student is missing this assignment.', style: TextStyle(fontSize: 12, color: AppColors.mutedForeground)),
-          ],
-        ),
-      );
-    }
+  Widget _compactRow(SubmissionModel sub, AppLocalizations l10n) {
+    final name = _controller.studentName(sub.studentId);
+    final email = _studentEmail(sub.studentId);
+    final result = _resultMeta(sub.status, l10n);
+    final locale = l10n.localeName;
 
-    return Column(
-      children: students.map((student) {
-        return Container(
-          margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 5),
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: AppColors.white,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.border),
-          ),
-          child: Row(
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(color: AppColors.background, borderRadius: BorderRadius.circular(12), border: Border.all(color: AppColors.border)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             children: [
-              Container(
-                width: 36, height: 36,
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade200,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  student.name.isNotEmpty ? student.name[0].toUpperCase() : '?',
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.grey),
-                ),
-              ),
-              const SizedBox(width: 12),
+              _avatar(name),
+              const SizedBox(width: 10),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(student.name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.text)),
-                    const SizedBox(height: 2),
-                    Text('@${student.username}', style: const TextStyle(fontSize: 12, color: AppColors.mutedForeground)),
+                    Text(name, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.text), overflow: TextOverflow.ellipsis),
+                    if (email != null && email.isNotEmpty)
+                      Text(email, style: const TextStyle(fontSize: 11, color: AppColors.mutedForeground), overflow: TextOverflow.ellipsis),
                   ],
                 ),
               ),
-              const BadgeWidget(
-                label: 'Unsubmitted',
-                variant: BadgeVariant.muted,
+              IconButton(
+                icon: Icon(_controller.canGrade ? Icons.edit : Icons.visibility, size: 18, color: AppColors.primary),
+                onPressed: () => _showGradeSheet(sub),
               ),
             ],
           ),
-        );
-      }).toList(),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 6,
+            children: [
+              BadgeWidget(label: l10n.submittedLabel, variant: BadgeVariant.success),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(result.icon, size: 13, color: result.color),
+                  const SizedBox(width: 4),
+                  Text(result.label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: result.color)),
+                ],
+              ),
+              Text(_formatSubmittedAt(sub.submittedAt, locale), style: const TextStyle(fontSize: 12, color: AppColors.mutedForeground)),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
-  Widget _buildTabBody() {
-    if (_currentTab == 'pending') {
-      final pendingSubmissions = _controller.submissions.where((s) => s.status == GradeStatus.pending).toList();
-      if (pendingSubmissions.isEmpty) {
-        return Container(
-          margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: AppColors.border)),
+  Widget _notSubmittedTableRow(String name, String username, {required bool wide}) {
+    final content = Row(
+      children: [
+        _avatar(name),
+        const SizedBox(width: 10),
+        Expanded(
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Icon(Icons.check_circle_outline, size: 40, color: AppColors.success),
-              const SizedBox(height: 8),
-              Text(AppLocalizations.of(context)!.allCaughtUp, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.text)),
-              const SizedBox(height: 4),
-              const Text('All submissions have been graded.', style: TextStyle(fontSize: 12, color: AppColors.mutedForeground)),
+              Text(name, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.text), overflow: TextOverflow.ellipsis),
+              Text('@$username', style: const TextStyle(fontSize: 11, color: AppColors.mutedForeground), overflow: TextOverflow.ellipsis),
             ],
           ),
-        );
+        ),
+        const BadgeWidget(label: 'Not Submitted', variant: BadgeVariant.muted),
+      ],
+    );
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      margin: wide ? null : const EdgeInsets.only(bottom: 8),
+      decoration: wide
+          ? const BoxDecoration(border: Border(bottom: BorderSide(color: AppColors.border)))
+          : BoxDecoration(color: AppColors.background, borderRadius: BorderRadius.circular(12), border: Border.all(color: AppColors.border)),
+      child: wide ? content : Padding(padding: const EdgeInsets.all(2), child: content),
+    );
+  }
+
+  Widget _buildSubmissionsTabBody(AppLocalizations l10n) {
+    if (_currentTab == 'not_submitted') {
+      final students = _controller.notSubmittedStudents;
+      if (students.isEmpty) {
+        return _buildEmptyState(Icons.check_circle_outline, AppColors.success, 'All submissions completed!', 'No student is missing this assignment.');
       }
-      return Column(
-        children: pendingSubmissions.map((sub) => _buildSubmissionCard(sub)).toList(),
+      return LayoutBuilder(
+        builder: (context, constraints) {
+          final wide = constraints.maxWidth >= 560;
+          return Column(
+            children: students.map((s) => _notSubmittedTableRow(s.name, s.username ?? '', wide: wide)).toList(),
+          );
+        },
       );
-    } else if (_currentTab == 'graded') {
-      final gradedSubmissions = _controller.submissions.where((s) => s.status != GradeStatus.pending).toList();
-      if (gradedSubmissions.isEmpty) {
-        return Container(
-          margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: AppColors.border)),
-          child: const Column(
-            children: [
-              Icon(Icons.hourglass_empty, size: 40, color: AppColors.mutedForeground),
-              SizedBox(height: 8),
-              Text('No graded submissions yet.', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.text)),
-              SizedBox(height: 4),
-              Text('Submissions will appear here after they are graded.', style: TextStyle(fontSize: 12, color: AppColors.mutedForeground)),
-            ],
-          ),
-        );
-      }
-      return Column(
-        children: gradedSubmissions.map((sub) => _buildSubmissionCard(sub)).toList(),
-      );
-    } else {
-      return _buildNotSubmittedList();
     }
+
+    final list = _currentTab == 'pending'
+        ? _controller.submissions.where((s) => s.status == GradeStatus.pending).toList()
+        : _controller.submissions.where((s) => s.status != GradeStatus.pending).toList();
+
+    if (list.isEmpty) {
+      if (_currentTab == 'pending') {
+        return _buildEmptyState(Icons.check_circle_outline, AppColors.success, AppLocalizations.of(context)!.allCaughtUp, 'All submissions have been graded.');
+      }
+      return _buildEmptyState(Icons.hourglass_empty, AppColors.mutedForeground, 'No graded submissions yet.', 'Submissions will appear here after they are graded.');
+    }
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final wide = constraints.maxWidth >= 560;
+        return Column(
+          children: [
+            if (wide) _tableHeaderRow(),
+            ...list.map((sub) => wide ? _tableRow(sub, l10n) : _compactRow(sub, l10n)),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildSubmissionsCard(AppLocalizations l10n) {
+    return _card(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _cardHeader('Student Submissions'),
+          const SizedBox(height: 16),
+          _buildTabsToggle(),
+          const SizedBox(height: 16),
+          _buildSubmissionsTabBody(l10n),
+        ],
+      ),
+    );
   }
 
   // ── Build ──────────────────────────────────────
@@ -441,68 +855,7 @@ class _AssignmentDetailScreenState extends State<AssignmentDetailScreen> {
           return const Scaffold(body: Center(child: CircularProgressIndicator()));
         }
         final assignment = _controller.assignment;
-
-        // ── Admin read-only view (separate rendering path) ──
-        if (widget.isAdminView) {
-          return Scaffold(
-            backgroundColor: AppColors.background,
-            appBar: AppBar(
-              backgroundColor: AppColors.white,
-              elevation: 0,
-              scrolledUnderElevation: 0,
-              leading: IconButton(
-                icon: const Icon(Icons.arrow_back, color: AppColors.text),
-                onPressed: () => Navigator.of(context).pop(),
-              ),
-              title: Text(
-                AppLocalizations.of(context)!.assignmentDetails,
-                style: const TextStyle(color: AppColors.text, fontSize: 16, fontWeight: FontWeight.bold),
-              ),
-              centerTitle: true,
-            ),
-            body: SafeArea(
-              child: SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    // Content Area
-                    Padding(
-                      padding: const EdgeInsets.all(20),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Wrap(spacing: 8, runSpacing: 6, children: [
-                            BadgeWidget(label: assignment.isActive ? AppLocalizations.of(context)!.statusActive : AppLocalizations.of(context)!.statusInactive, variant: assignment.isActive ? BadgeVariant.success : BadgeVariant.muted),
-                            BadgeWidget(label: assignment.deadlineText, variant: assignment.isOverdue ? BadgeVariant.error : BadgeVariant.warning),
-                            BadgeWidget(label: assignment.groupName ?? AppLocalizations.of(context)!.noGroupAssigned, variant: BadgeVariant.defaultVariant),
-                            if (_controller.levelName.isNotEmpty)
-                              BadgeWidget(label: _controller.levelName, variant: BadgeVariant.info),
-                          ]),
-                          const SizedBox(height: 16),
-                          Text(
-                            assignment.title,
-                            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppColors.text, height: 1.3),
-                          ),
-                          const SizedBox(height: 24),
-                          Text(
-                            AppLocalizations.of(context)!.instructionsLabel,
-                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.primaryDark, letterSpacing: 1.2),
-                          ),
-                          const SizedBox(height: 12),
-                          VibePremiumRenderer(
-                            content: assignment.textContent ?? 'No instructions provided.',
-                          ),
-                        ],
-                      ),
-                    ),
-                    const Divider(height: 1),
-                    _buildStatsHeader(),
-                  ],
-                ),
-              ),
-            ),
-          );
-        }
+        final l10n = AppLocalizations.of(context)!;
 
         return Scaffold(
           backgroundColor: AppColors.background,
@@ -514,13 +867,13 @@ class _AssignmentDetailScreenState extends State<AssignmentDetailScreen> {
               icon: const Icon(Icons.arrow_back, color: AppColors.text),
               onPressed: () => Navigator.of(context).pop(),
             ),
-            title: Text(AppLocalizations.of(context)!.assignmentDetails, style: const TextStyle(color: AppColors.text, fontSize: 16, fontWeight: FontWeight.bold)),
+            title: Text(l10n.assignmentDetails, style: const TextStyle(color: AppColors.text, fontSize: 16, fontWeight: FontWeight.bold)),
             centerTitle: true,
             actions: [
-              if (assignment.textContent != null && assignment.textContent!.isNotEmpty)
+              if (!widget.isAdminView && assignment.textContent != null && assignment.textContent!.isNotEmpty)
                 IconButton(
                   icon: const Icon(Icons.picture_as_pdf, color: AppColors.primary),
-                  tooltip: AppLocalizations.of(context)!.viewAsPdfTooltip,
+                  tooltip: l10n.viewAsPdfTooltip,
                   onPressed: () => PdfExportService.exportAndShowPdf(
                     context,
                     assignment.title,
@@ -531,239 +884,31 @@ class _AssignmentDetailScreenState extends State<AssignmentDetailScreen> {
           ),
           body: SafeArea(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.only(bottom: 100),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // Content Area
-                  Padding(
+              padding: const EdgeInsets.only(bottom: 32),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 1200),
+                  child: Padding(
                     padding: const EdgeInsets.all(20),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Wrap(spacing: 8, runSpacing: 6, children: [
-                          BadgeWidget(label: assignment.isActive ? AppLocalizations.of(context)!.statusActive : AppLocalizations.of(context)!.statusInactive, variant: assignment.isActive ? BadgeVariant.success : BadgeVariant.muted),
-                          BadgeWidget(label: assignment.deadlineText, variant: assignment.isOverdue ? BadgeVariant.error : BadgeVariant.warning),
-                          BadgeWidget(label: assignment.groupName ?? AppLocalizations.of(context)!.noGroupAssigned, variant: BadgeVariant.defaultVariant),
-                          if (_controller.levelName.isNotEmpty)
-                            BadgeWidget(label: _controller.levelName, variant: BadgeVariant.info),
-                        ]),
-                        const SizedBox(height: 16),
-                        Text(assignment.title, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppColors.text, height: 1.3)),
+                        _buildHeaderBlock(assignment, l10n),
                         const SizedBox(height: 24),
-                        Text(AppLocalizations.of(context)!.instructionsLabel, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.primaryDark, letterSpacing: 1.2)),
-                        const SizedBox(height: 12),
-                        VibePremiumRenderer(
-                          content: assignment.textContent ?? 'No instructions provided.',
-                        ),
-                        if (assignment.assignmentType == AssignmentType.multipleChoice && assignment.choices != null) ...[
+                        _buildTwoColumnSection(assignment, l10n),
+                        if (!widget.isAdminView) ...[
                           const SizedBox(height: 24),
-                          Text(AppLocalizations.of(context)!.optionsLabel, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.primaryDark, letterSpacing: 1.2)),
-                          const SizedBox(height: 12),
-                          ...assignment.choices!.asMap().entries.map((e) => Container(
-                            margin: const EdgeInsets.only(bottom: 8),
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(color: AppColors.background, borderRadius: BorderRadius.circular(10), border: Border.all(color: AppColors.border)),
-                            child: Row(
-                              children: [
-                                Container(
-                                  width: 24, height: 24,
-                                  decoration: BoxDecoration(color: AppColors.primary.withValues(alpha: 0.1), shape: BoxShape.circle),
-                                  alignment: Alignment.center,
-                                  child: Text(String.fromCharCode(65 + e.key), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.primary)),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(child: Text(e.value, style: const TextStyle(fontSize: 14, color: AppColors.text))),
-                              ],
-                            ),
-                          )),
+                          _buildSubmissionsCard(l10n),
                         ],
                       ],
                     ),
                   ),
-
-                  const Divider(height: 1),
-                  _buildStatsHeader(),
-                  const Divider(height: 1),
-                  
-                  // Submissions Section with Tabs
-                  _buildTabsToggle(),
-                  _buildTabBody(),
-                ],
+                ),
               ),
             ),
           ),
         );
       },
     );
-  }
-
-  // ── Submission Card ────────────────────────────
-  Widget _buildSubmissionCard(SubmissionModel sub) {
-    Color statusColor;
-    Color statusBg;
-    String statusLabel;
-    IconData statusIcon;
-    final l10n = AppLocalizations.of(context)!;
-    switch (sub.status) {
-      case GradeStatus.correct:
-        statusColor = AppColors.success;
-        statusBg = const Color(0xFFecfdf5);
-        statusLabel = l10n.statusCorrect;
-        statusIcon = Icons.check_circle;
-        break;
-      case GradeStatus.incorrect:
-        statusColor = AppColors.error;
-        statusBg = const Color(0xFFfef2f2);
-        statusLabel = l10n.statusIncorrect;
-        statusIcon = Icons.cancel;
-        break;
-      case GradeStatus.pending:
-        statusColor = const Color(0xFF9ca3af);
-        statusBg = const Color(0xFFf3f4f6);
-        statusLabel = l10n.statusPending;
-        statusIcon = Icons.hourglass_empty;
-        break;
-    }
-
-    final studentName = _controller.studentName(sub.studentId);
-    final submittedAgo = _formatTimeAgo(sub.submittedAt, l10n);
-
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 5),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.border),
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8, offset: const Offset(0, 2))],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header: Student name + status badge
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Avatar
-              Container(
-                width: 36, height: 36,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(colors: [AppColors.primary.withValues(alpha: 0.15), AppColors.accent.withValues(alpha: 0.15)], begin: Alignment.topLeft, end: Alignment.bottomRight),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                alignment: Alignment.center,
-                child: Text(studentName.isNotEmpty ? studentName[0].toUpperCase() : '?', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.primary)),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(studentName, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.text)),
-                    const SizedBox(height: 2),
-                    Text(l10n.submittedTimeAgo(submittedAgo), style: const TextStyle(fontSize: 12, color: AppColors.mutedForeground)),
-                  ],
-                ),
-              ),
-              // Status badge (top-right)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(color: statusBg, borderRadius: BorderRadius.circular(20)),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(statusIcon, size: 13, color: statusColor),
-                    const SizedBox(width: 4),
-                    Text(statusLabel, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: statusColor)),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-
-          // Student's answer
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: AppColors.background,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (sub.selectedChoice != null) ...[
-                  Text(AppLocalizations.of(context)!.selectedChoice, style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.mutedForeground)),
-                  const SizedBox(height: 4),
-                  Text(sub.selectedChoice!, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.primaryDark)),
-                  if (sub.answer.isNotEmpty) const SizedBox(height: 8),
-                ],
-                if (sub.answer.isNotEmpty)
-                  Text(sub.answer, style: const TextStyle(fontSize: 13, color: AppColors.text, height: 1.5)),
-              ],
-            ),
-          ),
-
-          // Instructor feedback (if graded)
-          if (sub.feedback != null && sub.feedback!.isNotEmpty) ...[
-            const SizedBox(height: 10),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.06),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppColors.primary.withValues(alpha: 0.15)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(Icons.feedback, size: 14, color: AppColors.primary.withValues(alpha: 0.7)),
-                      const SizedBox(width: 6),
-                      Text(AppLocalizations.of(context)!.instructorFeedback, style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.primary.withValues(alpha: 0.7), letterSpacing: 0.5)),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  Text(sub.feedback!, style: const TextStyle(fontSize: 13, color: AppColors.text, height: 1.4)),
-                ],
-              ),
-            ),
-          ],
-
-          // Grade / Revise Grade button — hidden if cannot grade
-          if (_controller.canGrade) ...[
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: () => _showGradeSheet(sub),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: sub.status == GradeStatus.pending ? AppColors.primary : AppColors.primaryDark,
-                  side: BorderSide(color: sub.status == GradeStatus.pending ? AppColors.primary : AppColors.primaryDark),
-                  padding: const EdgeInsets.symmetric(vertical: 11),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-                icon: const Icon(Icons.edit, size: 16),
-                label: Text(
-                  sub.status == GradeStatus.pending ? AppLocalizations.of(context)!.gradeButton : AppLocalizations.of(context)!.reviseGrade,
-                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-                ),
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  String _formatTimeAgo(DateTime date, AppLocalizations l10n) {
-    final diff = DateTime.now().difference(date);
-    if (diff.inMinutes < 60) return l10n.timeAgoMinutes(diff.inMinutes.toString());
-    if (diff.inHours < 24) return l10n.timeAgoHours(diff.inHours.toString());
-    return l10n.timeAgoDays(diff.inDays.toString());
   }
 }

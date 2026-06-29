@@ -190,6 +190,7 @@
   "gradeSaved": "تم حفظ التقييم بنجاح",
   "assignmentDetails": "تفاصيل المهمة",
   "instructionsLabel": "التعليمات",
+  "createdByLabel": "بواسطة",
   "optionsLabel": "الخيارات",
   "submissionsLabel": "التسليمات",
   "noSubmissionsYet": "لا توجد تسليمات بعد",
@@ -214,6 +215,7 @@
   "searchByNameEmail": "البحث بالاسم أو البريد الإلكتروني...",
   "groupDetails": "تفاصيل المجموعة",
   "deleteGroup": "حذف المجموعة",
+  "totalMembersLabel": "إجمالي الأعضاء",
   "deleteGroupConfirm": "حذف {group}؟",
   "deleteButton": "حذف",
   "delete": "حذف",
@@ -479,5 +481,26 @@
   "gradingOverview": "نظرة عامة على التصحيح",
   "totalSubmissions": "إجمالي التسليمات",
   "gradedCorrectIndicator": "صحيح",
-  "gradedIncorrectIndicator": "خطأ"
+  "gradedIncorrectIndicator": "خطأ",
+
+  "adminDashboard": "لوحة تحكم المشرف",
+  "overviewDashboard": "لوحة النظرة العامة",
+  "adminUserName": "مستخدم المشرف",
+  "adminAuthorityLevel": "صلاحية المستوى 1",
+  "searchHint": "بحث...",
+  "notificationsTooltip": "الإشعارات",
+  "settingsTooltip": "الإعدادات",
+  "logoutButton": "تسجيل الخروج",
+  "languageButton": "اللغة",
+
+  "superAdmin": "مشرف عام",
+  "statusOnline": "متصل",
+  "globalSearchHint": "البحث عن طلاب، محاضرين، مجموعات…",
+  "darkModeComingSoon": "الوضع الداكن قريباً",
+  "fromLastMonth": "عن الشهر الماضي",
+  "badgeAssignment": "مهمة",
+  "badgeGroup": "مجموعة",
+  "badgeLesson": "درس",
+  "badgeUser": "مستخدم",
+  "badgeSubmission": "تسليم"
 }

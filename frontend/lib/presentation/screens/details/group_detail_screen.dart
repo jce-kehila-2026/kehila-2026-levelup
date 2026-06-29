@@ -1359,39 +1359,49 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
             centerTitle: true,
             actions: [
               if (_controller.currentUserRole == UserRole.admin)
-                IconButton(
-                  icon: const Icon(Icons.delete_outline, color: AppColors.error),
-                  onPressed: () {
-                    showDialog(
-                      context: context,
-                      builder: (ctx) => AlertDialog(
-                        backgroundColor: AppColors.background,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                        title: Text(AppLocalizations.of(context)!.deleteGroup, style: const TextStyle(fontWeight: FontWeight.bold)),
-                        content: SingleChildScrollView(
-                          child: ConstrainedBox(
-                            constraints: const BoxConstraints(maxWidth: 500),
-                            child: Text(AppLocalizations.of(context)!.deleteGroupConfirm(group.name)),
+                Padding(
+                  padding: const EdgeInsetsDirectional.only(end: 12),
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      showDialog(
+                        context: context,
+                        builder: (ctx) => AlertDialog(
+                          backgroundColor: AppColors.background,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                          title: Text(AppLocalizations.of(context)!.deleteGroup, style: const TextStyle(fontWeight: FontWeight.bold)),
+                          content: SingleChildScrollView(
+                            child: ConstrainedBox(
+                              constraints: const BoxConstraints(maxWidth: 500),
+                              child: Text(AppLocalizations.of(context)!.deleteGroupConfirm(group.name)),
+                            ),
                           ),
+                          actions: [
+                            TextButton(onPressed: () => Navigator.pop(ctx), child: Text(AppLocalizations.of(context)!.cancelButton, style: const TextStyle(color: AppColors.mutedForeground))),
+                            ElevatedButton(
+                              style: ElevatedButton.styleFrom(backgroundColor: AppColors.error, foregroundColor: AppColors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+                              onPressed: () async {
+                                Navigator.pop(ctx);
+                                await _controller.deleteGroup();
+                                if (context.mounted) {
+                                  Navigator.of(context).pop();
+                                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppLocalizations.of(context)!.groupDeleted(group.name)), backgroundColor: AppColors.error, behavior: SnackBarBehavior.floating));
+                                }
+                              },
+                              child: Text(AppLocalizations.of(context)!.deleteButton, style: const TextStyle(fontWeight: FontWeight.bold)),
+                            ),
+                          ],
                         ),
-                        actions: [
-                          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(AppLocalizations.of(context)!.cancelButton, style: const TextStyle(color: AppColors.mutedForeground))),
-                          ElevatedButton(
-                            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error, foregroundColor: AppColors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
-                            onPressed: () async {
-                              Navigator.pop(ctx);
-                              await _controller.deleteGroup();
-                              if (context.mounted) {
-                                Navigator.of(context).pop();
-                                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppLocalizations.of(context)!.groupDeleted(group.name)), backgroundColor: AppColors.error, behavior: SnackBarBehavior.floating));
-                              }
-                            },
-                            child: Text(AppLocalizations.of(context)!.deleteButton, style: const TextStyle(fontWeight: FontWeight.bold)),
-                          ),
-                        ],
-                      ),
-                    );
-                  },
+                      );
+                    },
+                    icon: const Icon(Icons.delete_outline, size: 16, color: AppColors.error),
+                    label: Text(AppLocalizations.of(context)!.deleteGroup, style: const TextStyle(color: AppColors.error, fontWeight: FontWeight.bold, fontSize: 13)),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.error,
+                      side: const BorderSide(color: AppColors.error),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    ),
+                  ),
                 ),
             ],
           ),
@@ -1404,7 +1414,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                   // ── Hero Card ──
                   Container(
                     margin: const EdgeInsets.all(16),
-                    padding: const EdgeInsets.all(20),
+                    clipBehavior: Clip.antiAlias,
                     decoration: BoxDecoration(
                       color: AppColors.white,
                       borderRadius: BorderRadius.circular(20),
@@ -1413,318 +1423,413 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                         BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 12, offset: const Offset(0, 4)),
                       ],
                     ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    child: IntrinsicHeight(
+                      child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Row(
+                        Container(width: 5, color: AppColors.primary),
+                        Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.all(20),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Container(
+                                      width: 64,
+                                      height: 64,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: AppColors.primary.withValues(alpha: 0.1),
+                                      ),
+                                      child: const Icon(Icons.groups, color: AppColors.primary, size: 30),
+                                    ),
+                                    const SizedBox(width: 14),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Row(
+                                            children: [
+                                              Flexible(child: Text(group.name, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: AppColors.text))),
+                                              if (_controller.currentUserRole == UserRole.admin) ...[
+                                                const SizedBox(width: 8),
+                                                IconButton(
+                                                  icon: const Icon(Icons.edit_outlined, size: 18, color: AppColors.primary),
+                                                  onPressed: () => _showRenameGroupDialog(group.name),
+                                                  constraints: const BoxConstraints(),
+                                                  padding: EdgeInsets.zero,
+                                                ),
+                                              ],
+                                            ],
+                                          ),
+                                          const SizedBox(height: 6),
+                                          // Level badges
+                                          Wrap(
+                                            spacing: 6,
+                                            runSpacing: 4,
+                                            children: group.levelIds.map((levelId) {
+                                              final label = _localizedLevelName(levelId, l10n);
+                                              return Container(
+                                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                                decoration: BoxDecoration(
+                                                  color: AppColors.primary.withValues(alpha: 0.1),
+                                                  borderRadius: BorderRadius.circular(8),
+                                                ),
+                                                child: Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.primary)),
+                                              );
+                                            }).toList(),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Column(
+                                      crossAxisAlignment: CrossAxisAlignment.end,
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                          decoration: BoxDecoration(
+                                            color: AppColors.primary.withValues(alpha: 0.1),
+                                            borderRadius: BorderRadius.circular(20),
+                                            border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
+                                          ),
+                                          child: Row(
+                                            children: [
+                                              const Icon(Icons.people, size: 12, color: AppColors.primary),
+                                              const SizedBox(width: 4),
+                                              Text('$totalStudents', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.primary)),
+                                            ],
+                                          ),
+                                        ),
+                                        const SizedBox(height: 3),
+                                        Text(l10n.totalMembersLabel, style: const TextStyle(fontSize: 10, color: AppColors.mutedForeground)),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 16),
+                                Row(
+                                  children: [
+                                    const Icon(Icons.calendar_today, size: 14, color: AppColors.mutedForeground),
+                                    const SizedBox(width: 6),
+                                    Text(l10n.createdOnLabel(_formatDate(group.createdAt, locale)), style: const TextStyle(fontSize: 13, color: AppColors.mutedForeground)),
+                                  ],
+                                ),
+                                const Divider(height: 24, color: AppColors.border),
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: ElevatedButton.icon(
+                                    onPressed: () => context.push('/group-report/${group.id}'),
+                                    icon: const Icon(Icons.assessment_outlined, size: 18),
+                                    label: const Text('View Group Report Card', style: TextStyle(fontWeight: FontWeight.bold)),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: AppColors.primary,
+                                      foregroundColor: AppColors.white,
+                                      padding: const EdgeInsets.symmetric(vertical: 12),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                      elevation: 0,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    ),
+                  ),
+
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final isWide = constraints.maxWidth >= 900;
+                      final isAdmin = _controller.currentUserRole == UserRole.admin;
+
+                      // ── Levels Card ──
+                      final levelsCard = _buildSectionCard(
+                        child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Expanded(
+                            _buildSectionHeader('Levels', onAdd: isAdmin ? _showAddLevelDialog : null),
+                            const SizedBox(height: 12),
+                            if (group.levelIds.isEmpty)
+                              const Text('No levels assigned to this group.', style: TextStyle(color: AppColors.mutedForeground))
+                            else
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: group.levelIds.map((levelId) {
+                                  final label = _localizedLevelName(levelId, l10n);
+                                  return InputChip(
+                                    label: Text(label),
+                                    labelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.primary),
+                                    backgroundColor: AppColors.primary.withValues(alpha: 0.08),
+                                    deleteIconColor: AppColors.error,
+                                    onDeleted: isAdmin
+                                        ? () async {
+                                            try {
+                                              await _controller.removeLevelFromGroup(levelId);
+                                              if (context.mounted) {
+                                                ScaffoldMessenger.of(context).showSnackBar(
+                                                  SnackBar(content: Text('Level "$label" removed.')),
+                                                );
+                                              }
+                                            } catch (e) {
+                                              if (context.mounted) {
+                                                showDialog(
+                                                  context: context,
+                                                  builder: (c) => AlertDialog(
+                                                    backgroundColor: AppColors.background,
+                                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                                    title: const Text('Cannot Remove Level', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.error)),
+                                                    content: SingleChildScrollView(
+                                                      child: ConstrainedBox(
+                                                        constraints: const BoxConstraints(maxWidth: 500),
+                                                        child: Text(e.toString().replaceAll('Exception: ', '')),
+                                                      ),
+                                                    ),
+                                                    actions: [
+                                                      TextButton(
+                                                        onPressed: () => Navigator.pop(c),
+                                                        child: const Text('OK'),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                );
+                                              }
+                                            }
+                                          }
+                                        : null,
+                                  );
+                                }).toList(),
+                              ),
+                          ],
+                        ),
+                      );
+
+                      // ── Instructors Card (admin only) ──
+                      final instructorsCard = isAdmin
+                          ? _buildSectionCard(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Row(
-                                    children: [
-                                      Flexible(child: Text(group.name, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: AppColors.text))),
-                                      if (_controller.currentUserRole == UserRole.admin) ...[
-                                        const SizedBox(width: 8),
-                                        IconButton(
-                                          icon: const Icon(Icons.edit_outlined, size: 18, color: AppColors.primary),
-                                          onPressed: () => _showRenameGroupDialog(group.name),
-                                          constraints: const BoxConstraints(),
-                                          padding: EdgeInsets.zero,
-                                        ),
-                                      ],
-                                    ],
-                                  ),
-                                  const SizedBox(height: 6),
-                                  // Level badges
-                                  Wrap(
-                                    spacing: 6,
-                                    runSpacing: 4,
-                                    children: group.levelIds.map((levelId) {
-                                      final label = _localizedLevelName(levelId, l10n);
-                                      return Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                        decoration: BoxDecoration(
-                                          color: AppColors.primary.withValues(alpha: 0.1),
-                                          borderRadius: BorderRadius.circular(8),
-                                        ),
-                                        child: Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.primary)),
-                                      );
-                                    }).toList(),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                              decoration: BoxDecoration(
-                                color: AppColors.primary.withValues(alpha: 0.1),
-                                borderRadius: BorderRadius.circular(20),
-                                border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
-                              ),
-                              child: Row(
-                                children: [
-                                  const Icon(Icons.people, size: 12, color: AppColors.primary),
-                                  const SizedBox(width: 4),
-                                  Text('$totalStudents', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.primary)),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-                        Row(
-                          children: [
-                            const Icon(Icons.calendar_today, size: 14, color: AppColors.mutedForeground),
-                            const SizedBox(width: 6),
-                            Text(l10n.createdOnLabel(_formatDate(group.createdAt, locale)), style: const TextStyle(fontSize: 13, color: AppColors.mutedForeground)),
-                          ],
-                        ),
-                        const Divider(height: 24, color: AppColors.border),
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton.icon(
-                            onPressed: () => context.push('/group-report/${group.id}'),
-                            icon: const Icon(Icons.assessment_outlined, size: 18),
-                            label: const Text('View Group Report Card', style: TextStyle(fontWeight: FontWeight.bold)),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.primary,
-                              foregroundColor: AppColors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                              elevation: 0,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  // ── Levels Section ──
-                  _buildSectionHeader('Levels', onAdd: _controller.currentUserRole == UserRole.admin ? _showAddLevelDialog : null),
-
-                  if (group.levelIds.isEmpty)
-                    const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                      child: Text('No levels assigned to this group.', style: TextStyle(color: AppColors.mutedForeground)),
-                    )
-                  else
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: group.levelIds.map((levelId) {
-                          final label = _localizedLevelName(levelId, l10n);
-                          return InputChip(
-                            label: Text(label),
-                            labelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.primary),
-                            backgroundColor: AppColors.primary.withValues(alpha: 0.08),
-                            deleteIconColor: AppColors.error,
-                            onDeleted: _controller.currentUserRole == UserRole.admin
-                                ? () async {
-                                    try {
-                                      await _controller.removeLevelFromGroup(levelId);
-                                      if (context.mounted) {
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          SnackBar(content: Text('Level "$label" removed.')),
+                                  _buildSectionHeader(l10n.instructorsSectionTitle, onAdd: _showAddInstructorDialog),
+                                  const SizedBox(height: 12),
+                                  if (instructors.isEmpty)
+                                    Text(AppLocalizations.of(context)!.noInstructorsAssigned, style: const TextStyle(color: AppColors.mutedForeground))
+                                  else
+                                    ListView.builder(
+                                      shrinkWrap: true,
+                                      physics: const NeverScrollableScrollPhysics(),
+                                      itemCount: instructors.length,
+                                      itemBuilder: (context, index) {
+                                        final inst = instructors[index];
+                                        return _buildUserCard(
+                                          user: inst,
+                                          avatarColor: AppColors.accent.withValues(alpha: 0.2),
+                                          avatarTextColor: AppColors.accentDark,
+                                          onRemove: () => _controller.removeInstructor(inst.id),
                                         );
-                                      }
-                                    } catch (e) {
-                                      if (context.mounted) {
-                                        showDialog(
-                                          context: context,
-                                          builder: (c) => AlertDialog(
-                                            backgroundColor: AppColors.background,
-                                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                                            title: const Text('Cannot Remove Level', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.error)),
-                                            content: SingleChildScrollView(
-                                              child: ConstrainedBox(
-                                                constraints: const BoxConstraints(maxWidth: 500),
-                                                child: Text(e.toString().replaceAll('Exception: ', '')),
-                                              ),
-                                            ),
-                                            actions: [
-                                              TextButton(
-                                                onPressed: () => Navigator.pop(c),
-                                                child: const Text('OK'),
-                                              ),
-                                            ],
-                                          ),
-                                        );
-                                      }
-                                    }
-                                  }
-                                : null,
-                          );
-                        }).toList(),
-                      ),
-                    ),
-
-                  const SizedBox(height: 20),
-
-                  // ── Instructors Section ──
-                  if (_controller.currentUserRole == UserRole.admin) ...[
-                    _buildSectionHeader(l10n.instructorsSectionTitle, onAdd: _showAddInstructorDialog),
-
-                    if (instructors.isEmpty)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                        child: Text(AppLocalizations.of(context)!.noInstructorsAssigned, style: const TextStyle(color: AppColors.mutedForeground)),
-                      )
-                    else
-                      ListView.builder(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
-                        itemCount: instructors.length,
-                        itemBuilder: (context, index) {
-                          final inst = instructors[index];
-                          return _buildUserCard(
-                            user: inst,
-                            avatarColor: AppColors.accent.withValues(alpha: 0.2),
-                            avatarTextColor: AppColors.accentDark,
-                            onRemove: () => _controller.removeInstructor(inst.id),
-                          );
-                        },
-                      ),
-
-                    const SizedBox(height: 20),
-                  ],
-
-                  // ── Students Section ──
-                  _buildSectionHeader(l10n.studentsSectionTitle, onAdd: _showAddStudentDialog),
-
-                  // Search Bar + Level Filter
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20).copyWith(bottom: 16),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: AppColors.white,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: const Color(0xFFc4b8da), width: 1.5),
-                            ),
-                            padding: const EdgeInsets.symmetric(horizontal: 14),
-                            child: Row(
-                              children: [
-                                const Icon(Icons.search, size: 15, color: AppColors.mutedForeground),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: TextField(
-                                    onChanged: (val) => _controller.setSearch(val),
-                                    decoration: InputDecoration(
-                                      hintText: AppLocalizations.of(context)!.searchByNameUsername,
-                                      border: InputBorder.none, enabledBorder: InputBorder.none, focusedBorder: InputBorder.none, filled: false,
-                                      isDense: true,
-                                      contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                                      },
                                     ),
-                                    style: const TextStyle(fontSize: 14),
-                                  ),
-                                ),
-                                if (_controller.search.isNotEmpty)
-                                  GestureDetector(
-                                    onTap: () => _controller.setSearch(''),
-                                    child: const Icon(Icons.close, size: 15, color: AppColors.mutedForeground),
-                                  ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        if (group.levelIds.isNotEmpty) ...[
-                          const SizedBox(width: 8),
-                          Container(
-                            decoration: BoxDecoration(
-                              color: AppColors.white,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: const Color(0xFFc4b8da), width: 1.5),
-                            ),
-                            padding: const EdgeInsets.symmetric(horizontal: 12),
-                            child: DropdownButton<String?>(
-                              value: _controller.selectedLevelFilter,
-                              underline: const SizedBox.shrink(),
-                              isDense: true,
-                              icon: const Icon(Icons.expand_more, size: 16, color: AppColors.mutedForeground),
-                              style: const TextStyle(fontSize: 13, color: AppColors.text, fontWeight: FontWeight.w600),
-                              items: [
-                                DropdownMenuItem<String?>(
-                                  value: null,
-                                  child: Text(l10n.allLevels),
-                                ),
-                                ...group.levelIds.map((levelId) => DropdownMenuItem<String?>(
-                                  value: levelId,
-                                  child: Text(_localizedLevelName(levelId, l10n)),
-                                )),
-                              ],
-                              onChanged: (val) => _controller.setLevelFilter(val),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
+                                ],
+                              ),
+                            )
+                          : null;
 
-                  // Students grouped by Level
-                  if (studentsByLevel.isEmpty)
-                    EmptyState(icon: Icons.search_off, title: AppLocalizations.of(context)!.noStudentsInGroup, subtitle: AppLocalizations.of(context)!.addStudentsOrSearch)
-                  else
-                    ...studentsByLevel.entries.map((entry) {
-                      final levelId = entry.key;
-                      final students = entry.value;
-                      final levelLabel = _localizedLevelName(levelId, l10n);
+                      // ── Students Card ──
+                      final studentsCard = _buildSectionCard(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _buildSectionHeader(l10n.studentsSectionTitle, onAdd: _showAddStudentDialog),
+                            const SizedBox(height: 12),
 
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Level sub-header
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 24).copyWith(top: 8, bottom: 8),
-                            child: Row(
+                            // Search Bar + Level Filter
+                            Row(
                               children: [
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.primary.withValues(alpha: 0.08),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: Text(
-                                    levelLabel,
-                                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.primary, letterSpacing: 0.3),
+                                Expanded(
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      color: AppColors.white,
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(color: const Color(0xFFc4b8da), width: 1.5),
+                                    ),
+                                    padding: const EdgeInsets.symmetric(horizontal: 14),
+                                    child: Row(
+                                      children: [
+                                        const Icon(Icons.search, size: 15, color: AppColors.mutedForeground),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: TextField(
+                                            onChanged: (val) => _controller.setSearch(val),
+                                            decoration: InputDecoration(
+                                              hintText: AppLocalizations.of(context)!.searchByNameUsername,
+                                              border: InputBorder.none, enabledBorder: InputBorder.none, focusedBorder: InputBorder.none, filled: false,
+                                              isDense: true,
+                                              contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                                            ),
+                                            style: const TextStyle(fontSize: 14),
+                                          ),
+                                        ),
+                                        if (_controller.search.isNotEmpty)
+                                          GestureDetector(
+                                            onTap: () => _controller.setSearch(''),
+                                            child: const Icon(Icons.close, size: 15, color: AppColors.mutedForeground),
+                                          ),
+                                      ],
+                                    ),
                                   ),
                                 ),
-                                const SizedBox(width: 8),
-                                Text(l10n.studentsCount(students.length.toString()), style: const TextStyle(fontSize: 12, color: AppColors.mutedForeground)),
+                                if (group.levelIds.isNotEmpty) ...[
+                                  const SizedBox(width: 8),
+                                  Container(
+                                    decoration: BoxDecoration(
+                                      color: AppColors.white,
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(color: const Color(0xFFc4b8da), width: 1.5),
+                                    ),
+                                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                                    child: DropdownButton<String?>(
+                                      value: _controller.selectedLevelFilter,
+                                      underline: const SizedBox.shrink(),
+                                      isDense: true,
+                                      icon: const Icon(Icons.expand_more, size: 16, color: AppColors.mutedForeground),
+                                      style: const TextStyle(fontSize: 13, color: AppColors.text, fontWeight: FontWeight.w600),
+                                      items: [
+                                        DropdownMenuItem<String?>(
+                                          value: null,
+                                          child: Text(l10n.allLevels),
+                                        ),
+                                        ...group.levelIds.map((levelId) => DropdownMenuItem<String?>(
+                                          value: levelId,
+                                          child: Text(_localizedLevelName(levelId, l10n)),
+                                        )),
+                                      ],
+                                      onChanged: (val) => _controller.setLevelFilter(val),
+                                    ),
+                                  ),
+                                ],
                               ],
                             ),
-                          ),
+                            const SizedBox(height: 16),
 
-                          // Student cards for this level
-                          ListView.builder(
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            padding: const EdgeInsets.symmetric(horizontal: 20),
-                            itemCount: students.length,
-                            itemBuilder: (context, index) {
-                              final student = students[index];
-                              return _buildUserCard(
-                                user: student,
-                                avatarColor: AppColors.primary.withValues(alpha: 0.1),
-                                avatarTextColor: AppColors.primary,
-                                onRemove: () => _controller.removeStudent(student.id),
-                                isStudent: true,
-                              );
-                            },
-                          ),
-                        ],
+                            // Students grouped by Level
+                            if (studentsByLevel.isEmpty)
+                              EmptyState(icon: Icons.search_off, title: AppLocalizations.of(context)!.noStudentsInGroup, subtitle: AppLocalizations.of(context)!.addStudentsOrSearch)
+                            else
+                              ...studentsByLevel.entries.map((entry) {
+                                final levelId = entry.key;
+                                final students = entry.value;
+                                final levelLabel = _localizedLevelName(levelId, l10n);
+
+                                return Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    // Level sub-header
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 8, bottom: 8),
+                                      child: Row(
+                                        children: [
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                            decoration: BoxDecoration(
+                                              color: AppColors.primary.withValues(alpha: 0.08),
+                                              borderRadius: BorderRadius.circular(8),
+                                            ),
+                                            child: Text(
+                                              levelLabel,
+                                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.primary, letterSpacing: 0.3),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Text(l10n.studentsCount(students.length.toString()), style: const TextStyle(fontSize: 12, color: AppColors.mutedForeground)),
+                                        ],
+                                      ),
+                                    ),
+
+                                    // Student cards for this level
+                                    ListView.builder(
+                                      shrinkWrap: true,
+                                      physics: const NeverScrollableScrollPhysics(),
+                                      itemCount: students.length,
+                                      itemBuilder: (context, index) {
+                                        final student = students[index];
+                                        return _buildUserCard(
+                                          user: student,
+                                          avatarColor: AppColors.primary.withValues(alpha: 0.1),
+                                          avatarTextColor: AppColors.primary,
+                                          onRemove: () => _controller.removeStudent(student.id),
+                                          isStudent: true,
+                                        );
+                                      },
+                                    ),
+                                  ],
+                                );
+                              }),
+                          ],
+                        ),
                       );
-                    }),
 
-                  // ── INSTRUCTOR MATERIALS ──
-                  _buildGroupMaterialsSection(group.id),
+                      // ── Materials Card ──
+                      final materialsCard = _buildSectionCard(child: _buildGroupMaterialsSection(group.id));
+
+                      if (isWide) {
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    levelsCard,
+                                    const SizedBox(height: 16),
+                                    studentsCard,
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    if (instructorsCard != null) ...[
+                                      instructorsCard,
+                                      const SizedBox(height: 16),
+                                    ],
+                                    materialsCard,
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }
+
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Column(
+                          children: [
+                            levelsCard,
+                            const SizedBox(height: 16),
+                            if (instructorsCard != null) ...[
+                              instructorsCard,
+                              const SizedBox(height: 16),
+                            ],
+                            studentsCard,
+                            const SizedBox(height: 16),
+                            materialsCard,
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 16),
                 ],
               ),
             ),
@@ -1737,21 +1842,32 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
   // ── Reusable Widgets ──────────────────────────────
 
   Widget _buildSectionHeader(String title, {VoidCallback? onAdd}) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20).copyWith(bottom: 12),
-      child: Row(
-        children: [
-          Container(width: 3, height: 18, decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(2))),
-          const SizedBox(width: 10),
-          Expanded(child: Text(title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.primaryDark, letterSpacing: 0.6))),
-          if (onAdd != null)
-            TextButton.icon(
-              onPressed: onAdd,
-              icon: const Icon(Icons.add, size: 14),
-              label: Text(AppLocalizations.of(context)!.addButton, style: const TextStyle(fontSize: 12)),
-            ),
-        ],
+    return Row(
+      children: [
+        Container(width: 3, height: 18, decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(2))),
+        const SizedBox(width: 10),
+        Expanded(child: Text(title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.primaryDark, letterSpacing: 0.6))),
+        if (onAdd != null)
+          TextButton.icon(
+            onPressed: onAdd,
+            icon: const Icon(Icons.add, size: 14),
+            label: Text(AppLocalizations.of(context)!.addButton, style: const TextStyle(fontSize: 12)),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildSectionCard({required Widget child}) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.border),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 10, offset: const Offset(0, 3))],
       ),
+      child: child,
     );
   }
 
@@ -1867,14 +1983,14 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SizedBox(height: 28),
         _buildSectionHeader('Materials'),
+        const SizedBox(height: 12),
         FutureBuilder<List<InstructorMaterialModel>>(
           future: InstructorMaterialRepository().getGroupAllMaterials(groupId),
           builder: (context, snap) {
             if (snap.connectionState == ConnectionState.waiting) {
               return const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                padding: EdgeInsets.symmetric(vertical: 16),
                 child: Center(
                   child: CircularProgressIndicator(
                     color: AppColors.primary,
@@ -1885,25 +2001,22 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
             }
             final materials = snap.data ?? [];
             if (materials.isEmpty) {
-              return Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                  decoration: BoxDecoration(
-                    color: AppColors.white,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: AppColors.border),
-                  ),
-                  child: const Row(
-                    children: [
-                      Icon(Icons.info_outline, size: 15, color: AppColors.mutedForeground),
-                      SizedBox(width: 8),
-                      Text(
-                        'No materials created for this group yet.',
-                        style: TextStyle(fontSize: 13, color: AppColors.mutedForeground),
-                      ),
-                    ],
-                  ),
+              return Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                decoration: BoxDecoration(
+                  color: AppColors.white,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.info_outline, size: 15, color: AppColors.mutedForeground),
+                    SizedBox(width: 8),
+                    Text(
+                      'No materials created for this group yet.',
+                      style: TextStyle(fontSize: 13, color: AppColors.mutedForeground),
+                    ),
+                  ],
                 ),
               );
             }
@@ -1926,7 +2039,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 24).copyWith(top: 10, bottom: 8),
+                      padding: const EdgeInsets.only(top: 10, bottom: 8),
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
@@ -1947,7 +2060,6 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                     ListView.builder(
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
                       itemCount: levelMaterials.length,
                       itemBuilder: (context, index) =>
                           _buildGroupMaterialCard(levelMaterials[index], groupId),
@@ -1958,7 +2070,6 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
             );
           },
         ),
-        const SizedBox(height: 12),
       ],
     );
   }

@@ -1,8 +1,8 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:frontend/l10n/app_localizations.dart';
 import 'package:go_router/go_router.dart';
 import '../../../theme/app_theme.dart';
-import '../../widgets/locale_toggle_button.dart';
 import '../../../di/service_locator.dart';
 import '../../../logic/helpers/logout_helper.dart';
 import '../../../logic/controllers/admin_statistics_controller.dart';
@@ -11,6 +11,8 @@ import '../../../logic/controllers/user_controller.dart';
 import '../../../logic/controllers/group_controller.dart';
 import '../../../logic/controllers/audit_log_controller.dart';
 import '../../../logic/controllers/admin_assignments_controller.dart';
+import '../../widgets/locale_toggle_button.dart';
+import '../../widgets/sidebar_nav_item.dart';
 
 import '../admin/admin_dashboard.dart';
 import '../admin/admin_statistics_screen.dart';
@@ -30,7 +32,6 @@ class AdminLayout extends StatefulWidget {
 }
 
 class _AdminLayoutState extends State<AdminLayout> {
-  bool _searchOpen = false;
   final TextEditingController _searchTextCtrl = TextEditingController();
 
   late final List<Widget> _screens = [
@@ -54,8 +55,6 @@ class _AdminLayoutState extends State<AdminLayout> {
     super.dispose();
   }
 
-  bool _hasSearch(int index) => const {1, 2, 3, 4, 6}.contains(index);
-
   void _setSearch(String val) {
     final tabParam = GoRouterState.of(context).uri.queryParameters['tab'];
     final currentIndex = (int.tryParse(tabParam ?? '') ?? 0).clamp(0, 6);
@@ -74,50 +73,234 @@ class _AdminLayoutState extends State<AdminLayout> {
     }
   }
 
-  void _closeSearch() {
-    _searchTextCtrl.clear();
-    _setSearch('');
-    if (_searchOpen) setState(() => _searchOpen = false);
-  }
-
-  void _clearText() {
+  /// Clears the persistent search field and the per-tab search filter it
+  /// drives. Called whenever the user navigates to a different tab.
+  void _resetSearch() {
     _searchTextCtrl.clear();
     _setSearch('');
   }
 
-  void _toggleSearch() {
-    setState(() {
-      if (_searchOpen) {
-        _searchTextCtrl.clear();
-        _setSearch('');
-      }
-      _searchOpen = !_searchOpen;
-    });
+  void _goToTab(int index) {
+    _resetSearch();
+    if (index == 5) getIt<AdminStatisticsController>().refresh();
+    context.go('/admin?tab=$index');
   }
 
-  Widget _buildIconButton({required IconData icon, required VoidCallback onPressed}) {
+  /// Single-letter avatar fallback, e.g. "Ibrahim" -> "I", or "A" if no name
+  /// is resolvable from the current Firebase user.
+  String _avatarLetter(String? name) {
+    final trimmed = name?.trim() ?? '';
+    return trimmed.isNotEmpty ? trimmed[0].toUpperCase() : 'A';
+  }
+
+  Widget _buildSidebar(BuildContext context, AppLocalizations l10n, int currentIndex) {
+    final firebaseUser = FirebaseAuth.instance.currentUser;
+    final displayName = firebaseUser?.displayName;
+    final photoUrl = firebaseUser?.photoURL;
+    final avatarLetter = _avatarLetter(displayName);
+
+    final navItems = <({IconData icon, String label, int tabIndex})>[
+      (icon: Icons.dashboard_rounded, label: l10n.navHome, tabIndex: 0),
+      (icon: Icons.menu_book, label: l10n.navCurriculum, tabIndex: 1),
+      (icon: Icons.people, label: l10n.navUsers, tabIndex: 2),
+      (icon: Icons.how_to_reg, label: l10n.navGroups, tabIndex: 3),
+      (icon: Icons.assignment_rounded, label: l10n.assignmentsTitle, tabIndex: 6),
+      (icon: Icons.list_alt, label: l10n.navLogs, tabIndex: 4),
+      (icon: Icons.bar_chart_rounded, label: 'Stats', tabIndex: 5),
+    ];
+
     return Container(
-      width: 38,
-      height: 38,
-      decoration: BoxDecoration(
+      width: 250,
+      decoration: const BoxDecoration(
         color: AppColors.white,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppColors.border),
+        border: BorderDirectional(end: BorderSide(color: AppColors.border, width: 1)),
       ),
-      child: IconButton(
-        icon: Icon(icon, size: 15, color: AppColors.mutedForeground),
-        onPressed: onPressed,
-        padding: EdgeInsets.zero,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsetsDirectional.fromSTEB(16, 20, 16, 20),
+            child: Row(
+              children: [
+                Image.asset('assets/images/levelup_mark.png', height: 38, width: 38, fit: BoxFit.contain),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text(
+                        'شطرنج القدس',
+                        style: TextStyle(fontSize: 11, color: AppColors.mutedForeground),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const Text(
+                        'LevelUp',
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.primary),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1, color: AppColors.border),
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+              children: [
+                for (final item in navItems)
+                  SidebarNavItem(
+                    icon: item.icon,
+                    label: item.label,
+                    active: item.tabIndex == currentIndex,
+                    onTap: () => _goToTab(item.tabIndex),
+                  ),
+              ],
+            ),
+          ),
+          const Divider(height: 1, color: AppColors.border),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                CircleAvatar(
+                  radius: 18,
+                  backgroundColor: AppColors.primary,
+                  backgroundImage: photoUrl != null ? NetworkImage(photoUrl) : null,
+                  child: photoUrl == null
+                      ? Text(avatarLetter, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.white))
+                      : null,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        l10n.roleAdministrator,
+                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.text),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Text(
+                        l10n.superAdmin,
+                        style: const TextStyle(fontSize: 11, color: AppColors.mutedForeground),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 3),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: 7,
+                            height: 7,
+                            decoration: const BoxDecoration(color: AppColors.success, shape: BoxShape.circle),
+                          ),
+                          const SizedBox(width: 5),
+                          Text(l10n.statusOnline, style: const TextStyle(fontSize: 11, color: AppColors.mutedForeground)),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
 
+  Widget _buildSearchField(AppLocalizations l10n) {
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 480),
+      child: SizedBox(
+        height: 40,
+        child: TextField(
+          controller: _searchTextCtrl,
+          onChanged: _setSearch,
+          onSubmitted: _setSearch,
+          style: const TextStyle(fontSize: 13, color: AppColors.text),
+          decoration: InputDecoration(
+            isDense: true,
+            filled: true,
+            fillColor: AppColors.background,
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.border)),
+            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.border)),
+            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.primary)),
+            prefixIcon: const Icon(Icons.search, size: 18, color: AppColors.mutedForeground),
+            hintText: l10n.globalSearchHint,
+            hintStyle: const TextStyle(fontSize: 13, color: AppColors.mutedForeground),
+            hintMaxLines: 1,
+            contentPadding: const EdgeInsets.symmetric(vertical: 10),
+          ),
+        ),
+      ),
+    );
+  }
 
+  Widget _buildProfileButton(AppLocalizations l10n) {
+    final firebaseUser = FirebaseAuth.instance.currentUser;
+    final avatarLetter = _avatarLetter(firebaseUser?.displayName);
+    final photoUrl = firebaseUser?.photoURL;
+
+    return PopupMenuButton<String>(
+      offset: const Offset(0, 44),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      onSelected: (value) async {
+        if (value == 'logout') {
+          await performLogout();
+          if (mounted) context.go('/login');
+        }
+      },
+      itemBuilder: (context) => [
+        PopupMenuItem(
+          value: 'logout',
+          child: Row(
+            children: [
+              const Icon(Icons.logout, size: 18, color: AppColors.mutedForeground),
+              const SizedBox(width: 10),
+              Text(l10n.logoutButton),
+            ],
+          ),
+        ),
+      ],
+      child: Padding(
+        padding: const EdgeInsetsDirectional.only(end: 4),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircleAvatar(
+              radius: 16,
+              backgroundColor: AppColors.primary,
+              backgroundImage: photoUrl != null ? NetworkImage(photoUrl) : null,
+              child: photoUrl == null
+                  ? Text(avatarLetter, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.white))
+                  : null,
+            ),
+            const SizedBox(width: 8),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(l10n.roleAdministrator, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.text)),
+                Text(l10n.superAdmin, style: const TextStyle(fontSize: 10, color: AppColors.mutedForeground)),
+              ],
+            ),
+            const Icon(Icons.keyboard_arrow_down, size: 18, color: AppColors.mutedForeground),
+          ],
+        ),
+      ),
+    );
+  }
 
   static const bool _enableResponsiveDesktopLayout = true;
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final tabParam = GoRouterState.of(context).uri.queryParameters['tab'];
     final currentIndex = (int.tryParse(tabParam ?? '') ?? 0).clamp(0, 6);
     final bool isWide = _enableResponsiveDesktopLayout && MediaQuery.of(context).size.width > 850;
@@ -127,138 +310,24 @@ class _AdminLayoutState extends State<AdminLayout> {
         backgroundColor: AppColors.white,
         elevation: 0,
         surfaceTintColor: Colors.transparent,
+        titleSpacing: 16,
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1),
           child: Container(height: 1, color: AppColors.border),
         ),
-        leading: _hasSearch(currentIndex)
-          ? _searchOpen
-            ? IconButton(
-                icon: const Icon(Icons.arrow_back, size: 20, color: AppColors.mutedForeground),
-                onPressed: _closeSearch,
-              )
-            : Center(
-                child: Container(
-                  width: 38,
-                  height: 38,
-                  margin: const EdgeInsetsDirectional.only(start: 8),
-                  decoration: BoxDecoration(
-                    color: AppColors.white,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: AppColors.border),
-                  ),
-                  child: IconButton(
-                    padding: EdgeInsets.zero,
-                    icon: const Icon(Icons.search, size: 15, color: AppColors.mutedForeground),
-                    onPressed: _toggleSearch,
-                  ),
-                ),
-              )
-          : null,
-        leadingWidth: (!_searchOpen && _hasSearch(currentIndex)) ? 54 : null,
         centerTitle: true,
-        title: _searchOpen
-          ? TextField(
-              controller: _searchTextCtrl,
-              autofocus: true,
-              onChanged: _setSearch,
-              style: const TextStyle(fontSize: 15, color: AppColors.text),
-              decoration: InputDecoration(
-                hintText: 'Search...',
-                hintStyle: const TextStyle(fontSize: 14, color: AppColors.mutedForeground),
-                border: InputBorder.none,
-                isDense: true,
-                contentPadding: const EdgeInsets.symmetric(vertical: 8),
-                suffixIcon: ValueListenableBuilder<TextEditingValue>(
-                  valueListenable: _searchTextCtrl,
-                  builder: (context, value, _) {
-                    if (value.text.isEmpty) return const SizedBox.shrink();
-                    return IconButton(
-                      padding: EdgeInsets.zero,
-                      icon: const Icon(Icons.clear, size: 18, color: AppColors.mutedForeground),
-                      onPressed: _clearText,
-                    );
-                  },
-                ),
-                suffixIconConstraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-              ),
-            )
-          : const Text('LevelUp', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.text)),
+        title: _buildSearchField(l10n),
         actions: [
           const LocaleToggleButton(),
-          const SizedBox(width: 6),
-          _buildIconButton(
-            icon: Icons.logout,
-            onPressed: () async {
-              await performLogout();
-              if (context.mounted) context.go('/login');
-            },
-          ),
+          const SizedBox(width: 8),
+          _buildProfileButton(l10n),
           const SizedBox(width: 8),
         ],
       ),
       body: isWide
           ? Row(
               children: [
-                Theme(
-                  data: Theme.of(context).copyWith(
-                    hoverColor: Colors.transparent,
-                    highlightColor: Colors.transparent,
-                    splashColor: Colors.transparent,
-                    splashFactory: NoSplash.splashFactory,
-                  ),
-                  child: NavigationRail(
-                    selectedIndex: currentIndex,
-                    onDestinationSelected: (i) {
-                      _closeSearch();
-                      if (i == 5) getIt<AdminStatisticsController>().refresh();
-                      context.go('/admin?tab=$i');
-                    },
-                    backgroundColor: AppColors.white,
-                    selectedLabelTextStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 11, color: AppColors.primary),
-                    unselectedLabelTextStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 11, color: AppColors.mutedForeground),
-                    indicatorColor: AppColors.secondary,
-                    labelType: NavigationRailLabelType.all,
-                    destinations: [
-                      NavigationRailDestination(
-                        icon: const GoldenNavIcon(icon: Icons.home, active: false),
-                        selectedIcon: const GoldenNavIcon(icon: Icons.home),
-                        label: Text(AppLocalizations.of(context)!.navHome),
-                      ),
-                      NavigationRailDestination(
-                        icon: const GoldenNavIcon(icon: Icons.menu_book, active: false),
-                        selectedIcon: const GoldenNavIcon(icon: Icons.menu_book),
-                        label: Text(AppLocalizations.of(context)!.navCurriculum),
-                      ),
-                      NavigationRailDestination(
-                        icon: const GoldenNavIcon(icon: Icons.people, active: false),
-                        selectedIcon: const GoldenNavIcon(icon: Icons.people),
-                        label: Text(AppLocalizations.of(context)!.navUsers),
-                      ),
-                      NavigationRailDestination(
-                        icon: const GoldenNavIcon(icon: Icons.how_to_reg, active: false),
-                        selectedIcon: const GoldenNavIcon(icon: Icons.how_to_reg),
-                        label: Text(AppLocalizations.of(context)!.navGroups),
-                      ),
-                      NavigationRailDestination(
-                        icon: const GoldenNavIcon(icon: Icons.list_alt, active: false),
-                        selectedIcon: const GoldenNavIcon(icon: Icons.list_alt),
-                        label: Text(AppLocalizations.of(context)!.navLogs),
-                      ),
-                      NavigationRailDestination(
-                        icon: const GoldenNavIcon(icon: Icons.bar_chart_rounded, active: false),
-                        selectedIcon: const GoldenNavIcon(icon: Icons.bar_chart_rounded),
-                        label: const Text('Stats'),
-                      ),
-                      NavigationRailDestination(
-                        icon: const GoldenNavIcon(icon: Icons.assignment_rounded, active: false),
-                        selectedIcon: const GoldenNavIcon(icon: Icons.assignment_rounded),
-                        label: Text(AppLocalizations.of(context)!.assignmentsTitle),
-                      ),
-                    ],
-                  ),
-                ),
-                Container(width: 1, color: AppColors.border),
+                _buildSidebar(context, l10n, currentIndex),
                 Expanded(
                   child: Center(
                     child: ConstrainedBox(
@@ -284,11 +353,7 @@ class _AdminLayoutState extends State<AdminLayout> {
               ),
               child: BottomNavigationBar(
                 currentIndex: currentIndex,
-                onTap: (i) {
-                  _closeSearch();
-                  if (i == 5) getIt<AdminStatisticsController>().refresh();
-                  context.go('/admin?tab=$i');
-                },
+                onTap: _goToTab,
                 backgroundColor: AppColors.white,
                 selectedItemColor: AppColors.primary,
                 unselectedItemColor: AppColors.mutedForeground,
