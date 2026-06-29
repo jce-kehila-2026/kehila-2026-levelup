@@ -97,7 +97,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     margin: const EdgeInsets.only(bottom: 16),
                     child: Center(
                       child: Image.asset(
-                        'assets/images/Shah2Range.jpeg',
+                        'assets/images/levelup_logo_full.png',
                         height: 260,
                         width: 260,
                         fit: BoxFit.contain,
